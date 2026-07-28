@@ -2,6 +2,12 @@
 // TennisAI — Core Type Definitions
 // ============================================================
 
+// Analytics domain (Stage 1): profile → opponent → match → scouting →
+// game plan → post-match → training plan. See ./analytics.ts.
+export * from "./analytics";
+// Roles & tenancy (Stage 2): academies, coach assignments, guardianships.
+export * from "./roles";
+
 // --- Enums / Unions ---
 
 export type UserRole = "player" | "coach" | "observer" | "admin";
