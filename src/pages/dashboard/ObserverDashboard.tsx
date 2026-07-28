@@ -15,11 +15,11 @@ import {
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
 import {
-  mockCalendarEvents,
-  mockPlayerTournaments,
   mockFinanceSummary,
   mockNotifications,
 } from "@/mock/data";
+import { useCalendarEvents, usePlayerTournaments } from "@/hooks/api/queries";
+import { isBefore } from "date-fns";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -44,7 +44,13 @@ export default function ObserverDashboard() {
   const pendingRequests = requests.filter(
     (r) => r.status === "pending" && r.fromUserId === user?.id
   );
-  const upcomingEvents = mockCalendarEvents.slice(0, 4);
+  const { data: calendarEvents = [] } = useCalendarEvents();
+  const { data: playerTournaments = [] } = usePlayerTournaments();
+  const now = new Date();
+  const upcomingEvents = [...calendarEvents]
+    .filter((e) => !isBefore(new Date(e.startDate), now))
+    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+    .slice(0, 4);
   const unreadNotifications = mockNotifications.filter((n) => !n.read);
 
   return (
@@ -141,6 +147,9 @@ export default function ObserverDashboard() {
           }
         >
           <div className="space-y-3">
+            {upcomingEvents.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">No upcoming events yet.</p>
+            )}
             {upcomingEvents.map((event) => (
               <div key={event.id} className="flex items-start gap-3">
                 <div className="mt-1.5 flex flex-col items-center">
@@ -174,7 +183,10 @@ export default function ObserverDashboard() {
           }
         >
           <div className="space-y-3">
-            {mockPlayerTournaments.map((pt) => (
+            {playerTournaments.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">No tournaments yet.</p>
+            )}
+            {playerTournaments.map((pt) => (
               <div key={pt.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/30 px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-foreground">{pt.tournament.name}</p>
