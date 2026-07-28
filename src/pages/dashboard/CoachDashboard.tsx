@@ -19,13 +19,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
-import { useTrainings } from "@/hooks/api/queries";
+import { useTrainings, useTeams, useCalendarEvents, usePlayerTournaments } from "@/hooks/api/queries";
 import { isBefore } from "date-fns";
-import {
-  mockCalendarEvents,
-  mockTeams,
-  mockPlayerTournaments,
-} from "@/mock/data";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -43,6 +38,9 @@ export default function CoachDashboard() {
   const { user } = useAuth();
   const { connectedPlayers, requests } = useConnections();
   const { data: trainings = [] } = useTrainings();
+  const { data: teams = [] } = useTeams();
+  const { data: calendarEvents = [] } = useCalendarEvents();
+  const { data: playerTournaments = [] } = usePlayerTournaments();
 
   const now = new Date();
   const unreviewedSessions = trainings
@@ -53,7 +51,10 @@ export default function CoachDashboard() {
   const pendingRequests = requests.filter(
     (r) => r.status === "pending" && r.fromUserId === user?.id
   );
-  const upcomingEvents = mockCalendarEvents.slice(0, 4);
+  const upcomingEvents = [...calendarEvents]
+    .filter((e) => !isBefore(new Date(e.startDate), now))
+    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+    .slice(0, 4);
 
   return (
     <div className="space-y-6">
@@ -79,7 +80,7 @@ export default function CoachDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Connected Players" value={connectedPlayers.length} icon={<Users className="h-4 w-4" />} />
         <StatCard label="Pending Requests" value={pendingRequests.length} icon={<UserPlus className="h-4 w-4" />} />
-        <StatCard label="Teams" value={mockTeams.length} icon={<Shield className="h-4 w-4" />} />
+        <StatCard label="Teams" value={teams.length} icon={<Shield className="h-4 w-4" />} />
         <StatCard label="Upcoming Events" value={upcomingEvents.length} icon={<Calendar className="h-4 w-4" />} />
       </div>
 
@@ -158,7 +159,7 @@ export default function CoachDashboard() {
       {/* Teams */}
       <DashboardCard
         title="My Teams"
-        description={`${mockTeams.length} team${mockTeams.length !== 1 ? "s" : ""}`}
+        description={`${teams.length} team${teams.length !== 1 ? "s" : ""}`}
         icon={<Shield className="h-4 w-4" />}
         action={
           <Button variant="ghost" size="sm" asChild>
@@ -167,7 +168,7 @@ export default function CoachDashboard() {
         }
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          {mockTeams.map((team) => (
+          {teams.map((team) => (
             <div key={team.id} className="rounded-lg border border-border bg-secondary/30 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-foreground">{team.name}</h4>
@@ -288,11 +289,11 @@ export default function CoachDashboard() {
             </Button>
           }
         >
-          {mockPlayerTournaments.length === 0 ? (
+          {playerTournaments.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">No tournament data for connected players</p>
           ) : (
             <div className="space-y-3">
-              {mockPlayerTournaments.map((pt) => (
+              {playerTournaments.map((pt) => (
                 <div key={pt.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/30 px-4 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{pt.tournament.name}</p>

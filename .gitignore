@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Local environment file — never commit (may hold secrets).
+# .env.test and .env.example are intentionally tracked (flags only, no secrets).
+.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
