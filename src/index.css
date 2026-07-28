@@ -10,7 +10,7 @@
 
 @layer base {
   /* ── Modernist design system ──────────────────────────────
-     Warm paper background, near-black ink, single red accent,
+     Warm paper background, near-black ink, single matte forest-green accent,
      sharp corners, thin ruled borders. */
   :root {
     --background: 40 33% 97%;        /* warm paper */
@@ -22,7 +22,7 @@
     --popover: 40 33% 99%;
     --popover-foreground: 0 0% 9%;
 
-    --primary: 6 78% 51%;            /* signal red */
+    --primary: 146 24% 33%;            /* matte forest green */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 40 16% 92%;
@@ -39,7 +39,7 @@
 
     --border: 40 14% 86%;
     --input: 40 14% 84%;
-    --ring: 6 78% 51%;
+    --ring: 146 24% 33%;
 
     --radius: 0rem;                  /* sharp corners */
 
@@ -64,12 +64,12 @@
 
     --sidebar-background: 40 30% 95%;
     --sidebar-foreground: 0 0% 20%;
-    --sidebar-primary: 6 78% 51%;
+    --sidebar-primary: 146 24% 33%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 40 16% 90%;
     --sidebar-accent-foreground: 0 0% 9%;
     --sidebar-border: 40 14% 86%;
-    --sidebar-ring: 6 78% 51%;
+    --sidebar-ring: 146 24% 33%;
   }
 
   .dark {
@@ -82,7 +82,7 @@
     --popover: 0 0% 9%;
     --popover-foreground: 40 20% 92%;
 
-    --primary: 6 82% 56%;            /* signal red */
+    --primary: 146 22% 46%;            /* matte forest green */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 0 0% 15%;
@@ -99,19 +99,19 @@
 
     --border: 0 0% 18%;
     --input: 0 0% 18%;
-    --ring: 6 82% 56%;
+    --ring: 146 22% 46%;
 
     --surface-elevated: 222 25% 11%;
     --surface-sunken: 222 30% 5%;
 
     --sidebar-background: 0 0% 9%;
     --sidebar-foreground: 40 20% 88%;
-    --sidebar-primary: 6 82% 56%;
+    --sidebar-primary: 146 22% 46%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 15%;
     --sidebar-accent-foreground: 40 20% 92%;
     --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 6 82% 56%;
+    --sidebar-ring: 146 22% 46%;
 
     --tennis-ball: 72 90% 58%;
     --court-clay: 14 60% 48%;

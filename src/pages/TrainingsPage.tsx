@@ -523,7 +523,7 @@ export default function TrainingsPage() {
             const intensityCfg = INTENSITY_OPTIONS.find((o) => o.value === t.intensity);
             const past = isPast(parseISO(t.endDate));
             return (
-              <button key={t.id} onClick={() => openDetail(t)} className={`flex w-full items-start gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 ${past ? "opacity-60" : ""}`}>
+              <button key={t.id} onClick={() => openDetail(t)} className={`flex w-full items-start gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/20 hover:bg-accent/20 ${past ? "opacity-60" : ""}`}>
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Dumbbell className="h-5 w-5" /></div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">

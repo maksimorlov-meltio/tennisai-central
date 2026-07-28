@@ -92,7 +92,7 @@ function EventChip({ event, onClick, showPlayer, compact, draggable, registered 
         color: base,
         opacity: sv?.opacity,
       }}
-      className={`flex w-full items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-left text-[11px] font-medium leading-tight transition-all hover:shadow-sm hover:brightness-110 ${sv?.dashed ? "border-dashed" : ""} ${compact ? "py-px" : ""} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      className={`flex w-full items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-left text-[11px] font-medium leading-tight transition-colors hover:bg-accent/40 ${sv?.dashed ? "border-dashed" : ""} ${compact ? "py-px" : ""} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
       {entity && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: entity }} aria-hidden />}
       {isIntl ? <Globe className="h-3.5 w-3.5 shrink-0" /> : cfg.icon}

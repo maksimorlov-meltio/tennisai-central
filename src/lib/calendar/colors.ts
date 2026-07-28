@@ -9,36 +9,38 @@
 import type { CalendarEventType, CalendarEventState, TournamentFederation } from "@/types";
 
 /** Event type → base colour. */
+// Matte, desaturated hues (not glowing). "match" is a muted rust rather than
+// a bright red, and "recovery" a sage kept distinct from the green accent.
 export const EVENT_TYPE_COLOR: Record<CalendarEventType, string> = {
-  training: "#2563eb", // blue — everyday work
-  tournament: "#7c3aed", // violet — the event
-  match: "#dc2626", // red — competition
-  travel: "#0891b2", // cyan — transit
-  recovery: "#16a34a", // green — rest / health
+  training: "#4c6b8a", // matte steel blue — everyday work
+  tournament: "#6e5f91", // matte violet — the event
+  match: "#b4694d", // matte rust — competition
+  travel: "#c1943f", // matte amber — transit
+  recovery: "#5f8f79", // matte sage — rest / health
 };
 
 /** Sanctioning body → colour (loosely following each tour's brand family). */
 export const FEDERATION_COLOR: Record<TournamentFederation, string> = {
-  ATP: "#1d4ed8", // blue
-  WTA: "#9333ea", // purple
-  ITF: "#0d9488", // teal
-  UTR: "#f97316", // orange
-  USTA: "#db2777", // magenta
+  ATP: "#3f5c86", // matte blue
+  WTA: "#7a5c93", // matte purple
+  ITF: "#3f8a80", // matte teal
+  UTR: "#b87a45", // matte orange
+  USTA: "#a85778", // matte rose
 };
 
 /** Court surface → colour (tennis convention: clay terracotta, grass green…). */
 export const SURFACE_COLOR: Record<string, string> = {
-  clay: "#c2612f",
-  hard: "#2563eb",
-  grass: "#3f9142",
-  indoor: "#7c3aed",
+  clay: "#b06a45", // matte terracotta
+  hard: "#4c6b8a", // matte blue
+  grass: "#5f8f62", // matte green
+  indoor: "#6e5f91", // matte violet
 };
 
 /** Distinct, reasonably-accessible hues assigned to players/teams by hash. */
 export const ENTITY_PALETTE = [
-  "#2563eb", "#dc2626", "#16a34a", "#d97706", "#7c3aed",
-  "#0891b2", "#db2777", "#4f46e5", "#65a30d", "#0d9488",
-  "#b45309", "#be123c",
+  "#4c6b8a", "#b4694d", "#5f8f79", "#c1943f", "#6e5f91",
+  "#4f8a86", "#a85778", "#5d6ba0", "#7d914f", "#3f8a80",
+  "#a67a45", "#a05563",
 ] as const;
 
 /** Stable colour for a player/team id (same id → same colour every render). */

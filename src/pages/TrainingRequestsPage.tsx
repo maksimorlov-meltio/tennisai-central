@@ -387,7 +387,7 @@ export default function TrainingRequestsPage() {
               <button
                 key={req.id}
                 onClick={() => { setDetailRequest(req); setDetailOpen(true); }}
-                className="flex w-full items-start gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5"
+                className="flex w-full items-start gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/20 hover:bg-accent/20"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
                   {req.playerName.split(" ").map((n) => n[0]).join("")}
