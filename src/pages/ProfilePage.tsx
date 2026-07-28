@@ -14,12 +14,12 @@ import { onboardingApi } from "@/api/endpoints/onboarding";
 import { questionsForRole } from "@/lib/onboarding/questions";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 
-const PUBLIC_ID_MAP: Record<string, string> = { p1: "TAI-P-001", c1: "TAI-C-001", o1: "TAI-F-001", a1: "TAI-A-001" };
-
 export default function ProfilePage() {
   const { user } = useAuth();
   const updateMut = useUpdateProfile();
-  const publicId = PUBLIC_ID_MAP[user?.id ?? ""] ?? "TAI-X-000";
+  // Real shareable ID from the API (was a hardcoded map that showed "TAI-X-000"
+  // for every non-seeded account, which broke new users' ability to connect).
+  const publicId = user?.publicId ?? "—";
   const [copied, setCopied] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName ?? "");
   const [lastName, setLastName] = useState(user?.lastName ?? "");
@@ -62,7 +62,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2 mt-1"><RoleBadge role={user?.role ?? "player"} /><span className="text-sm text-muted-foreground">{user?.email}</span></div>
             </div>
           </div>
-          {user?.role === "player" && (
+          {user?.role !== "admin" && (
             <div className="rounded-lg border border-border bg-secondary/30 p-4">
               <Label className="text-xs text-muted-foreground">Your Public ID</Label>
               <div className="mt-1 flex items-center gap-2">

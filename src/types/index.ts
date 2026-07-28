@@ -64,6 +64,8 @@ export type TrainingRequestStatus = "pending" | "approved" | "rejected" | "resch
 export interface User {
   id: string;
   email: string;
+  /** Shareable directory ID (e.g. TAI-P-001) others use to connect with you. */
+  publicId?: string;
   role: UserRole;
   firstName: string;
   lastName: string;
