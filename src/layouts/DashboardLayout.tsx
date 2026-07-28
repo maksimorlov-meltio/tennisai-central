@@ -28,7 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { UserRole } from "@/types";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTrainings } from "@/hooks/api/queries";
 import { isBefore } from "date-fns";
 import { t, formatBadgeCount } from "@/lib/i18n";
@@ -80,6 +80,12 @@ export function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+
+  // Auto-open the first-run onboarding questionnaire for accounts that haven't done it.
+  useEffect(() => {
+    if (user && !user.onboardingCompletedAt) setOnboardingOpen(true);
+  }, [user]);
   const role = user?.role ?? "player";
   const isObserver = role === "observer";
 
@@ -154,7 +160,7 @@ export function DashboardLayout() {
   return (
     <div className="flex min-h-screen bg-background">
       {/* First-run, role-based onboarding questionnaire (empty new accounts). */}
-      {user && !user.onboardingCompletedAt && <OnboardingDialog user={user} />}
+      {user && <OnboardingDialog user={user} open={onboardingOpen} onOpenChange={setOnboardingOpen} />}
 
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card md:flex">

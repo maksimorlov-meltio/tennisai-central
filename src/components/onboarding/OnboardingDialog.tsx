@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,14 +24,32 @@ import type { User } from "@/types";
  * answer. Any dismissal (Skip / Finish / Esc) saves what's answered and marks
  * onboarding complete, so it won't nag on the next visit.
  */
-export function OnboardingDialog({ user }: { user: User }) {
+export function OnboardingDialog({
+  user,
+  open,
+  onOpenChange,
+  initialAnswers,
+}: {
+  user: User;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialAnswers?: OnboardingAnswers;
+}) {
   const { refreshUser } = useAuth();
   const questions = useMemo(() => questionsForRole(user.role), [user.role]);
-  const [open, setOpen] = useState(true);
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<OnboardingAnswers>({});
+  const [answers, setAnswers] = useState<OnboardingAnswers>(initialAnswers ?? {});
   const [customText, setCustomText] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Re-seed whenever the dialog opens: empty for first-run, prefilled for edit.
+  useEffect(() => {
+    if (open) {
+      setStep(0);
+      setAnswers(initialAnswers ?? {});
+      setCustomText("");
+    }
+  }, [open, initialAnswers]);
 
   if (questions.length === 0) return null;
 
@@ -68,7 +86,7 @@ export function OnboardingDialog({ user }: { user: User }) {
       await onboardingApi.save(answers);
       await refreshUser();
       toast.success("Profile saved — welcome to TennisAI!");
-      setOpen(false);
+      onOpenChange(false);
     } catch (e) {
       toast.error((e as { message?: string })?.message ?? "Could not save your answers");
     } finally {

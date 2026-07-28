@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma, type User } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
+import { onboardingToPlayerProfile } from "./onboardingProfile";
 
 // Mounted at /api/me.
 export const profileRouter = Router();
@@ -80,6 +81,27 @@ profileRouter.put(
         onboardingCompletedAt: new Date(),
       },
     });
+
+    // For players, also project the answers into the structured PlayerProfile
+    // so the rest of the app (analytics, session targeting) can use typed fields.
+    if (user.role === "player") {
+      const fields = onboardingToPlayerProfile(answers);
+      await prisma.playerProfile.upsert({
+        where: { userId: user.id },
+        create: { userId: user.id, ...fields },
+        update: fields,
+      });
+    }
+
     return ok(res, publicUser(user), "Profile saved");
+  }),
+);
+
+// GET /api/me/player-profile — the structured player profile (null if unset).
+profileRouter.get(
+  "/player-profile",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const profile = await prisma.playerProfile.findUnique({ where: { userId: req.userId! } });
+    return ok(res, profile);
   }),
 );
