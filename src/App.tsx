@@ -9,6 +9,7 @@ import { ConnectionProvider } from "@/store/ConnectionStore";
 import { RouteGuard, GuestGuard } from "@/auth/RouteGuard";
 import { DevHmrBanner } from "@/components/DevHmrBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { BodyPointerEventsGuard } from "@/components/BodyPointerEventsGuard";
 
 // Layouts
 import { PublicLayout } from "@/layouts/PublicLayout";
@@ -49,6 +50,7 @@ import AdminPage from "./pages/AdminPage";
 import ProfilePage from "./pages/ProfilePage";
 import PlayersPage from "./pages/PlayersPage";
 import TrainingsPage from "./pages/TrainingsPage";
+import SessionBuilderPage from "./pages/SessionBuilderPage";
 import TrainingRequestsPage from "./pages/TrainingRequestsPage";
 import StatsPage from "./pages/StatsPage";
 
@@ -62,6 +64,7 @@ const App = () => (
           <TooltipProvider>
           <Toaster />
           <Sonner />
+          <BodyPointerEventsGuard />
           <DevHmrBanner />
           <BrowserRouter>
             <ErrorBoundary>
@@ -107,6 +110,7 @@ const App = () => (
                 <Route path="/players" element={<RouteGuard allowedRoles={["coach"]} showDenied><PlayersPage /></RouteGuard>} />
                 <Route path="/teams" element={<RouteGuard allowedRoles={["coach"]} showDenied><TeamsPage /></RouteGuard>} />
                 <Route path="/trainings" element={<RouteGuard allowedRoles={["coach", "player"]} showDenied><TrainingsPage /></RouteGuard>} />
+                <Route path="/session-builder" element={<RouteGuard allowedRoles={["coach"]} showDenied><SessionBuilderPage /></RouteGuard>} />
 
                 {/* Player + Coach — Training Requests */}
                 <Route path="/training-requests" element={<RouteGuard allowedRoles={["player", "coach"]} showDenied><TrainingRequestsPage /></RouteGuard>} />

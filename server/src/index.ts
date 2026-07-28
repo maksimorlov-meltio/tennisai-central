@@ -17,6 +17,7 @@ import { financeRouter } from "./finance/routes";
 import { equipmentRouter } from "./equipment/routes";
 import { notificationsRouter } from "./notifications/routes";
 import { profileRouter } from "./profile/routes";
+import { trainingPlansRouter } from "./trainingPlans/routes";
 import { errorHandler } from "./http";
 
 const app = express();
@@ -58,6 +59,7 @@ app.use("/api/connections", connectionsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/training-requests", trainingRequestsRouter);
 app.use("/api/calendar", calendarRouter);
+app.use("/api/training-plans", trainingPlansRouter);
 app.use("/api/me", profileRouter);
 app.use("/api", financeRouter);
 app.use("/api", equipmentRouter);

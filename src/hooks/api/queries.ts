@@ -13,7 +13,8 @@ import { financeApi } from "@/api/endpoints/finance";
 import { equipmentApi } from "@/api/endpoints/equipment";
 import { notificationsApi } from "@/api/endpoints/notifications";
 import { profileApi } from "@/api/endpoints/profile";
-import type { TrainingSession, TrainingRequest, Team, CalendarEvent, PlayerTournament, FinanceEntry, EquipmentItem, NotificationSettings, ConnectedPlayer, User } from "@/types";
+import { trainingPlansApi } from "@/api/endpoints/trainingPlans";
+import type { TrainingSession, TrainingRequest, Team, CalendarEvent, PlayerTournament, FinanceEntry, EquipmentItem, NotificationSettings, ConnectedPlayer, User, TrainingPlanCreateInput } from "@/types";
 import { toast } from "sonner";
 
 // ─── Query Keys ───
@@ -29,6 +30,7 @@ export const queryKeys = {
   equipment: (playerId: string) => ["equipment", playerId] as const,
   notifications: (userId: string) => ["notifications", userId] as const,
   notificationPrefs: ["notificationPrefs"] as const,
+  trainingPlans: ["trainingPlans"] as const,
 };
 
 function useInvalidateRelated() {
@@ -181,6 +183,26 @@ export function useCreateTeam() {
     mutationFn: (data: { name: string; coachId: string; description?: string }) => teamsApi.createTeam(data),
     onSuccess: () => { inv.team(); toast.success("Team created"); },
     onError: (e: any) => toast.error(e?.message ?? "Failed to create team"),
+  });
+}
+
+// ─── Training plans (saved from the Session Builder) ───
+export function useTrainingPlans() {
+  return useQuery({
+    queryKey: queryKeys.trainingPlans,
+    queryFn: async () => (await trainingPlansApi.list()).data,
+  });
+}
+
+export function useCreateTrainingPlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: TrainingPlanCreateInput) => trainingPlansApi.create(input),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.trainingPlans });
+      toast.success(res.message ?? "Session saved");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to save session"),
   });
 }
 

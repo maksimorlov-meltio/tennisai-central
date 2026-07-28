@@ -16,6 +16,7 @@ import {
   LogOut,
   Shield,
   Dumbbell,
+  Sparkles,
   User,
   Link2,
   AlertTriangle,
@@ -57,6 +58,7 @@ const navItems: NavItem[] = [
   { to: "/players", labelKey: "dashboard.nav.players", icon: <Users className="h-4 w-4" />, roles: ["coach"] },
   { to: "/teams", labelKey: "dashboard.nav.teams", icon: <Shield className="h-4 w-4" />, roles: ["coach"] },
   { to: "/trainings", labelKey: "dashboard.nav.trainings", icon: <Dumbbell className="h-4 w-4" />, roles: ["coach", "player"] },
+  { to: "/session-builder", labelKey: "dashboard.nav.sessionBuilder", icon: <Sparkles className="h-4 w-4" />, roles: ["coach"] },
   { to: "/training-requests", labelKey: "dashboard.nav.trainingRequests", icon: <UserPlus className="h-4 w-4" />, roles: ["coach"] },
 
   // Shared
