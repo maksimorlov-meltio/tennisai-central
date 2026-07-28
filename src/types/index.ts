@@ -69,6 +69,8 @@ export interface User {
   lastName: string;
   avatarUrl?: string;
   emailVerified: boolean;
+  /** Set once the user finishes the role-based onboarding questionnaire. */
+  onboardingCompletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

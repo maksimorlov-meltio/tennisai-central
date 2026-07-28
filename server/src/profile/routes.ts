@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import type { User } from "@prisma/client";
+import { Prisma, type User } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
 
@@ -43,5 +43,43 @@ profileRouter.patch(
       data: { firstName: d.firstName, lastName: d.lastName, email },
     });
     return ok(res, publicUser(user), "Profile updated");
+  }),
+);
+
+// Role-based onboarding answers. Values are a picked option (string), a
+// multi-select (string[]), or a free-text answer (string). Stored as JSON.
+const onboardingSchema = z.object({
+  answers: z.record(z.union([z.string(), z.array(z.string())])).default({}),
+});
+
+// GET /api/me/onboarding — the saved answers + whether the intro is done.
+profileRouter.get(
+  "/onboarding",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { onboarding: true, onboardingCompletedAt: true },
+    });
+    if (!user) throw new HttpError(404, "User not found");
+    return ok(res, {
+      completed: Boolean(user.onboardingCompletedAt),
+      answers: (user.onboarding as Record<string, string | string[]>) ?? null,
+    });
+  }),
+);
+
+// PUT /api/me/onboarding — save answers and mark the intro complete.
+profileRouter.put(
+  "/onboarding",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const { answers } = onboardingSchema.parse(req.body);
+    const user = await prisma.user.update({
+      where: { id: req.userId! },
+      data: {
+        onboarding: answers as unknown as Prisma.InputJsonValue,
+        onboardingCompletedAt: new Date(),
+      },
+    });
+    return ok(res, publicUser(user), "Profile saved");
   }),
 );

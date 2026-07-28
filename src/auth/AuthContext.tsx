@@ -19,6 +19,8 @@ interface AuthContextValue extends AuthState {
   signUp: (data: SignUpRequest) => Promise<string | undefined>;
   logout: () => Promise<void>;
   hasRole: (role: UserRole) => boolean;
+  /** Re-fetch the current user (e.g. after completing onboarding). */
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -75,8 +77,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [state.user]
   );
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await authApi.getMe();
+      setState((s) => ({ ...s, user: res.data }));
+    } catch {
+      // A failed refresh shouldn't tear down the session here; the api client
+      // already handles 401s by logging the user out.
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ ...state, login, signUp, logout, hasRole }}>
+    <AuthContext.Provider value={{ ...state, login, signUp, logout, hasRole, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

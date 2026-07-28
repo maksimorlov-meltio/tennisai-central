@@ -21,6 +21,8 @@ model User {
   firstName     String
   lastName      String
   emailVerified Boolean  @default(false)
+  onboarding            Json? // role-based onboarding answers (see src/lib/onboarding)
+  onboardingCompletedAt DateTime? // set when the user finishes the intro questionnaire
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

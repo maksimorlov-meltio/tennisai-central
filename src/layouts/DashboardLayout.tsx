@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { RoleBadge, ReadOnlyBadge } from "@/components/ui/shared";
 import {
@@ -152,6 +153,9 @@ export function DashboardLayout() {
 
   return (
     <div className="flex min-h-screen bg-background">
+      {/* First-run, role-based onboarding questionnaire (empty new accounts). */}
+      {user && !user.onboardingCompletedAt && <OnboardingDialog user={user} />}
+
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card md:flex">
         {sidebarContent}
