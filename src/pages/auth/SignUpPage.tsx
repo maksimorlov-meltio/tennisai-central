@@ -51,7 +51,16 @@ export default function SignUpPage() {
       <div className="space-y-4 text-center">
         <h2 className="text-xl font-semibold text-foreground">Check your email</h2>
         <p className="text-sm text-muted-foreground">{successMsg}</p>
-        <Button variant="outline" onClick={() => navigate("/login")}>Go to login</Button>
+        <div className="flex flex-col items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/login")}>Go to login</Button>
+          <button
+            type="button"
+            onClick={() => navigate("/verify-email")}
+            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Didn't get the email? Resend it
+          </button>
+        </div>
       </div>
     );
   }

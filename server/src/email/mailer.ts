@@ -1,6 +1,6 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import { env, emailEnabled } from "../env";
-import { welcomeEmail } from "./templates";
+import { welcomeEmail, verifyEmailTemplate } from "./templates";
 
 let transporter: Transporter | null = null;
 
@@ -51,6 +51,34 @@ export async function sendWelcomeEmail(to: string, firstName: string, role: stri
     return { sent: true };
   } catch (err) {
     console.error(`📧 Welcome email FAILED for ${to}:`, err instanceof Error ? err.message : err);
+    return { sent: false };
+  }
+}
+
+/**
+ * Send the email-verification link. Same behaviour as the welcome email: real
+ * send when Gmail is configured, otherwise log the link to the console so the
+ * flow is testable in dev without credentials.
+ */
+export async function sendVerificationEmail(to: string, firstName: string, verifyUrl: string): Promise<{ sent: boolean }> {
+  const { subject, text, html } = verifyEmailTemplate({ firstName, verifyUrl });
+  const transport = getTransport();
+
+  if (!transport) {
+    console.log(
+      `\n📧 [verification email — Gmail disabled, logging only]` +
+        `\n   To:     ${to}` +
+        `\n   Verify: ${verifyUrl}\n`,
+    );
+    return { sent: false };
+  }
+
+  try {
+    await transport.sendMail({ from: `"${env.mailFromName}" <${env.gmailUser}>`, to, subject, text, html });
+    console.log(`📧 Verification email sent to ${to}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`📧 Verification email FAILED for ${to}:`, err instanceof Error ? err.message : err);
     return { sent: false };
   }
 }

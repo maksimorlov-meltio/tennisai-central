@@ -62,12 +62,21 @@ needed). To send real email:
 > The app password lives only in your local `.env` (gitignored). It is never
 > committed and never leaves your machine.
 
+## Email verification
+Signup now sends a **verification link** (`APP_URL/verify-email?token=…`, a purpose-scoped
+JWT valid 24h). **Login requires a verified email** (403 otherwise). `POST /auth/verify-email`
+confirms it; `POST /auth/resend-verification` re-sends. Without Gmail configured, the link is
+**logged to the server console** so the flow is fully testable in dev. Seeded demo users are
+pre-verified. Set `APP_URL` to the real frontend origin in production so the link points there.
+
 ## Endpoints
 | Method | Path                         | Auth   | Purpose                              |
 |--------|------------------------------|--------|--------------------------------------|
 | GET    | `/api/health`                | —      | Liveness + DB readiness              |
-| POST   | `/api/auth/signup`           | —      | Create account → send welcome email  |
-| POST   | `/api/auth/login`            | —      | Verify credentials → return JWT      |
+| POST   | `/api/auth/signup`           | —      | Create account → send verification link |
+| POST   | `/api/auth/verify-email`     | —      | Confirm email from the link's token  |
+| POST   | `/api/auth/resend-verification` | —   | Re-send the verification link        |
+| POST   | `/api/auth/login`            | —      | Verify credentials (requires verified email) → JWT |
 | POST   | `/api/auth/logout`           | —      | No-op (stateless JWT)                |
 | GET    | `/api/auth/me`               | Bearer | Resolve current user from JWT        |
 | GET    | `/api/trainings`             | Bearer | Trainings visible to the user        |

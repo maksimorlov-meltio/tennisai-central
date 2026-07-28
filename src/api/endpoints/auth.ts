@@ -41,6 +41,11 @@ export const authApi = {
     return apiClient.post("/auth/verify-email", { token });
   },
 
+  resendVerification(email: string): Promise<ApiResponse<null>> {
+    if (USE_MOCK) return Promise.resolve({ data: null, message: "Verification link sent (mock)." });
+    return apiClient.post("/auth/resend-verification", { email });
+  },
+
   forgotPassword(email: string): Promise<ApiResponse<null>> {
     if (USE_MOCK) return mockAuthService.forgotPassword(email);
     return apiClient.post("/auth/forgot-password", { email });

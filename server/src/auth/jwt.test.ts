@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { signToken, verifyToken, bearerFrom } from "./jwt";
+import { signToken, verifyToken, bearerFrom, signPurposeToken, verifyPurposeToken } from "./jwt";
 
 describe("jwt", () => {
   it("round-trips a user id", () => {
@@ -24,6 +24,29 @@ describe("jwt", () => {
     const forged =
       "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiJ9.this_signature_is_invalid_for_our_secret";
     expect(verifyToken(forged)).toBeNull();
+  });
+});
+
+describe("purpose tokens (email verification)", () => {
+  it("round-trips a purpose token", () => {
+    const token = signPurposeToken("user-1", "verify_email", "1d");
+    expect(verifyPurposeToken(token, "verify_email")).toBe("user-1");
+  });
+
+  it("rejects a token used for the wrong purpose", () => {
+    const token = signPurposeToken("user-1", "verify_email", "1d");
+    expect(verifyPurposeToken(token, "reset_password")).toBeNull();
+  });
+
+  it("does not accept a plain session token as a purpose token", () => {
+    const session = signToken("user-1");
+    expect(verifyPurposeToken(session, "verify_email")).toBeNull();
+  });
+
+  it("a purpose token still carries a valid subject for the session verifier", () => {
+    // (It would only matter if leaked; confirm the subject is intact.)
+    const token = signPurposeToken("user-9", "verify_email", "1d");
+    expect(verifyToken(token)).toBe("user-9");
   });
 });
 
