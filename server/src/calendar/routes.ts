@@ -23,7 +23,9 @@ const baseSchema = z.object({
   teamId: z.string().optional(),
   tournamentId: z.string().optional(),
   coachNotes: z.string().optional(),
-  createdBy: z.string().optional(),
+  // SECURITY: `createdBy` is NOT accepted from the client — the creator is
+  // always the authenticated user (set server-side on create). Accepting it
+  // previously allowed forging event ownership.
   createdByRole: z.string().optional(),
   trainingRequestId: z.string().optional(),
   recurrence: z.record(z.unknown()).nullable().optional(),
@@ -121,8 +123,8 @@ calendarRouter.post(
         type: d.type,
         startDate: new Date(d.startDate),
         endDate: new Date(d.endDate),
-        // Owner defaults to the current user when the client omits it.
-        createdBy: d.createdBy ?? req.userId!,
+        // Owner is ALWAYS the authenticated user — never client-controlled.
+        createdBy: req.userId!,
       },
     });
     return ok(res, present(created), "Event created", 201);

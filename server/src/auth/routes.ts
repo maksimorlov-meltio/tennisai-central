@@ -9,6 +9,7 @@ import { signToken, signPurposeToken, verifyPurposeToken } from "./jwt";
 import { sendWelcomeEmail, sendVerificationEmail } from "../email/mailer";
 import { publicIdFor } from "../lib/publicId";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
+import { PUBLIC_SIGNUP_ROLES } from "../authz";
 
 const VERIFY_PURPOSE = "verify_email";
 const VERIFY_TTL = "1d";
@@ -28,7 +29,9 @@ const signupSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  role: z.enum(["player", "coach", "observer", "admin"]),
+  // SECURITY: public signup may NOT self-assign "admin" (academy administrator).
+  // Admin accounts are provisioned by invite/seed only. See PUBLIC_SIGNUP_ROLES.
+  role: z.enum(PUBLIC_SIGNUP_ROLES),
 });
 
 const loginSchema = z.object({
@@ -52,6 +55,10 @@ authRouter.post(
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) throw new HttpError(409, "Email already registered");
 
+    // When email verification is disabled (local no-email test), accounts are
+    // created pre-verified so they are immediately usable. Secure default: false.
+    const autoVerified = !env.requireEmailVerification;
+
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_COST);
     const user = await prisma.user.create({
       data: {
@@ -61,17 +68,22 @@ authRouter.post(
         role: data.role,
         firstName: data.firstName,
         lastName: data.lastName,
+        emailVerified: autoVerified,
       },
     });
 
-    // Send the verification link. Fire-and-forget: a failed/queued email must
-    // never block account creation. The welcome email follows once verified.
-    void sendVerificationEmail(email, user.firstName, verifyUrlFor(user.id));
+    // Send the verification link only when verification is required. Fire-and-forget:
+    // a failed/queued email must never block account creation.
+    if (!autoVerified) {
+      void sendVerificationEmail(email, user.firstName, verifyUrlFor(user.id));
+    }
 
     return ok(
       res,
       { user: publicUser(user) },
-      "Account created! Check your email for a verification link to activate your account.",
+      autoVerified
+        ? "Account created! You can log in now."
+        : "Account created! Check your email for a verification link to activate your account.",
       201,
     );
   }),
@@ -91,8 +103,9 @@ authRouter.post(
       throw new HttpError(401, "Invalid email or password");
     }
 
-    // Require a verified email before issuing a session.
-    if (!user.emailVerified) {
+    // Require a verified email before issuing a session (unless verification is
+    // disabled for a local no-email test — see REQUIRE_EMAIL_VERIFICATION).
+    if (env.requireEmailVerification && !user.emailVerified) {
       throw new HttpError(403, "Please verify your email first — check your inbox for the verification link.");
     }
 

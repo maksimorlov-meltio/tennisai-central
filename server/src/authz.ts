@@ -1,0 +1,128 @@
+// ============================================================
+// TennisAI — Authorization helpers (Stage 2)
+// Role-based + relationship-based server-side authorization.
+// requireAuth (http.ts) must run first; these read req.userId.
+//
+// Role mapping (additive, no rename):
+//   player   → Player
+//   coach    → Coach
+//   observer → Parent / guardian
+//   admin    → Academy administrator
+// ============================================================
+
+import type { RequestHandler } from "express";
+import { prisma } from "./db";
+import { HttpError, type AuthedRequest } from "./http";
+
+export type Role = "player" | "coach" | "observer" | "admin";
+
+/** Roles a PUBLIC signup may self-assign. `admin` is intentionally excluded — */
+/** academy-admin accounts are provisioned by invite/seed, never self-service. */
+export const PUBLIC_SIGNUP_ROLES = ["player", "coach", "observer"] as const;
+export type PublicSignupRole = (typeof PUBLIC_SIGNUP_ROLES)[number];
+
+/** Load the authenticated user's role. Throws 401 if the row is gone. */
+export async function getRole(userId: string): Promise<Role> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (!user) throw new HttpError(401, "Not authenticated");
+  return user.role as Role;
+}
+
+/**
+ * Gate a route to one or more roles. Server-side — hiding the UI is never
+ * sufficient. Usage: `router.post("/", requireAuth, requireRole("coach"), h)`.
+ */
+export function requireRole(...roles: Role[]): RequestHandler {
+  return async (req: AuthedRequest, _res, next) => {
+    try {
+      const role = await getRole(req.userId!);
+      if (!roles.includes(role)) {
+        throw new HttpError(403, "You do not have permission to perform this action");
+      }
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
+/**
+ * A coach may act on a player only via an active CoachAssignment (self is
+ * always allowed, so a coach can act on their own records). Throws 403 if not.
+ */
+export async function assertAssignedPlayer(coachId: string, playerId: string): Promise<void> {
+  if (coachId === playerId) return;
+  const link = await prisma.coachAssignment.findUnique({
+    where: { coachId_playerId: { coachId, playerId } },
+    select: { status: true },
+  });
+  if (!link || link.status !== "active") {
+    throw new HttpError(403, "This player is not assigned to you");
+  }
+}
+
+/**
+ * A parent/guardian (observer) may access a junior only through a guardianship
+ * with parental consent recorded. Throws 403 otherwise.
+ */
+export async function assertGuardianOf(guardianId: string, juniorPlayerId: string): Promise<void> {
+  const link = await prisma.guardianship.findUnique({
+    where: { guardianId_juniorPlayerId: { guardianId, juniorPlayerId } },
+    select: { parentalConsent: true },
+  });
+  if (!link || !link.parentalConsent) {
+    throw new HttpError(403, "You are not a consented guardian of this player");
+  }
+}
+
+/** Two users must share at least one academy. Throws 403 otherwise. */
+export async function assertSameAcademy(userIdA: string, userIdB: string): Promise<void> {
+  const [a, b] = await Promise.all([
+    prisma.academyMembership.findMany({ where: { userId: userIdA }, select: { academyId: true } }),
+    prisma.academyMembership.findMany({ where: { userId: userIdB }, select: { academyId: true } }),
+  ]);
+  const academiesOfA = new Set(a.map((m) => m.academyId));
+  if (!b.some((m) => academiesOfA.has(m.academyId))) {
+    throw new HttpError(403, "Users are not in the same academy");
+  }
+}
+
+/**
+ * Resolve every player id the current user is allowed to READ:
+ *  - player: themselves
+ *  - coach: themselves + actively-assigned players
+ *  - observer (parent): consented juniors
+ *  - admin: same-academy players
+ * Used to scope analytics reads without leaking cross-user data.
+ */
+export async function readablePlayerIds(userId: string): Promise<string[]> {
+  const role = await getRole(userId);
+  if (role === "player") return [userId];
+  if (role === "coach") {
+    const links = await prisma.coachAssignment.findMany({
+      where: { coachId: userId, status: "active" },
+      select: { playerId: true },
+    });
+    return [userId, ...links.map((l) => l.playerId)];
+  }
+  if (role === "observer") {
+    const links = await prisma.guardianship.findMany({
+      where: { guardianId: userId, parentalConsent: true },
+      select: { juniorPlayerId: true },
+    });
+    return links.map((l) => l.juniorPlayerId);
+  }
+  // admin → players in the same academy
+  const myAcademies = await prisma.academyMembership.findMany({
+    where: { userId },
+    select: { academyId: true },
+  });
+  const members = await prisma.academyMembership.findMany({
+    where: { academyId: { in: myAcademies.map((m) => m.academyId) }, role: "player" },
+    select: { userId: true },
+  });
+  return members.map((m) => m.userId);
+}

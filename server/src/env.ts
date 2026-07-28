@@ -24,6 +24,13 @@ const schema = z.object({
   GMAIL_USER: z.string().default(""),
   GMAIL_APP_PASSWORD: z.string().default(""),
   MAIL_FROM_NAME: z.string().default("TennisAI"),
+  // Local-test escape hatch: set to "false" ONLY for a local trial with no
+  // email provider, so accounts are usable without a verification round-trip.
+  // Secure default is ON — anything other than the literal "false" enables it.
+  REQUIRE_EMAIL_VERIFICATION: z
+    .string()
+    .default("true")
+    .transform((v) => v.toLowerCase() !== "false"),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -61,7 +68,16 @@ export const env = {
   gmailUser: e.GMAIL_USER,
   gmailAppPassword: e.GMAIL_APP_PASSWORD.replace(/\s+/g, ""),
   mailFromName: e.MAIL_FROM_NAME,
+  requireEmailVerification: e.REQUIRE_EMAIL_VERIFICATION,
 };
+
+// Guard: disabling email verification in production is almost never intended.
+if (isProd && !env.requireEmailVerification) {
+  console.warn(
+    "⚠️  REQUIRE_EMAIL_VERIFICATION is OFF in production — accounts can log in " +
+      "without proving email ownership. Only do this intentionally.",
+  );
+}
 
 /** Real Gmail sending only happens when both credentials are present. */
 export const emailEnabled = Boolean(env.gmailUser && env.gmailAppPassword);
