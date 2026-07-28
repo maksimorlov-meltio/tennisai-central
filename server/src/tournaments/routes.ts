@@ -135,3 +135,19 @@ playerTournamentsRouter.patch(
     return ok(res, presentPlayerTournament(pt), "Tournament status updated");
   }),
 );
+
+// DELETE /api/player-tournaments/:id — remove a tournament from the schedule (owner only).
+playerTournamentsRouter.delete(
+  "/:id",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const existing = await prisma.playerTournament.findUnique({
+      where: { id: req.params.id },
+      select: { playerId: true },
+    });
+    if (!existing) throw new HttpError(404, "Tournament entry not found");
+    if (existing.playerId !== req.userId) throw new HttpError(403, "Not your tournament entry");
+
+    await prisma.playerTournament.delete({ where: { id: req.params.id } });
+    return ok(res, null, "Removed from schedule");
+  }),
+);

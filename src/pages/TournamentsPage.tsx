@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Search, MapPin, Calendar, Sun, Warehouse, Mountain, X, Users, Trophy, RefreshCw } from "lucide-react";
+import { Search, MapPin, Calendar, Sun, Warehouse, Mountain, X, Users, Trophy, RefreshCw, Plus, Trash2, Check } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
 import { ReadOnlyBanner, ReadOnlyBadge, StatusBadge, EmptyState, LoadingState, ErrorState } from "@/components/ui/shared";
@@ -15,7 +15,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TeamFilterSelect } from "@/components/TeamFilterSelect";
 import { PlayerFilterSelect } from "@/components/PlayerFilterSelect";
 import { PlayerDetailDrawer } from "@/components/PlayerDetailDrawer";
-import { useTournaments, usePlayerTournaments, useUpdatePlayerTournament, useTeams } from "@/hooks/api/queries";
+import { useTournaments, usePlayerTournaments, useUpdatePlayerTournament, useAddPlayerTournament, useRemovePlayerTournament, useTeams } from "@/hooks/api/queries";
 import { queryKeys } from "@/hooks/api/queries";
 import type { TournamentStatus, ConnectedPlayer } from "@/types";
 import { toast } from "sonner";
@@ -40,6 +40,11 @@ export default function TournamentsPage() {
   const { data: playerTournaments = [], isLoading: loadingPT, error: errorPT } = usePlayerTournaments();
   const { data: teams = [] } = useTeams();
   const updatePT = useUpdatePlayerTournament();
+  const addPT = useAddPlayerTournament();
+  const removePT = useRemovePlayerTournament();
+  // The current user's own tournament entry for a given tournament (if any).
+  const myEntryFor = (tournamentId: string) =>
+    playerTournaments.find((pt) => pt.tournamentId === tournamentId && pt.playerId === user?.id);
 
   const connectedIds = new Set(connectedPlayers.map((p) => p.id));
   const showPlayerTournaments = isCoach || isObserver;
@@ -55,7 +60,7 @@ export default function TournamentsPage() {
   const [playerFilter, setPlayerFilter] = useState(ALL);
   const [teamFilter, setTeamFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
-  const [viewMode, setViewMode] = useState<"tournaments" | "players">(showPlayerTournaments ? "players" : "tournaments");
+  const [viewMode, setViewMode] = useState<"tournaments" | "players">(showPlayerTournaments || isPlayer ? "players" : "tournaments");
 
   // Player detail drawer
   const [playerDetailOpen, setPlayerDetailOpen] = useState(false);
@@ -126,7 +131,7 @@ export default function TournamentsPage() {
           <div className="flex items-center gap-2"><h1 className="text-2xl font-bold text-foreground">Tournaments</h1>{isObserver && <ReadOnlyBadge />}</div>
           <p className="text-muted-foreground">{isCoach ? "View tournaments and your connected players' participation." : isObserver ? "Read-only view of connected player tournaments." : "Browse upcoming tournaments and manage your entries."}</p>
         </div>
-        {showPlayerTournaments && <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as typeof viewMode)}><TabsList><TabsTrigger value="players" className="gap-1.5"><Users className="h-3.5 w-3.5" /> Player View</TabsTrigger><TabsTrigger value="tournaments" className="gap-1.5"><Trophy className="h-3.5 w-3.5" /> Browse All</TabsTrigger></TabsList></Tabs>}
+        {(showPlayerTournaments || isPlayer) && <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as typeof viewMode)}><TabsList><TabsTrigger value="players" className="gap-1.5"><Users className="h-3.5 w-3.5" /> {isPlayer ? "My Schedule" : "Player View"}</TabsTrigger><TabsTrigger value="tournaments" className="gap-1.5"><Trophy className="h-3.5 w-3.5" /> {isPlayer ? "Add Tournaments" : "Browse All"}</TabsTrigger></TabsList></Tabs>}
       </div>
 
       {isObserver && <ReadOnlyBanner />}
@@ -169,7 +174,7 @@ export default function TournamentsPage() {
       )}
 
       {/* Player tournament view */}
-      {(showPlayerTournaments || isPlayer) && (viewMode === "players" || isPlayer) && (
+      {(showPlayerTournaments || isPlayer) && viewMode === "players" && (
         filteredPlayerTournaments.length === 0 ? (
           <EmptyState icon={<Trophy className="h-6 w-6 text-muted-foreground" />} title="No player tournaments" description={hasFilters ? "No results match your filters." : "No tournament entries yet."} />
         ) : (
@@ -205,10 +210,22 @@ export default function TournamentsPage() {
                       <td className="px-4 py-3"><Badge variant="outline" className={surfaceColor[pt.tournament.surface] ?? ""}>{pt.tournament.surface}</Badge></td>
                       <td className="px-4 py-3">
                         {isPlayer ? (
-                          <Select value={pt.status} onValueChange={(v) => updatePT.mutate({ id: pt.id, data: { status: v as TournamentStatus } })}>
-                            <SelectTrigger className="h-7 w-[120px] text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>{STATUS_OPTIONS.map((s) => (<SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>))}</SelectContent>
-                          </Select>
+                          <div className="flex items-center gap-2">
+                            <Select value={pt.status} onValueChange={(v) => updatePT.mutate({ id: pt.id, data: { status: v as TournamentStatus } })}>
+                              <SelectTrigger className="h-7 w-[120px] text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>{STATUS_OPTIONS.map((s) => (<SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>))}</SelectContent>
+                            </Select>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              title="Remove from schedule"
+                              disabled={removePT.isPending}
+                              onClick={() => removePT.mutate(pt.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         ) : (
                           <StatusBadge status={pt.status} />
                         )}
@@ -222,7 +239,7 @@ export default function TournamentsPage() {
         )
       )}
 
-      {(!showPlayerTournaments || viewMode === "tournaments") && !isPlayer && (
+      {viewMode === "tournaments" && (
         filteredTournaments.length === 0 ? (
           <EmptyState icon={<Trophy className="h-6 w-6 text-muted-foreground" />} title="No tournaments found" description="No tournaments match your filters." />
         ) : (
@@ -252,6 +269,29 @@ export default function TournamentsPage() {
                     );
                   })()}
                   {t.weatherSummary && <p className="text-xs text-muted-foreground">🌤 {t.weatherSummary}</p>}
+                  {isPlayer && (() => {
+                    const entry = myEntryFor(t.id);
+                    return entry ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-1.5 text-destructive hover:text-destructive"
+                        disabled={removePT.isPending}
+                        onClick={() => removePT.mutate(entry.id)}
+                      >
+                        <Check className="h-3.5 w-3.5" /> In schedule — remove
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="w-full gap-1.5"
+                        disabled={addPT.isPending}
+                        onClick={() => addPT.mutate({ tournamentId: t.id, tournament: t, playerId: user!.id, playerName: `${user!.firstName} ${user!.lastName}`, status: "registered" })}
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add to schedule
+                      </Button>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             ))}

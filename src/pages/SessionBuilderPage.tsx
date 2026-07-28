@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
+import { SurfacePicker } from "@/components/SurfacePicker";
 import {
   Dumbbell,
   Sparkles,
@@ -195,17 +196,9 @@ export default function SessionBuilderPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label>Surface</Label>
-                <Select value={prefs.surface} onValueChange={(v) => set("surface", v as Surface)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="hard">Hard</SelectItem>
-                    <SelectItem value="clay">Clay</SelectItem>
-                    <SelectItem value="grass">Grass</SelectItem>
-                    <SelectItem value="indoor">Indoor</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Surface / court</Label>
+                <SurfacePicker value={prefs.surface} onChange={(s) => set("surface", s)} />
               </div>
               <div className="space-y-1.5">
                 <Label>Format</Label>

@@ -307,8 +307,17 @@ export function useAddPlayerTournament() {
   const inv = useInvalidateRelated();
   return useMutation({
     mutationFn: (data: Omit<PlayerTournament, "id">) => tournamentsApi.addPlayerTournament(data),
-    onSuccess: () => { inv.tournament(); toast.success("Registered for tournament"); },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to register"),
+    onSuccess: () => { inv.tournament(); toast.success("Added to schedule"); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to add"),
+  });
+}
+
+export function useRemovePlayerTournament() {
+  const inv = useInvalidateRelated();
+  return useMutation({
+    mutationFn: (id: string) => tournamentsApi.removePlayerTournament(id),
+    onSuccess: () => { inv.tournament(); toast.success("Removed from schedule"); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to remove"),
   });
 }
 
