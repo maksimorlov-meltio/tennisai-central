@@ -16,6 +16,7 @@ import {
   XCircle,
   Clock,
   Link2,
+  Info,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
@@ -143,6 +144,14 @@ export default function AdminDashboard() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
         <p className="text-muted-foreground">Platform overview and management tools.</p>
+      </div>
+
+      {/* Preview banner — this dashboard is not wired to real data yet */}
+      <div className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/50 px-4 py-2.5">
+        <Info className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          <strong className="text-foreground">Preview — sample data.</strong> The user, tournament and alert figures below are illustrative placeholders, not live platform data.
+        </p>
       </div>
 
       {/* User count cards */}

@@ -82,7 +82,7 @@ export default function TournamentsPage() {
     return playerTournaments.filter((pt) => {
       if (isCoach && !connectedIds.has(pt.playerId)) return false;
       if (isObserver && !connectedIds.has(pt.playerId)) return false;
-      if (isPlayer && pt.playerId !== user?.id && pt.playerId !== "p1") return false;
+      if (isPlayer && pt.playerId !== user?.id) return false;
       if (teamPlayerIds && !teamPlayerIds.has(pt.playerId)) return false;
       const t = pt.tournament;
       const q = search.toLowerCase();

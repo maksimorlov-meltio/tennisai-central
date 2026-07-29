@@ -130,7 +130,7 @@ export function DashboardLayout() {
             <span className="flex-1">{t(item.labelKey)}</span>
             {item.to === "/trainings" && unreviewedCount > 0 && (
               <span
-                className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground"
+                className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground"
                 aria-label={t("nav.trainings.unreviewedAria", { count: unreviewedCount })}
               >
                 {t("nav.trainings.unreviewedBadge", { count: formatBadgeCount(unreviewedCount) })}

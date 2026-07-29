@@ -85,7 +85,7 @@ export function OnboardingDialog({
     try {
       await onboardingApi.save(answers);
       await refreshUser();
-      toast.success("Profile saved — welcome to TennisAI!");
+      toast.success("Profile saved — welcome to Tennis AI!");
       onOpenChange(false);
     } catch (e) {
       toast.error((e as { message?: string })?.message ?? "Could not save your answers");
@@ -133,6 +133,7 @@ export function OnboardingDialog({
                   key={opt}
                   type="button"
                   onClick={() => setSingle(opt)}
+                  aria-pressed={answer === opt}
                   className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
                     answer === opt
                       ? "border-primary bg-primary/10 text-primary"
@@ -161,6 +162,7 @@ export function OnboardingDialog({
                       key={opt}
                       type="button"
                       onClick={() => toggleMulti(opt)}
+                      aria-pressed={sel}
                       className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
                         sel
                           ? "border-primary bg-primary/10 text-primary"

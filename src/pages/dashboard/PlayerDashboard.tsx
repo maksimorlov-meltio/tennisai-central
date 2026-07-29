@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { StatusBadge } from "@/components/ui/shared";
+import { StatusBadge, LoadingState, ErrorState } from "@/components/ui/shared";
 import { RoleBadge } from "@/components/ui/shared";
 import {
   UserPlus,
@@ -54,11 +54,15 @@ export default function PlayerDashboard() {
     (r) => r.status === "pending" && r.toUserId === user?.id
   );
   const uid = user?.id ?? "";
-  const { data: calendarEvents = [] } = useCalendarEvents();
-  const { data: playerTournaments = [] } = usePlayerTournaments();
-  const { data: notifications = [] } = useNotifications(uid);
-  const { data: financeSummary } = useFinanceSummary(uid);
-  const { data: equipment = [] } = useEquipment(uid);
+  const { data: calendarEvents = [], isLoading: loadingEvents, error: errorEvents } = useCalendarEvents();
+  const { data: playerTournaments = [], isLoading: loadingPT, error: errorPT } = usePlayerTournaments();
+  const { data: notifications = [], isLoading: loadingNotif, error: errorNotif } = useNotifications(uid);
+  const { data: financeSummary, isLoading: loadingFinance, error: errorFinance } = useFinanceSummary(uid);
+  const { data: equipment = [], isLoading: loadingEquip, error: errorEquip } = useEquipment(uid);
+
+  const isLoading = loadingEvents || loadingPT || loadingNotif || loadingFinance || loadingEquip;
+  const hasError = errorEvents || errorPT || errorNotif || errorFinance || errorEquip;
+
   const now = new Date();
   const upcomingEvents = [...calendarEvents]
     .filter((e) => !isBefore(new Date(e.startDate), now))
@@ -71,6 +75,9 @@ export default function PlayerDashboard() {
     totalTournament: financeSummary?.totalTournament ?? 0,
     totalEquipment: financeSummary?.totalEquipment ?? 0,
   };
+
+  if (isLoading) return <LoadingState message="Loading your dashboard…" />;
+  if (hasError) return <ErrorState message="Failed to load dashboard data" onRetry={() => window.location.reload()} />;
 
   return (
     <div className="space-y-6">
@@ -255,7 +262,7 @@ export default function PlayerDashboard() {
       <div className="grid gap-6 lg:grid-cols-2">
         <DashboardCard
           title="AI Insights"
-          description="AI-powered match preparation"
+          description="Best-practice match-prep suggestions"
           icon={<Brain className="h-4 w-4" />}
           action={
             <Button variant="ghost" size="sm" asChild>
@@ -264,7 +271,7 @@ export default function PlayerDashboard() {
           }
         >
           <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
-            <p className="text-sm font-medium text-foreground">No AI analysis yet</p>
+            <p className="text-sm font-medium text-foreground">No match prep yet</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Generate match-preparation insights based on your surface, conditions and recent training.
             </p>

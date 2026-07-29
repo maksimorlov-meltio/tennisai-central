@@ -34,7 +34,7 @@
     "role": {
       "player": "player",
       "coach": "coach",
-      "observer": "Fan",
+      "observer": "Parent",
       "admin": "admin"
     }
   }

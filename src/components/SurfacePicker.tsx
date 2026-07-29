@@ -50,7 +50,7 @@ export function SurfacePicker({
             </div>
             <span
               className={cn(
-                "absolute bottom-1 left-1 rounded bg-background/85 px-1.5 py-0.5 text-[11px] font-semibold backdrop-blur",
+                "absolute bottom-1 left-1 rounded-sm bg-background/85 px-1.5 py-0.5 text-[11px] font-semibold backdrop-blur",
                 active ? "text-primary" : "text-foreground",
               )}
             >

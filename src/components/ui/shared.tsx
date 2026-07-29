@@ -11,7 +11,7 @@ import { Eye, Lock, AlertTriangle, Loader2, Inbox, ShieldX } from "lucide-react"
 const ROLE_LABELS: Record<UserRole, string> = {
   player: "Player",
   coach: "Coach",
-  observer: "Fan",
+  observer: "Parent",
   admin: "Admin",
 };
 

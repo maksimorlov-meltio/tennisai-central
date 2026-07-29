@@ -53,7 +53,7 @@ function PlayerMatchPrep({ playerId }: { playerId: string }) {
     mutationFn: async () => (await aiInsightsApi.generateMatchPrep(playerId, form)).data,
     onSuccess: (data) => {
       setResult(data);
-      toast.success("AI analysis ready");
+      toast.success("Match prep ready");
     },
     onError: () => toast.error("Failed to generate insights"),
   });
@@ -368,8 +368,8 @@ export default function AIInsightsPage() {
           </h1>
           <p className="text-muted-foreground">
             {isCoach
-              ? "AI-generated insights from your group's training sessions and player feedback."
-              : "Get AI-powered match preparation based on the conditions and the gear you own."}
+              ? "Session insights generated from your group's training sessions and player feedback."
+              : "Best-practice match preparation based on the conditions and the gear you own."}
           </p>
         </div>
       </div>

@@ -11,21 +11,26 @@ import type { CalendarEventType, CalendarEventState, TournamentFederation } from
 /** Event type → base colour. */
 // Matte, desaturated hues (not glowing). "match" is a muted rust rather than
 // a bright red, and "recovery" a sage kept distinct from the green accent.
+// Theme-aware: each hue is a CSS custom property with separate light/dark
+// lightness tuned in src/index.css (:root / .dark) so it clears WCAG AA
+// (4.5:1) as text against --background in BOTH themes. Hue/saturation are
+// shared across themes; only --cal-* lightness differs.
 export const EVENT_TYPE_COLOR: Record<CalendarEventType, string> = {
-  training: "#4c6b8a", // matte steel blue — everyday work
-  tournament: "#6e5f91", // matte violet — the event
-  match: "#b4694d", // matte rust — competition
-  travel: "#c1943f", // matte amber — transit
-  recovery: "#5f8f79", // matte sage — rest / health
+  training: "hsl(var(--cal-event-training))", // matte steel blue — everyday work
+  tournament: "hsl(var(--cal-event-tournament))", // matte violet — the event
+  match: "hsl(var(--cal-event-match))", // matte rust — competition
+  travel: "hsl(var(--cal-event-travel))", // matte amber — transit
+  recovery: "hsl(var(--cal-event-recovery))", // matte sage — rest / health
 };
 
 /** Sanctioning body → colour (loosely following each tour's brand family). */
+// Theme-aware via CSS custom properties — see EVENT_TYPE_COLOR comment above.
 export const FEDERATION_COLOR: Record<TournamentFederation, string> = {
-  ATP: "#3f5c86", // matte blue
-  WTA: "#7a5c93", // matte purple
-  ITF: "#3f8a80", // matte teal
-  UTR: "#b87a45", // matte orange
-  USTA: "#a85778", // matte rose
+  ATP: "hsl(var(--cal-fed-atp))", // matte blue
+  WTA: "hsl(var(--cal-fed-wta))", // matte purple
+  ITF: "hsl(var(--cal-fed-itf))", // matte teal
+  UTR: "hsl(var(--cal-fed-utr))", // matte orange
+  USTA: "hsl(var(--cal-fed-usta))", // matte rose
 };
 
 /** Court surface → colour (tennis convention: clay terracotta, grass green…). */
@@ -74,9 +79,17 @@ export const STATE_VISUAL: Record<CalendarEventState, { opacity: number; dashed:
   cancelled: { opacity: 0.45, dashed: true, strike: true },
 };
 
-/** Append an 8-bit alpha to a #rrggbb hex → #rrggbbaa. */
-export function withAlpha(hex: string, alpha: string): string {
-  return `${hex}${alpha}`;
+/**
+ * Blend a CSS colour with an 8-bit alpha (as a 2-digit hex string, e.g.
+ * "1f" ≈ 12%, "59" ≈ 35%). Uses `color-mix()` rather than string-appending
+ * the alpha onto the colour (the old `${hex}${alpha}` trick only works for
+ * literal #rrggbb hex) so it keeps working now that EVENT_TYPE_COLOR /
+ * FEDERATION_COLOR return theme-aware `hsl(var(--cal-...))` strings instead
+ * of raw hex — as well as for any plain #rrggbb colour (e.g. ENTITY_PALETTE).
+ */
+export function withAlpha(color: string, alpha: string): string {
+  const alphaPct = (parseInt(alpha, 16) / 255) * 100;
+  return `color-mix(in srgb, ${color} ${alphaPct}%, transparent)`;
 }
 
 export const STATE_LABEL: Record<CalendarEventState, string> = {

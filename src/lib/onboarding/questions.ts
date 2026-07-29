@@ -61,13 +61,6 @@ const PLAYER: OnboardingQuestion[] = [
     options: ["Improve ranking", "Win a tournament", "Build consistency", "Return from injury", "Have fun & stay fit"],
     allowCustom: true,
   },
-  {
-    id: "injuries",
-    prompt: "Any injuries or physical limits we should plan around? (optional)",
-    type: "text",
-    placeholder: "e.g. recovering right shoulder — limit serve volume",
-    optional: true,
-  },
 ];
 
 const COACH: OnboardingQuestion[] = [

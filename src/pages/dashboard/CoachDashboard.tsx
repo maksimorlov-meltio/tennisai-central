@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { StatusBadge } from "@/components/ui/shared";
+import { StatusBadge, LoadingState, ErrorState } from "@/components/ui/shared";
 import {
   Users,
   UserPlus,
@@ -37,10 +37,13 @@ const eventTypeColor: Record<string, string> = {
 export default function CoachDashboard() {
   const { user } = useAuth();
   const { connectedPlayers, requests } = useConnections();
-  const { data: trainings = [] } = useTrainings();
-  const { data: teams = [] } = useTeams();
-  const { data: calendarEvents = [] } = useCalendarEvents();
-  const { data: playerTournaments = [] } = usePlayerTournaments();
+  const { data: trainings = [], isLoading: loadingTrainings, error: errorTrainings } = useTrainings();
+  const { data: teams = [], isLoading: loadingTeams, error: errorTeams } = useTeams();
+  const { data: calendarEvents = [], isLoading: loadingEvents, error: errorEvents } = useCalendarEvents();
+  const { data: playerTournaments = [], isLoading: loadingPT, error: errorPT } = usePlayerTournaments();
+
+  const isLoading = loadingTrainings || loadingTeams || loadingEvents || loadingPT;
+  const hasError = errorTrainings || errorTeams || errorEvents || errorPT;
 
   const now = new Date();
   const unreviewedSessions = trainings
@@ -55,6 +58,9 @@ export default function CoachDashboard() {
     .filter((e) => !isBefore(new Date(e.startDate), now))
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
     .slice(0, 4);
+
+  if (isLoading) return <LoadingState message="Loading your dashboard…" />;
+  if (hasError) return <ErrorState message="Failed to load dashboard data" onRetry={() => window.location.reload()} />;
 
   return (
     <div className="space-y-6">

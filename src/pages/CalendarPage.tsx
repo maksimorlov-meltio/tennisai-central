@@ -799,10 +799,10 @@ export default function CalendarPage() {
     const myEvents = events.filter((e) => {
       if (!activeFilters.has(e.type)) return false;
 
-      if (isPlayer) return !e.playerId || e.playerId === user?.id || e.playerId === "p1";
+      if (isPlayer) return !e.playerId || e.playerId === user?.id;
 
       if (isCoach) {
-        const isOwnEvent = !e.playerId && (e.createdBy === user?.id || e.createdBy === "c1");
+        const isOwnEvent = !e.playerId && e.createdBy === user?.id;
         const isConnectedPlayerEvent = e.playerId ? connectedIds.has(e.playerId) : false;
         if (!(isOwnEvent || isConnectedPlayerEvent)) return false;
         if (playerScope === "mine") return !e.playerId;
@@ -1080,9 +1080,9 @@ export default function CalendarPage() {
             </TabsList>
           </Tabs>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" className="h-8 w-8" aria-label={`Previous ${view}`} onClick={() => navigate(-1)}><ChevronLeft className="h-4 w-4" /></Button>
             <span className="min-w-[200px] text-center text-sm font-semibold text-foreground">{heading}</span>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate(1)}><ChevronRight className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" className="h-8 w-8" aria-label={`Next ${view}`} onClick={() => navigate(1)}><ChevronRight className="h-4 w-4" /></Button>
           </div>
           <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setCurrentDate(new Date())}>Today</Button>
         </div>

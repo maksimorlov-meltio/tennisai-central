@@ -33,7 +33,7 @@ export default function SignUpPage() {
     if (!role) return setError("Please select a role");
     if (form.password.length < 8) return setError("Password must be at least 8 characters");
     if (form.password !== form.confirmPassword) return setError("Passwords do not match");
-    if (!ageConfirmed) return setError("You must confirm you are 13 or older");
+    if (!ageConfirmed) return setError("You must confirm you are 16 or older");
     if (!termsAccepted) return setError("You must accept the terms");
     setLoading(true);
     try {
@@ -114,11 +114,20 @@ export default function SignUpPage() {
       </div>
       <div className="flex items-center gap-2">
         <Checkbox id="age" checked={ageConfirmed} onCheckedChange={(v) => setAgeConfirmed(!!v)} />
-        <Label htmlFor="age" className="text-sm text-muted-foreground">I confirm I am 13 years of age or older</Label>
+        <Label htmlFor="age" className="text-sm text-muted-foreground">I confirm I am 16 years of age or older</Label>
       </div>
       <div className="flex items-center gap-2">
         <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(v) => setTermsAccepted(!!v)} />
-        <Label htmlFor="terms" className="text-sm text-muted-foreground">I accept the Terms of Service and Privacy Policy</Label>
+        <Label htmlFor="terms" className="text-sm text-muted-foreground">
+          I accept the{" "}
+          <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:no-underline">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:no-underline">
+            Privacy Policy
+          </Link>
+        </Label>
       </div>
       <Button type="submit" className="w-full" disabled={loading}>{loading ? "Creating account…" : "Create account"}</Button>
       <p className="text-center text-sm text-muted-foreground">

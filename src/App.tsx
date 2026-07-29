@@ -19,6 +19,8 @@ import { DashboardLayout } from "@/layouts/DashboardLayout";
 // Public pages
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import PrivacyPolicyPage from "./pages/legal/PrivacyPolicyPage";
+import TermsPage from "./pages/legal/TermsPage";
 
 // Auth pages
 import LoginPage from "./pages/auth/LoginPage";
@@ -72,6 +74,8 @@ const App = () => (
               {/* Public routes */}
               <Route element={<PublicLayout />}>
                 <Route path="/" element={<Index />} />
+                <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                <Route path="/terms" element={<TermsPage />} />
               </Route>
 
               {/* Auth routes (guest only) */}

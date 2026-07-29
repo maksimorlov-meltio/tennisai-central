@@ -276,12 +276,12 @@ function TrainingDetailDrawer({
             </div>
           )}
 
-          {/* AI Analysis */}
+          {/* Session analysis */}
           {(training.analysis || (past && onAnalyze)) && (
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
-                  <Sparkles className="h-3 w-3" /> AI Performance Summary
+                  <Sparkles className="h-3 w-3" /> Session Summary
                 </div>
                 {onAnalyze && past && !analyzing && (
                   <Button
@@ -302,7 +302,7 @@ function TrainingDetailDrawer({
                   <Skeleton className="h-3 w-[78%]" />
                   <Skeleton className="h-3 w-[60%]" />
                   <p className="pt-1 text-[10px] text-muted-foreground flex items-center gap-1">
-                    <RefreshCw className="h-2.5 w-2.5 animate-spin" /> Contacting the AI backend…
+                    <RefreshCw className="h-2.5 w-2.5 animate-spin" /> Generating summary…
                   </p>
                 </div>
               ) : analyzeError ? (
@@ -336,7 +336,7 @@ function TrainingDetailDrawer({
                 </>
               ) : !analyzing && !analyzeError ? (
                 <p className="text-xs text-muted-foreground">
-                  Generate an AI-powered performance summary of this session from the backend.
+                  Generate a structured performance summary of this session.
                 </p>
               ) : null}
             </div>
@@ -559,8 +559,8 @@ export default function TrainingsPage() {
                     {past && (
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setReviewTarget(t); }} title="Review session"><ClipboardCheck className="h-3.5 w-3.5" /></Button>
                     )}
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(t); }}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteTarget(t); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Edit ${t.title}`} onClick={(e) => { e.stopPropagation(); openEdit(t); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={`Delete ${t.title}`} onClick={(e) => { e.stopPropagation(); setDeleteTarget(t); }}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
                 )}
                 {!isCoach && past && (

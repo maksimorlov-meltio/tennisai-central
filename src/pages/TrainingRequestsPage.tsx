@@ -73,9 +73,10 @@ function PlayerRequestForm({ open, onOpenChange, coachId, coachName }: {
   const valid = form.preferredDate && form.preferredStartTime && form.preferredEndTime;
 
   const handleSubmit = () => {
+    if (!user) return;
     createMut.mutate({
-      playerId: user?.id ?? "p1",
-      playerName: `${user?.firstName ?? "Alex"} ${user?.lastName ?? "Rivera"}`,
+      playerId: user.id,
+      playerName: `${user.firstName} ${user.lastName}`,
       coachId,
       coachName,
       ...form,
@@ -324,14 +325,14 @@ export default function TrainingRequestsPage() {
   // Filter requests by role
   const filtered = useMemo(() => {
     let list = requests;
-    if (isPlayer) list = requests.filter((r) => r.playerId === user?.id || r.playerId === "p1");
-    if (isCoach) list = requests.filter((r) => r.coachId === user?.id || r.coachId === "c1");
+    if (isPlayer) list = requests.filter((r) => r.playerId === user?.id);
+    if (isCoach) list = requests.filter((r) => r.coachId === user?.id);
     if (isObserver) list = [];
     if (statusFilter !== "all") list = list.filter((r) => r.status === statusFilter);
     return list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }, [requests, isPlayer, isCoach, isObserver, user?.id, statusFilter]);
 
-  const pendingCount = requests.filter((r) => r.status === "pending" && (isCoach ? r.coachId === user?.id || r.coachId === "c1" : r.playerId === user?.id || r.playerId === "p1")).length;
+  const pendingCount = requests.filter((r) => r.status === "pending" && (isCoach ? r.coachId === user?.id : r.playerId === user?.id)).length;
 
   if (isLoading) return <LoadingState message="Loading requests…" />;
   if (error) return <ErrorState message="Failed to load requests" onRetry={() => window.location.reload()} />;

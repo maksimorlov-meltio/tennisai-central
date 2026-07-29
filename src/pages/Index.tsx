@@ -5,45 +5,15 @@ import { ArrowRight } from "lucide-react";
 // ── Content ───────────────────────────────────────────────
 const capabilities = [
   { title: "Scheduling", desc: "Lessons, courts and coaches on one calendar — booked around school, work and weather." },
-  { title: "Training sessions", desc: "Each session drafted from the player's last ten. The coach adjusts, never starts from zero." },
+  { title: "Session Builder", desc: "Set the focus and get a structured, best-practice training session to start from — the coach adjusts, never starts from zero." },
   { title: "Gear tracking", desc: "Strings, grips and restring cycles per player — nothing snaps mid-match." },
-  { title: "Tournaments", desc: "Entries suggested by level, ranking points and travel — agreed between coach and parents." },
+  { title: "Tournaments", desc: "Browse tournaments by surface, level and location, and keep entries on the shared calendar." },
 ];
 
 const steps = [
-  { n: "01", lead: "Connect the roster.", desc: "Coaches, players and parents join one workspace; availability syncs from their calendars." },
-  { n: "02", lead: "Let it schedule.", desc: "Courts and lessons booked, each session plan drafted and ready for the coach's edits." },
-  { n: "03", lead: "Play the right events.", desc: "Gear stays match-ready; tournament entries land on the calendar with travel time blocked." },
-];
-
-const pricing = [
-  {
-    name: "Player",
-    price: "Free",
-    cadence: "",
-    desc: "For competitors building their season.",
-    features: ["Tournament calendar", "Training log & feedback", "Basic match insights"],
-    cta: "Start free",
-    featured: false,
-  },
-  {
-    name: "Coach",
-    price: "$29",
-    cadence: "/mo",
-    desc: "For coaches managing rosters and sessions.",
-    features: ["Up to 25 players", "Session plans & reviews", "Team analytics & scouting"],
-    cta: "Start free trial",
-    featured: true,
-  },
-  {
-    name: "Academy",
-    price: "$99",
-    cadence: "/mo",
-    desc: "For clubs and academies at scale.",
-    features: ["Unlimited coaches & players", "Multi-court scheduling", "Billing & parent portal"],
-    cta: "Talk to us",
-    featured: false,
-  },
+  { n: "01", lead: "Connect the roster.", desc: "Coaches, players and parents join one workspace and connect their accounts." },
+  { n: "02", lead: "Let it build.", desc: "Set the focus for a session and the builder assembles a structured plan for the coach to fine-tune." },
+  { n: "03", lead: "Play the right events.", desc: "Gear stays match-ready; tournament entries and training sessions live on one shared calendar." },
 ];
 
 // Small red square — the recurring modernist marker.
@@ -67,7 +37,7 @@ const Index = () => {
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-6">
             <Button size="lg" className="h-12 px-7 text-sm font-semibold" asChild>
-              <Link to="/signup">Start free trial</Link>
+              <Link to="/signup">Sign up free</Link>
             </Button>
             <a
               href="#how-it-works"
@@ -124,48 +94,21 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ── Pricing ───────────────────────────────────────── */}
+      {/* ── Access (private trial — no invented paid tiers) ── */}
       <section id="pricing" className="border-b border-foreground/15 scroll-mt-20">
         <div className="container max-w-6xl py-20 md:py-24">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Pricing</p>
-          <div className="mt-10 grid grid-cols-1 gap-px md:grid-cols-3">
-            {pricing.map((p) => (
-              <div
-                key={p.name}
-                className={"flex flex-col " + (p.featured ? "border-t-2 border-primary" : "border-t-2 border-foreground")}
-              >
-                <div className="pt-6">
-                  <div className="flex items-baseline justify-between">
-                    <h3 className="text-xl font-bold tracking-tight text-foreground">{p.name}</h3>
-                    {p.featured && (
-                      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Popular</span>
-                    )}
-                  </div>
-                  <div className="mt-5 flex items-baseline gap-1">
-                    <span className="text-4xl font-extrabold tracking-tight text-foreground">{p.price}</span>
-                    <span className="text-sm text-muted-foreground">{p.cadence}</span>
-                  </div>
-                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{p.desc}</p>
-                  <ul className="mt-6 space-y-2.5">
-                    {p.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2.5 text-sm text-foreground">
-                        <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 bg-primary" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-8">
-                    <Button
-                      asChild
-                      variant={p.featured ? "default" : "outline"}
-                      className="w-full h-11 text-sm font-semibold"
-                    >
-                      <Link to="/signup">{p.cta}</Link>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Access</p>
+          <div className="mt-10 max-w-2xl">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">Currently an invite-only trial.</h2>
+            <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+              Tennis AI is being trialled with a small group of coaches, players and parents.
+              There's no paid plan yet — sign up and we'll get you connected.
+            </p>
+            <div className="mt-8">
+              <Button size="lg" className="h-12 px-7 text-sm font-semibold" asChild>
+                <Link to="/signup">Sign up free</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
@@ -178,7 +121,7 @@ const Index = () => {
           </h2>
           <div className="mt-10 flex flex-wrap items-center gap-6">
             <Button size="lg" className="h-12 px-7 text-sm font-semibold" asChild>
-              <Link to="/signup">Start free trial</Link>
+              <Link to="/signup">Sign up free</Link>
             </Button>
             <Link to="/login" className="text-sm font-semibold text-foreground underline-offset-4 hover:underline">
               Already on Tennis AI? Sign in
@@ -196,8 +139,10 @@ const Index = () => {
           </span>
           <nav className="flex items-center gap-6">
             <a href="#how-it-works" className="hover:text-foreground">How it works</a>
-            <a href="#pricing" className="hover:text-foreground">Pricing</a>
+            <a href="#pricing" className="hover:text-foreground">Access</a>
             <Link to="/login" className="hover:text-foreground">Sign in</Link>
+            <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
+            <Link to="/terms" className="hover:text-foreground">Terms</Link>
           </nav>
         </div>
       </footer>
