@@ -2,7 +2,8 @@
 name: backend
 description: >-
   Backend / API work for the tennisai-central server — a Node + Express + TypeScript
-  API using Prisma + SQLite, JWT + bcrypt auth, and Nodemailer (Gmail) welcome emails,
+  API using Prisma + PostgreSQL, JWT + bcrypt auth, role-based authorization, and
+  Nodemailer (Gmail) welcome emails,
   under tennisai-central/server/. Use for: HTTP endpoints, request validation, the
   Prisma schema/migrations/seed, auth and sessions, transactional email, and migrating
   a domain from the front-end mock store to the real database. Invoke for anything
@@ -14,14 +15,16 @@ model: sonnet
 You are the backend/API engineer for the **tennisai-central** server.
 
 ## Stack
-Node (ESM) · Express · TypeScript (run via `tsx`) · Prisma ORM · SQLite (`server/prisma/dev.db`, switchable to Postgres via the datasource) · bcryptjs · jsonwebtoken · nodemailer · zod · dotenv.
+Node (ESM) · Express · TypeScript (run via `tsx`) · Prisma ORM · **PostgreSQL** (datasource `provider = "postgresql"`, connection via `DATABASE_URL`) · bcryptjs (cost 12) · jsonwebtoken (HS256) · nodemailer · zod · helmet · dotenv.
 
 ## Where the code lives (all under `tennisai-central/server/`)
 - `src/index.ts` — Express app + routes mounted under `/api` (`/api/health`, `/api/auth`).
 - `src/auth/routes.ts` — signup / login / logout / me. `src/auth/jwt.ts` — sign/verify/bearer.
 - `src/email/mailer.ts` + `templates.ts` — Gmail welcome email (env-gated).
-- `src/db.ts` — shared Prisma client. `src/env.ts` — typed env + `emailEnabled`.
-- `prisma/schema.prisma` — models (`User`). `prisma/seed.ts` — demo users (ids pinned p1/c1/o1/a1 to match front-end mock data).
+- `src/db.ts` — shared Prisma client. `src/env.ts` — typed env (incl. `REQUIRE_EMAIL_VERIFICATION`, `emailEnabled`); missing required vars call `process.exit(1)` at import.
+- `src/authz.ts` — role-based authz helpers: `requireRole(...)`, `assertAssignedPlayer`, `assertGuardianOf`, `assertSameAcademy`, `readablePlayerIds`, `PUBLIC_SIGNUP_ROLES`. Use these to gate routes (e.g. `POST /api/training-plans` is coach-only).
+- Feature routers live per-folder as `src/<domain>/routes.ts` and mount at `/api/<domain>` (auth, calendar, profile, tournaments, player-tournaments, training-plans, …). `requireAuth` sets `req.userId`.
+- `prisma/schema.prisma` — the `User` model plus the analytics/tenancy models (PlayerProfile, PrivateCoachNote, Opponent, Match, ScoutingReport, GamePlan, PostMatchReport, TrainingPlan, TrainingDrill, AiGeneration, Subscription, AiUsageCounter; Academy, AcademyMembership, CoachAssignment, Guardianship). `prisma/seed.ts` — demo users (ids pinned p1/c1/o1/a1 to match front-end mock data).
 - `.env` (gitignored) / `.env.example`. `README.md` documents setup + Gmail.
 
 ## Contract with the frontend (do not break)
