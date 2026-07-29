@@ -30,8 +30,8 @@ when connecting Render/Vercel below.)*
 2. **New ▸ Blueprint** → connect GitHub → pick **`SOMAXOrlov/tennisai-central`**, branch **`main`**.
 3. Render reads `server/render.yaml` and proposes **`tennisai-api`** (web, free) + **`tennisai-db`** (Postgres, free). It auto-generates `JWT_SECRET`, wires `DATABASE_URL`, and sets `REQUIRE_EMAIL_VERIFICATION=false`.
    - If it objects to `plan: free` for the database, just pick the **Free** database plan in the dropdown.
-4. Leave **`APP_URL`** blank for now. Click **Apply / Create**.
-5. First deploy runs: build → apply migrations → seed demo data → start. Wait for the service to go **Live** (health check green). First build takes a few minutes.
+4. Leave **`APP_URL`** blank for now. **Set `SIGNUP_INVITE_CODE`** to any code you choose (e.g. `tennis-2026`) — this is the access gate: only people who type this code can register. Share it privately with your brother/coach.
+5. Click **Apply / Create**. First deploy runs: build → apply migrations → seed demo data → start. Wait for the service to go **Live** (health check green). First build takes a few minutes.
 6. Copy the API URL, e.g. `https://tennisai-api.onrender.com`.
    - Sanity check: open `https://tennisai-api.onrender.com/api/health` → you should see `{"ok":true,"db":"up",...}`.
    - **Your API base is that URL + `/api`** — you'll need it in the next step.
@@ -53,9 +53,9 @@ when connecting Render/Vercel below.)*
    This is required: the API only accepts requests from `APP_URL`.
 
 ## Step 4 — hand it to the coach
-- Send the coach your **Vercel URL**.
-- He clicks **Sign up free**, picks role **Coach**, enters his email + a password, confirms he's 16+, accepts the terms → he's logged straight in (no email verification step).
-- Or explore instantly with the seeded demo login: **`coach@test.com` / `password123`**.
+- Send the coach your **Vercel URL** and the **invite code** you set in Step 1.4.
+- He clicks **Sign up free**, picks role **Coach**, enters the **invite code** + his email + a password, confirms he's 16+, accepts the terms → he's logged straight in (no email verification step). Without a valid code, registration is refused.
+- Or explore instantly with the seeded demo login: **`coach@test.com` / `password123`** (login needs no code).
 - To link a coach and a player, use the **public ID** shown on each user's Profile page (Connections ▸ add by ID).
 
 ---
@@ -64,7 +64,7 @@ when connecting Render/Vercel below.)*
 - **Free-tier behaviour:** the API **sleeps after ~15 min idle** — the first visit after that takes ~30s to wake. Render's **free Postgres expires after ~30 days**; export or upgrade before then if you want to keep the data.
 - **This is a test build, not a hardened public product.** Known gaps: no self-service password reset yet (if the coach forgets it, tell me and I'll reset it in the DB), sessions can't be remotely revoked, and the Privacy/Terms pages are **drafts pending real legal review**.
 - **Adults only + no real minors' data.** The trial is configured 16+; don't enter real children's personal data.
-- **The URL is effectively public.** With email verification off, anyone who has the link can register. Fine for a private test — if you want it locked to invitees, tell me and I'll add a simple access gate.
+- **Registration is gated by the invite code** you set (`SIGNUP_INVITE_CODE`). Anyone with the URL can *see* the landing/login page, but only someone with the code can create an account. To rotate access, change the code in Render (existing accounts keep working); to fully close signups, set it to a long random string and don't share it.
 
 ## If something breaks
 - API won't start → Render ▸ tennisai-api ▸ **Logs** (look for a migration error).

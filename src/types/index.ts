@@ -419,4 +419,6 @@ export interface SignUpRequest {
   dominantHand?: "left" | "right";
   organization?: string;
   relationToPlayer?: string;
+  /** Private-trial access code (required only when the server has one configured). */
+  inviteCode?: string;
 }

@@ -32,6 +32,11 @@ services:
       # Test trial: no email service — users sign up and log in without a verify link.
       - key: REQUIRE_EMAIL_VERIFICATION
         value: "false"
+      # Private-trial access gate: signup requires this code. Choose any value in the
+      # Render dashboard and share it with your brother/coach. Without it set, anyone
+      # with the URL could register.
+      - key: SIGNUP_INVITE_CODE
+        sync: false
       - key: APP_URL
         sync: false # set to the deployed frontend origin, e.g. https://tennisai.vercel.app
 

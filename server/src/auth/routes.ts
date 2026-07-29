@@ -42,6 +42,8 @@ const signupSchema = z.object({
   termsAccepted: z
     .boolean()
     .refine((v) => v === true, { message: "You must accept the Terms of Service and Privacy Policy." }),
+  // Private-trial access gate — only checked when SIGNUP_INVITE_CODE is configured.
+  inviteCode: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -60,6 +62,14 @@ authRouter.post(
   "/signup",
   asyncHandler(async (req, res) => {
     const data = signupSchema.parse(req.body);
+
+    // Private-trial access gate: when an invite code is configured, registration
+    // requires it. Unset (local dev / tests) leaves signup open. A wrong/missing
+    // code is rejected before any account work happens.
+    if (env.signupInviteCode && data.inviteCode?.trim() !== env.signupInviteCode) {
+      throw new HttpError(403, "This is a private trial — a valid invite code is required to sign up.");
+    }
+
     const email = data.email.trim().toLowerCase();
 
     const existing = await prisma.user.findUnique({ where: { email } });

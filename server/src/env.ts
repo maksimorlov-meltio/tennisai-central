@@ -37,6 +37,9 @@ const schema = z.object({
   // Undefined when unset — missing values do NOT stop the process.
   FEED_API_URL: z.string().url().optional(),
   FEED_API_KEY: z.string().min(1).optional(),
+  // Private-trial access gate. When set, signup requires a matching invite code.
+  // Unset = open registration (local dev / tests). Not a secret sent to the client.
+  SIGNUP_INVITE_CODE: z.string().min(1).optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -81,6 +84,8 @@ export const env = {
   // Optional live-feed config (undefined unless explicitly set). Server-side only.
   feedApiUrl: e.FEED_API_URL,
   feedApiKey: e.FEED_API_KEY,
+  // Optional private-trial invite code (undefined = open registration).
+  signupInviteCode: e.SIGNUP_INVITE_CODE,
 };
 
 // Guard: disabling email verification in production is almost never intended.
