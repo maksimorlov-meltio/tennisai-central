@@ -31,6 +31,12 @@ const schema = z.object({
     .string()
     .default("true")
     .transform((v) => v.toLowerCase() !== "false"),
+  // Optional live tournament-feed provider (see src/tournaments/feed/). Both must
+  // be set to activate the HTTP provider; otherwise the curated static snapshot is
+  // used. FEED_API_KEY is a server-side secret and is NEVER sent to the client.
+  // Undefined when unset — missing values do NOT stop the process.
+  FEED_API_URL: z.string().url().optional(),
+  FEED_API_KEY: z.string().min(1).optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -72,6 +78,9 @@ export const env = {
   gmailAppPassword: e.GMAIL_APP_PASSWORD.replace(/\s+/g, ""),
   mailFromName: e.MAIL_FROM_NAME,
   requireEmailVerification: e.REQUIRE_EMAIL_VERIFICATION,
+  // Optional live-feed config (undefined unless explicitly set). Server-side only.
+  feedApiUrl: e.FEED_API_URL,
+  feedApiKey: e.FEED_API_KEY,
 };
 
 // Guard: disabling email verification in production is almost never intended.

@@ -7,7 +7,11 @@ import { env, emailEnabled } from "./env";
 import { prisma } from "./db";
 import { authRouter } from "./auth/routes";
 import { trainingsRouter } from "./trainings/routes";
-import { tournamentsRouter, playerTournamentsRouter } from "./tournaments/routes";
+import {
+  tournamentsRouter,
+  playerTournamentsRouter,
+  hiddenTournamentsRouter,
+} from "./tournaments/routes";
 import { teamsRouter } from "./teams/routes";
 import { connectionsRouter } from "./connections/routes";
 import { usersRouter } from "./users/routes";
@@ -69,6 +73,7 @@ app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/trainings", trainingsRouter);
 app.use("/api/tournaments", tournamentsRouter);
 app.use("/api/player-tournaments", playerTournamentsRouter);
+app.use("/api/hidden-tournaments", hiddenTournamentsRouter);
 app.use("/api/teams", teamsRouter);
 app.use("/api/connections", connectionsRouter);
 app.use("/api/users", usersRouter);

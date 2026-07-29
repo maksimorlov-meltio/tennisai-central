@@ -33,6 +33,7 @@ model User {
   trainingParticipations TrainingParticipant[]
   // back-relations (tournaments domain)
   playerTournaments      PlayerTournament[]
+  hiddenTournaments      HiddenTournament[]
   // back-relations (teams domain)
   coachedTeams    Team[]       @relation("TeamCoach")
   teamMemberships TeamMember[]
@@ -138,6 +139,8 @@ model Tournament {
   category       String?
   level          String?
   federation     String? // ITF | WTA | ATP | UTR | USTA
+  latitude       Float? // host-city latitude (decimal degrees) — powers the map + distance sort
+  longitude      Float? // host-city longitude (decimal degrees)
   startDate      DateTime
   endDate        DateTime
   description    String?
@@ -145,9 +148,27 @@ model Tournament {
   updatedAt      DateTime @updatedAt
 
   playerEntries PlayerTournament[]
+  hiddenBy      HiddenTournament[]
 
   @@index([startDate])
   @@map("tournaments")
+}
+
+// A per-user "eliminate from suggestions" list. One row = this user hid this
+// tournament. Owner-scoped in the routes; the row disappears (cascade) when
+// either the user or the tournament is deleted.
+model HiddenTournament {
+  id           String   @id @default(cuid())
+  userId       String
+  tournamentId String
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tournamentId])
+  @@index([userId])
+  @@map("hidden_tournaments")
 }
 
 model PlayerTournament {
