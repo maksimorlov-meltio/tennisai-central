@@ -40,6 +40,18 @@ const authLimiter = rateLimit({
   message: { message: "Too many attempts. Please try again later." },
 });
 
+// General API throttle — a coarse ceiling on all /api traffic per client to
+// blunt scraping / abuse. The stricter authLimiter still applies to /api/auth
+// (both counters increment on an auth request). Health checks are excluded
+// because they are mounted before this limiter.
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests. Please slow down and try again shortly." },
+});
+
 // Liveness + DB readiness.
 app.get("/api/health", async (_req, res) => {
   try {
@@ -49,6 +61,9 @@ app.get("/api/health", async (_req, res) => {
     res.status(503).json({ ok: false, db: "down", time: new Date().toISOString() });
   }
 });
+
+// Coarse per-client throttle across every API router (mounted before them).
+app.use("/api", apiLimiter);
 
 app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/trainings", trainingsRouter);

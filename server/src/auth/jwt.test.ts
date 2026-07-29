@@ -43,10 +43,23 @@ describe("purpose tokens (email verification)", () => {
     expect(verifyPurposeToken(session, "verify_email")).toBeNull();
   });
 
-  it("a purpose token still carries a valid subject for the session verifier", () => {
-    // (It would only matter if leaked; confirm the subject is intact.)
+  it("a purpose token is NOT accepted as a session token (missing typ:access)", () => {
+    // A verification link token travels in a URL; it must never be replayable
+    // as a session credential even though it verifies against the same secret.
     const token = signPurposeToken("user-9", "verify_email", "1d");
-    expect(verifyToken(token)).toBe("user-9");
+    expect(verifyToken(token)).toBeNull();
+  });
+});
+
+describe("access-token typ claim", () => {
+  it("accepts a freshly signed session token", () => {
+    expect(verifyToken(signToken("user-42"))).toBe("user-42");
+  });
+
+  it("rejects a token that lacks the access typ claim", () => {
+    // Simulate a legacy/hand-rolled token with only `sub` — no typ:access.
+    const legacy = signPurposeToken("user-7", "not-access", "1d");
+    expect(verifyToken(legacy)).toBeNull();
   });
 });
 

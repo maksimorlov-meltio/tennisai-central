@@ -43,17 +43,20 @@ if (!parsed.success) {
 
 const e = parsed.data;
 
-// In production, a strong, non-default JWT secret is mandatory — the default
-// is publicly known and would let anyone forge tokens for any user.
-if (isProd && (INSECURE_JWT_DEFAULTS.has(e.JWT_SECRET) || e.JWT_SECRET.length < 32)) {
+// A strong, non-default JWT secret is mandatory EVERYWHERE except explicit local
+// dev/test — the default is publicly known and would let anyone forge tokens for
+// any user. Only NODE_ENV exactly "development" or "test" may use a weak secret.
+const allowWeakSecret = e.NODE_ENV === "development" || e.NODE_ENV === "test";
+if (!allowWeakSecret && (INSECURE_JWT_DEFAULTS.has(e.JWT_SECRET) || e.JWT_SECRET.length < 32)) {
   console.error(
-    "❌ JWT_SECRET is missing, insecure, or too short for production.\n" +
-      "   Generate one with: node -e \"console.log(require('crypto').randomBytes(48).toString('base64url'))\"",
+    "❌ JWT_SECRET is missing, insecure, or too short (need ≥32 chars, non-default).\n" +
+      `   NODE_ENV=${e.NODE_ENV} requires a strong secret. Generate one with:\n` +
+      "   node -e \"console.log(require('crypto').randomBytes(48).toString('base64url'))\"",
   );
   process.exit(1);
 }
 
-if (!isProd && INSECURE_JWT_DEFAULTS.has(e.JWT_SECRET)) {
+if (allowWeakSecret && INSECURE_JWT_DEFAULTS.has(e.JWT_SECRET)) {
   console.warn("⚠️  Using a development JWT secret — never deploy this to production.");
 }
 

@@ -46,9 +46,12 @@ export interface PlayerProfileFields {
   technicalStrengths: string[];
   technicalWeaknesses: string[];
   currentGoals?: string;
-  injuryRestrictions?: string;
 }
 
+// GDPR (adults-only trial): free-text injury / health answers are Art.9 special-
+// category data. We deliberately do NOT persist them into injuryRestrictions /
+// physicalLimitations from onboarding — the health question is removed on the
+// client, and any stray value in `answers` is ignored here.
 export function onboardingToPlayerProfile(answers: Answers): PlayerProfileFields {
   return {
     playingLevel: asStr(answers.playingLevel),
@@ -58,6 +61,5 @@ export function onboardingToPlayerProfile(answers: Answers): PlayerProfileFields
     technicalStrengths: asArr(answers.strengths),
     technicalWeaknesses: asArr(answers.improve),
     currentGoals: asStr(answers.goal),
-    injuryRestrictions: asStr(answers.injuries),
   };
 }

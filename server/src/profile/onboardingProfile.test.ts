@@ -11,7 +11,6 @@ describe("onboardingToPlayerProfile", () => {
       strengths: ["Serve", "Forehand"],
       improve: ["Backhand", "Movement"],
       goal: "Win a tournament",
-      injuries: "Recovering right shoulder",
     });
     expect(pf.playingLevel).toBe("Intermediate");
     expect(pf.dominantHand).toBe("left");
@@ -20,7 +19,14 @@ describe("onboardingToPlayerProfile", () => {
     expect(pf.technicalStrengths).toEqual(["Serve", "Forehand"]);
     expect(pf.technicalWeaknesses).toEqual(["Backhand", "Movement"]);
     expect(pf.currentGoals).toBe("Win a tournament");
-    expect(pf.injuryRestrictions).toBe("Recovering right shoulder");
+  });
+
+  it("does NOT persist free-text injury / health data (GDPR Art.9)", () => {
+    // Even if a stray health answer is present, it must never be mapped into a
+    // structured profile field.
+    const pf = onboardingToPlayerProfile({ injuries: "Recovering right shoulder" });
+    expect(pf).not.toHaveProperty("injuryRestrictions");
+    expect(pf).not.toHaveProperty("physicalLimitations");
   });
 
   it("handles missing / custom answers gracefully", () => {

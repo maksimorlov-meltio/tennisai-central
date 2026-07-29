@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "TennisAI API — real backend (Express + Prisma + PostgreSQL) for auth + trainings, with Gmail welcome emails.",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",

@@ -15,7 +15,8 @@ const VERIFY_PURPOSE = "verify_email";
 const VERIFY_TTL = "1d";
 
 /** Build the front-end verification link a user clicks from their email. */
-function verifyUrlFor(userId: string): string {
+/** Exported so the profile router can re-send verification on an email change. */
+export function verifyUrlFor(userId: string): string {
   const token = signPurposeToken(userId, VERIFY_PURPOSE, VERIFY_TTL);
   return `${env.appUrl}/verify-email?token=${encodeURIComponent(token)}`;
 }
@@ -32,6 +33,15 @@ const signupSchema = z.object({
   // SECURITY: public signup may NOT self-assign "admin" (academy administrator).
   // Admin accounts are provisioned by invite/seed only. See PUBLIC_SIGNUP_ROLES.
   role: z.enum(PUBLIC_SIGNUP_ROLES),
+  // ADULTS-ONLY trial: both consents are mandatory and must be exactly `true`.
+  // (The 16+ minimum-age wording is presented on the client.) A missing or
+  // false value fails validation → 400.
+  ageConfirmed: z
+    .boolean()
+    .refine((v) => v === true, { message: "You must confirm you meet the minimum age to sign up." }),
+  termsAccepted: z
+    .boolean()
+    .refine((v) => v === true, { message: "You must accept the Terms of Service and Privacy Policy." }),
 });
 
 const loginSchema = z.object({
@@ -60,6 +70,7 @@ authRouter.post(
     const autoVerified = !env.requireEmailVerification;
 
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_COST);
+    const now = new Date();
     const user = await prisma.user.create({
       data: {
         email,
@@ -69,6 +80,9 @@ authRouter.post(
         firstName: data.firstName,
         lastName: data.lastName,
         emailVerified: autoVerified,
+        // Record the consents captured at signup (adults-only trial + ToS).
+        termsAcceptedAt: now,
+        ageConfirmedAt: now,
       },
     });
 

@@ -78,6 +78,49 @@ export async function assertGuardianOf(guardianId: string, juniorPlayerId: strin
   }
 }
 
+/**
+ * Generalised "may the actor act on this player?" check, used by create/update
+ * routes that accept a foreign user id (calendar events, trainings, team
+ * membership, …). Allowed when:
+ *   - the actor IS the target (acting on their own records), OR
+ *   - an ACTIVE CoachAssignment(coachId=actor, playerId=target) exists, OR
+ *   - an ACTIVE ConnectionRequest links the two in EITHER direction, OR
+ *   - a CONSENTED Guardianship(guardianId=actor, juniorPlayerId=target) exists.
+ * Throws 403 otherwise. Connection lookup mirrors trainingPlans `assertCanPlanFor`.
+ */
+export async function assertCanActOnPlayer(actorId: string, targetPlayerId: string): Promise<void> {
+  if (actorId === targetPlayerId) return;
+
+  // 1) Active coach → player assignment.
+  const assignment = await prisma.coachAssignment.findUnique({
+    where: { coachId_playerId: { coachId: actorId, playerId: targetPlayerId } },
+    select: { status: true },
+  });
+  if (assignment?.status === "active") return;
+
+  // 2) Accepted/active connection in either direction (same shape as assertCanPlanFor).
+  const connection = await prisma.connectionRequest.findFirst({
+    where: {
+      status: "active",
+      OR: [
+        { fromUserId: actorId, toUserId: targetPlayerId },
+        { fromUserId: targetPlayerId, toUserId: actorId },
+      ],
+    },
+    select: { id: true },
+  });
+  if (connection) return;
+
+  // 3) Consented guardianship (observer/parent acting for a junior).
+  const guardianship = await prisma.guardianship.findUnique({
+    where: { guardianId_juniorPlayerId: { guardianId: actorId, juniorPlayerId: targetPlayerId } },
+    select: { parentalConsent: true },
+  });
+  if (guardianship?.parentalConsent) return;
+
+  throw new HttpError(403, "You are not authorized to act on behalf of this player");
+}
+
 /** Two users must share at least one academy. Throws 403 otherwise. */
 export async function assertSameAcademy(userIdA: string, userIdB: string): Promise<void> {
   const [a, b] = await Promise.all([

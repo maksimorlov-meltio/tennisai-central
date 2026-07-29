@@ -117,14 +117,92 @@ const DEMO_NOTIFICATIONS = [
   { id: "notif-1", userId: "p1", type: "training_request_approved", title: "Training Request Approved", message: "Your individual request for 2026-07-22 was approved", read: false, linkTo: "/calendar" },
 ];
 
+// ── Roles & tenancy (Stage 2) + analytics (Stage 1) demo rows ─────
+// Pinned ids aligned with the demo users (c1 / p1 / o1) so the coach→player
+// and parent→junior authz paths (server/src/authz.ts) resolve for the demo
+// logins. All rows use idempotent upserts on their natural unique keys.
+const DEMO_ACADEMY = { id: "acad-1", name: "Center Court Academy" };
+
+// role = role WITHIN the academy (admin | coach | player). c1 both coaches and
+// administers the academy; p1 is a player; o1 (parent/observer) belongs to the
+// academy for tenancy but is deliberately NOT "player" (admin reads filter on
+// role:"player", so o1 must not be counted as a readable player).
+const DEMO_ACADEMY_MEMBERSHIPS = [
+  { id: "am-c1", academyId: "acad-1", userId: "c1", role: "admin" },
+  { id: "am-p1", academyId: "acad-1", userId: "p1", role: "player" },
+  { id: "am-o1", academyId: "acad-1", userId: "o1", role: "observer" },
+];
+
+// coach c1 → player p1 (active): powers the coach→player authz path.
+const DEMO_COACH_ASSIGNMENTS = [
+  { id: "ca-c1-p1", coachId: "c1", playerId: "p1", status: "active" },
+];
+
+// parent o1 → junior p1 with recorded consent: powers the parent→junior path.
+const DEMO_GUARDIANSHIPS = [
+  { id: "guard-o1-p1", guardianId: "o1", juniorPlayerId: "p1", parentalConsent: true, consentAt: now },
+];
+
+// Free subscription owned by the coach, scoped to the academy.
+const DEMO_SUBSCRIPTIONS = [
+  { id: "sub-c1", ownerUserId: "c1", academyId: "acad-1", tier: "free" as const, status: "active" },
+];
+
+// Opponent scouting records (owned by coach c1, within the academy).
+const DEMO_OPPONENTS = [
+  { id: "opp-seed-1", ownerId: "c1", academyId: "acad-1", firstName: "Sam", lastName: "Becker", dominantHand: "right", backhandType: "two_handed", preferredSurface: "hard" },
+  { id: "opp-seed-2", ownerId: "c1", academyId: "acad-1", firstName: "Chris", lastName: "Dubois", dominantHand: "left", backhandType: "one_handed", preferredSurface: "clay" },
+];
+
+// Matches for player p1 (raw counts only — percentages are computed on read).
+const DEMO_MATCHES = [
+  {
+    id: "match-seed-1",
+    playerId: "p1",
+    opponentId: "opp-seed-1",
+    academyId: "acad-1",
+    date: day(-7, 14),
+    competition: "Club Championship R1",
+    surface: "hard",
+    indoorOutdoor: "outdoor",
+    format: "best_of_3",
+    result: "win",
+    scoreSets: [{ player: 6, opponent: 4 }, { player: 6, opponent: 3 }],
+    firstServeAttempts: 60, firstServesIn: 39, firstServePointsWon: 30,
+    secondServePlayed: 21, secondServePointsWon: 11, aces: 5, doubleFaults: 3,
+    winners: 22, unforcedErrors: 18,
+    createdBy: "c1",
+  },
+  {
+    id: "match-seed-2",
+    playerId: "p1",
+    opponentId: "opp-seed-2",
+    academyId: "acad-1",
+    date: day(-2, 11),
+    competition: "Club Championship QF",
+    surface: "clay",
+    indoorOutdoor: "outdoor",
+    format: "best_of_3",
+    result: "loss",
+    scoreSets: [{ player: 4, opponent: 6 }, { player: 6, opponent: 7, tiebreak: "5-7" }],
+    firstServeAttempts: 71, firstServesIn: 42, firstServePointsWon: 27,
+    secondServePlayed: 29, secondServePointsWon: 12, aces: 3, doubleFaults: 6,
+    winners: 19, unforcedErrors: 27,
+    createdBy: "c1",
+  },
+];
+
 async function main() {
   const passwordHash = await bcrypt.hash("password123", 12);
 
+  // Mark demo users as consented (Terms accepted + age confirmed) so they look
+  // like real, fully-onboarded signups. Columns are additive + nullable.
+  const consentAt = now;
   for (const u of DEMO_USERS) {
     await prisma.user.upsert({
       where: { email: u.email },
-      update: { firstName: u.firstName, lastName: u.lastName, role: u.role },
-      create: { ...u, passwordHash, emailVerified: true },
+      update: { firstName: u.firstName, lastName: u.lastName, role: u.role, termsAcceptedAt: consentAt, ageConfirmedAt: consentAt },
+      create: { ...u, passwordHash, emailVerified: true, termsAcceptedAt: consentAt, ageConfirmedAt: consentAt },
     });
   }
 
@@ -196,6 +274,61 @@ async function main() {
     await prisma.notification.upsert({ where: { id: n.id }, update: { title: n.title }, create: n });
   }
 
+  // ── Roles & tenancy + analytics demo rows ──────────────────────
+  await prisma.academy.upsert({
+    where: { id: DEMO_ACADEMY.id },
+    update: { name: DEMO_ACADEMY.name },
+    create: DEMO_ACADEMY,
+  });
+
+  for (const m of DEMO_ACADEMY_MEMBERSHIPS) {
+    await prisma.academyMembership.upsert({
+      where: { academyId_userId: { academyId: m.academyId, userId: m.userId } },
+      update: { role: m.role },
+      create: m,
+    });
+  }
+
+  for (const ca of DEMO_COACH_ASSIGNMENTS) {
+    await prisma.coachAssignment.upsert({
+      where: { coachId_playerId: { coachId: ca.coachId, playerId: ca.playerId } },
+      update: { status: ca.status },
+      create: ca,
+    });
+  }
+
+  for (const g of DEMO_GUARDIANSHIPS) {
+    await prisma.guardianship.upsert({
+      where: { guardianId_juniorPlayerId: { guardianId: g.guardianId, juniorPlayerId: g.juniorPlayerId } },
+      update: { parentalConsent: g.parentalConsent, consentAt: g.consentAt },
+      create: g,
+    });
+  }
+
+  for (const s of DEMO_SUBSCRIPTIONS) {
+    await prisma.subscription.upsert({
+      where: { ownerUserId: s.ownerUserId },
+      update: { tier: s.tier, status: s.status, academyId: s.academyId },
+      create: s,
+    });
+  }
+
+  for (const o of DEMO_OPPONENTS) {
+    await prisma.opponent.upsert({
+      where: { id: o.id },
+      update: { firstName: o.firstName, lastName: o.lastName },
+      create: o,
+    });
+  }
+
+  for (const m of DEMO_MATCHES) {
+    await prisma.match.upsert({
+      where: { id: m.id },
+      update: { result: m.result, date: m.date },
+      create: m,
+    });
+  }
+
   console.log(`✅ Seeded ${DEMO_USERS.length} demo users (password: password123):`);
   DEMO_USERS.forEach((u) => console.log(`   • ${u.email} (${u.role})`));
   console.log(`✅ Seeded ${DEMO_TRAININGS.length} demo trainings for coach c1 / player p1.`);
@@ -203,6 +336,8 @@ async function main() {
   console.log(`✅ Seeded ${DEMO_TEAMS.length} team + ${DEMO_CONNECTIONS.length} connection.`);
   console.log(`✅ Seeded ${DEMO_TRAINING_REQUESTS.length} training request + ${DEMO_CALENDAR_EVENTS.length} calendar event.`);
   console.log(`✅ Seeded ${DEMO_FINANCE.length} finance + ${DEMO_EQUIPMENT.length} equipment + ${DEMO_NOTIFICATIONS.length} notification for p1.`);
+  console.log(`✅ Seeded 1 academy + ${DEMO_ACADEMY_MEMBERSHIPS.length} memberships + ${DEMO_COACH_ASSIGNMENTS.length} coach assignment + ${DEMO_GUARDIANSHIPS.length} guardianship (consented).`);
+  console.log(`✅ Seeded ${DEMO_SUBSCRIPTIONS.length} subscription + ${DEMO_OPPONENTS.length} opponents + ${DEMO_MATCHES.length} matches for p1.`);
 }
 
 main()

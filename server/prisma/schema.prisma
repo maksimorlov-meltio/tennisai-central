@@ -23,6 +23,8 @@ model User {
   emailVerified Boolean  @default(false)
   onboarding            Json? // role-based onboarding answers (see src/lib/onboarding)
   onboardingCompletedAt DateTime? // set when the user finishes the intro questionnaire
+  termsAcceptedAt       DateTime? // set at signup when the user accepts the Terms of Service
+  ageConfirmedAt        DateTime? // set at signup when the user confirms the age requirement
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -525,6 +527,7 @@ model Match {
   @@index([playerId])
   @@index([opponentId])
   @@index([date])
+  @@index([createdBy])
   @@map("matches")
 }
 
@@ -549,6 +552,7 @@ model ScoutingReport {
   createdBy User     @relation("ScoutingCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([opponentId])
+  @@index([createdById])
   @@map("scouting_reports")
 }
 
@@ -575,6 +579,8 @@ model GamePlan {
   createdBy User      @relation("GamePlanCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([playerId])
+  @@index([opponentId])
+  @@index([createdById])
   @@map("game_plans")
 }
 
@@ -598,6 +604,7 @@ model PostMatchReport {
   createdBy User  @relation("PostMatchCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([matchId])
+  @@index([createdById])
   @@map("post_match_reports")
 }
 
@@ -620,6 +627,7 @@ model TrainingPlan {
   drills    TrainingDrill[]
 
   @@index([playerId])
+  @@index([createdById])
   @@map("training_plans")
 }
 

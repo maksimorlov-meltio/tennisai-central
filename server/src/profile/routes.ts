@@ -2,7 +2,10 @@ import { Router } from "express";
 import { z } from "zod";
 import { Prisma, type User } from "@prisma/client";
 import { prisma } from "../db";
+import { env } from "../env";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
+import { sendVerificationEmail } from "../email/mailer";
+import { verifyUrlFor } from "../auth/routes";
 import { onboardingToPlayerProfile } from "./onboardingProfile";
 
 // Mounted at /api/me.
@@ -38,12 +41,40 @@ profileRouter.patch(
   asyncHandler(async (req: AuthedRequest, res) => {
     const d = updateSchema.parse(req.body);
     const email = d.email ? d.email.trim().toLowerCase() : undefined;
+
+    // Detect a real email change so we can force re-verification of the new
+    // address (owning the old inbox must not vouch for a new one).
+    const current = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { email: true },
+    });
+    if (!current) throw new HttpError(404, "User not found");
+    const emailChanged = email !== undefined && email !== current.email;
+
     // Prisma raises P2002 on a duplicate email → the error handler maps it to 409.
     const user = await prisma.user.update({
       where: { id: req.userId! },
-      data: { firstName: d.firstName, lastName: d.lastName, email },
+      data: {
+        firstName: d.firstName,
+        lastName: d.lastName,
+        email,
+        // Changing email invalidates prior verification.
+        ...(emailChanged ? { emailVerified: false } : {}),
+      },
     });
-    return ok(res, publicUser(user), "Profile updated");
+
+    // Fire-and-forget a fresh verification link when verification is enabled.
+    if (emailChanged && env.requireEmailVerification) {
+      void sendVerificationEmail(user.email, user.firstName, verifyUrlFor(user.id));
+    }
+
+    return ok(
+      res,
+      publicUser(user),
+      emailChanged && env.requireEmailVerification
+        ? "Profile updated — check your new email for a verification link."
+        : "Profile updated",
+    );
   }),
 );
 
