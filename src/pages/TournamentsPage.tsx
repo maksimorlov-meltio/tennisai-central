@@ -1,8 +1,11 @@
-// Tournaments — with React Query, team filter, and player detail
+// Tournaments — with React Query, team filter, player detail, and a map view
 import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Search, MapPin, Calendar, Sun, Warehouse, Mountain, X, Users, Trophy, RefreshCw, Plus, Trash2, Check } from "lucide-react";
+import {
+  Search, MapPin, Calendar, Sun, Warehouse, Mountain, X, Users, Trophy, RefreshCw, Plus, Trash2, Check,
+  Eye, EyeOff, LocateFixed, Loader2, Lock,
+} from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
 import { ReadOnlyBanner, ReadOnlyBadge, StatusBadge, EmptyState, LoadingState, ErrorState } from "@/components/ui/shared";
@@ -12,12 +15,22 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { TeamFilterSelect } from "@/components/TeamFilterSelect";
 import { PlayerFilterSelect } from "@/components/PlayerFilterSelect";
 import { PlayerDetailDrawer } from "@/components/PlayerDetailDrawer";
-import { useTournaments, usePlayerTournaments, useUpdatePlayerTournament, useAddPlayerTournament, useRemovePlayerTournament, useTeams } from "@/hooks/api/queries";
+import { TournamentMap } from "@/components/tournaments/TournamentMap";
+import {
+  useTournaments, usePlayerTournaments, useUpdatePlayerTournament, useAddPlayerTournament, useRemovePlayerTournament, useTeams,
+  useHiddenTournaments, useHideTournament, useUnhideTournament,
+} from "@/hooks/api/queries";
 import { queryKeys } from "@/hooks/api/queries";
-import type { TournamentStatus, ConnectedPlayer } from "@/types";
+import { useGeolocation } from "@/hooks/useGeolocation";
+import { CITIES } from "@/lib/geo/cities";
+import { haversineKm, formatDistanceKm } from "@/lib/geo/distance";
+import type { TournamentStatus, ConnectedPlayer, Tournament } from "@/types";
 import { toast } from "sonner";
 const ALL = "__all__";
 const surfaceColor: Record<string, string> = {
@@ -26,6 +39,12 @@ const surfaceColor: Record<string, string> = {
   Grass: "bg-muted text-foreground dark:text-foreground",
 };
 const STATUS_OPTIONS: TournamentStatus[] = ["planned", "registered", "maybe", "withdrawn", "played"];
+const MAX_RADIUS_KM = 20000; // ~ half the Earth's circumference — effectively "any distance"
+
+function distanceFromUser(userCoords: { lat: number; lng: number } | null, t: Tournament): number | null {
+  if (!userCoords || typeof t.latitude !== "number" || typeof t.longitude !== "number") return null;
+  return haversineKm(userCoords, { lat: t.latitude, lng: t.longitude });
+}
 
 export default function TournamentsPage() {
   const { user } = useAuth();
@@ -39,9 +58,14 @@ export default function TournamentsPage() {
   const { data: tournaments = [], isLoading: loadingT, error: errorT, refetch: refetchTournaments, isFetching: isRefetchingTournaments } = useTournaments();
   const { data: playerTournaments = [], isLoading: loadingPT, error: errorPT } = usePlayerTournaments();
   const { data: teams = [] } = useTeams();
+  const { data: hiddenIds = [] } = useHiddenTournaments();
   const updatePT = useUpdatePlayerTournament();
   const addPT = useAddPlayerTournament();
   const removePT = useRemovePlayerTournament();
+  const hideTournament = useHideTournament();
+  const unhideTournament = useUnhideTournament();
+  const { status: geoStatus, coords: userCoords, request: requestLocation, setManual: setManualLocation, clear: clearLocation } = useGeolocation();
+
   // The current user's own tournament entry for a given tournament (if any).
   const myEntryFor = (tournamentId: string) =>
     playerTournaments.find((pt) => pt.tournamentId === tournamentId && pt.playerId === user?.id);
@@ -60,7 +84,12 @@ export default function TournamentsPage() {
   const [playerFilter, setPlayerFilter] = useState(ALL);
   const [teamFilter, setTeamFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
-  const [viewMode, setViewMode] = useState<"tournaments" | "players">(showPlayerTournaments || isPlayer ? "players" : "tournaments");
+  const [viewMode, setViewMode] = useState<"tournaments" | "players" | "map">(showPlayerTournaments || isPlayer ? "players" : "tournaments");
+
+  // Map view controls
+  const [radiusKm, setRadiusKm] = useState(MAX_RADIUS_KM);
+  const [sortByNearest, setSortByNearest] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
 
   // Player detail drawer
   const [playerDetailOpen, setPlayerDetailOpen] = useState(false);
@@ -96,6 +125,9 @@ export default function TournamentsPage() {
     });
   }, [playerTournaments, search, surface, category, country, playerFilter, statusFilter, teamFilter, isCoach, isObserver, isPlayer, connectedIds, user?.id, teamPlayerIds]);
 
+  // Shared catalog filters (search/surface/category/country) — used by both the
+  // Browse tab and the Map tab. Hidden-tournament exclusion is applied
+  // per-view below, since the Map tab can reveal hidden tournaments again.
   const filteredTournaments = useMemo(() => {
     return tournaments.filter((t) => {
       const q = search.toLowerCase();
@@ -106,6 +138,37 @@ export default function TournamentsPage() {
       return true;
     });
   }, [tournaments, search, surface, category, country]);
+
+  // Browse tab: hidden tournaments never show here (that's what "eliminate
+  // from suggestions" means) — revealing them again happens from the Map tab.
+  const visibleBrowseTournaments = useMemo(
+    () => filteredTournaments.filter((t) => !hiddenIds.includes(t.id)),
+    [filteredTournaments, hiddenIds],
+  );
+
+  // Map tab: hidden tournaments respect the "Show hidden" toggle, and results
+  // are further narrowed by the radius when a location is set. Tournaments
+  // missing coordinates can't be distance-checked, so they're never excluded
+  // by the radius filter (they simply won't render as a map marker).
+  const mapVisibleTournaments = useMemo(() => {
+    return filteredTournaments.filter((t) => {
+      if (!showHidden && hiddenIds.includes(t.id)) return false;
+      if (userCoords) {
+        const d = distanceFromUser(userCoords, t);
+        if (d != null && d > radiusKm) return false;
+      }
+      return true;
+    });
+  }, [filteredTournaments, hiddenIds, showHidden, userCoords, radiusKm]);
+
+  const sortedMapTournaments = useMemo(() => {
+    if (!sortByNearest || !userCoords) return mapVisibleTournaments;
+    return [...mapVisibleTournaments].sort((a, b) => {
+      const da = distanceFromUser(userCoords, a) ?? Infinity;
+      const db = distanceFromUser(userCoords, b) ?? Infinity;
+      return da - db;
+    });
+  }, [mapVisibleTournaments, sortByNearest, userCoords]);
 
   const hasFilters = surface !== ALL || category !== ALL || country !== ALL || playerFilter !== ALL || teamFilter !== ALL || statusFilter !== ALL || search !== "";
   const clearFilters = () => { setSearch(""); setSurface(ALL); setCategory(ALL); setCountry(ALL); setPlayerFilter(ALL); setTeamFilter(ALL); setStatusFilter(ALL); };
@@ -121,6 +184,12 @@ export default function TournamentsPage() {
     toast.success("Tournaments refreshed");
   };
 
+  const handleAddToSchedule = (t: Tournament) => {
+    if (!isPlayer || !user) return;
+    if (myEntryFor(t.id)) return; // already scheduled
+    addPT.mutate({ tournamentId: t.id, tournament: t, playerId: user.id, playerName: `${user.firstName} ${user.lastName}`, status: "registered" });
+  };
+
   if (loadingT || loadingPT) return <LoadingState message="Loading tournaments…" />;
   if (errorT || errorPT) return <ErrorState message="Failed to load tournaments" onRetry={() => window.location.reload()} />;
 
@@ -131,7 +200,15 @@ export default function TournamentsPage() {
           <div className="flex items-center gap-2"><h1 className="text-2xl font-bold text-foreground">Tournaments</h1>{isObserver && <ReadOnlyBadge />}</div>
           <p className="text-muted-foreground">{isCoach ? "View tournaments and your connected players' participation." : isObserver ? "Read-only view of connected player tournaments." : "Browse upcoming tournaments and manage your entries."}</p>
         </div>
-        {(showPlayerTournaments || isPlayer) && <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as typeof viewMode)}><TabsList><TabsTrigger value="players" className="gap-1.5"><Users className="h-3.5 w-3.5" /> {isPlayer ? "My Schedule" : "Player View"}</TabsTrigger><TabsTrigger value="tournaments" className="gap-1.5"><Trophy className="h-3.5 w-3.5" /> {isPlayer ? "Add Tournaments" : "Browse All"}</TabsTrigger></TabsList></Tabs>}
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as typeof viewMode)}>
+          <TabsList>
+            {(showPlayerTournaments || isPlayer) && (
+              <TabsTrigger value="players" className="gap-1.5"><Users className="h-3.5 w-3.5" /> {isPlayer ? "My Schedule" : "Player View"}</TabsTrigger>
+            )}
+            <TabsTrigger value="tournaments" className="gap-1.5"><Trophy className="h-3.5 w-3.5" /> {isPlayer ? "Add Tournaments" : "Browse All"}</TabsTrigger>
+            <TabsTrigger value="map" className="gap-1.5"><MapPin className="h-3.5 w-3.5" /> Map</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {isObserver && <ReadOnlyBanner />}
@@ -240,14 +317,31 @@ export default function TournamentsPage() {
       )}
 
       {viewMode === "tournaments" && (
-        filteredTournaments.length === 0 ? (
+        visibleBrowseTournaments.length === 0 ? (
           <EmptyState icon={<Trophy className="h-6 w-6 text-muted-foreground" />} title="No tournaments found" description="No tournaments match your filters." />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredTournaments.map((t) => (
+            {visibleBrowseTournaments.map((t) => {
+              const distance = distanceFromUser(userCoords, t);
+              return (
               <Card key={t.id} className="flex flex-col justify-between">
                 <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2"><CardTitle className="text-base leading-snug">{t.name}</CardTitle><Badge variant="outline" className={surfaceColor[t.surface] ?? ""}>{t.surface}</Badge></div>
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-base leading-snug">{t.name}</CardTitle>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Badge variant="outline" className={surfaceColor[t.surface] ?? ""}>{t.surface}</Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        title="Hide from suggestions"
+                        disabled={hideTournament.isPending}
+                        onClick={() => hideTournament.mutate(t.id)}
+                      >
+                        <EyeOff className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><MapPin className="h-3.5 w-3.5" />{t.city}, {t.country}</div>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
@@ -257,6 +351,7 @@ export default function TournamentsPage() {
                     {t.level && <Badge variant="secondary">{t.level}</Badge>}
                     <Badge variant="outline" className="capitalize">{t.indoorOutdoor === "indoor" ? <><Warehouse className="mr-1 h-3 w-3" />Indoor</> : <><Sun className="mr-1 h-3 w-3" />Outdoor</>}</Badge>
                     {t.altitude != null && t.altitude > 0 && <Badge variant="outline"><Mountain className="mr-1 h-3 w-3" />{t.altitude}m</Badge>}
+                    {distance != null && <Badge variant="outline" className="border-primary/40 text-primary"><MapPin className="mr-1 h-3 w-3" />{formatDistanceKm(distance)} away</Badge>}
                   </div>
                   {isCoach && (() => {
                     const pts = playerTournaments.filter((pt) => pt.tournamentId === t.id && connectedIds.has(pt.playerId));
@@ -286,7 +381,7 @@ export default function TournamentsPage() {
                         size="sm"
                         className="w-full gap-1.5"
                         disabled={addPT.isPending}
-                        onClick={() => addPT.mutate({ tournamentId: t.id, tournament: t, playerId: user!.id, playerName: `${user!.firstName} ${user!.lastName}`, status: "registered" })}
+                        onClick={() => handleAddToSchedule(t)}
                       >
                         <Plus className="h-3.5 w-3.5" /> Add to schedule
                       </Button>
@@ -294,9 +389,152 @@ export default function TournamentsPage() {
                   })()}
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )
+      )}
+
+      {viewMode === "map" && (
+        <div className="space-y-4">
+          <div className="space-y-3 border border-border bg-muted/30 p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={requestLocation}
+                disabled={geoStatus === "prompting"}
+              >
+                {geoStatus === "prompting" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LocateFixed className="h-3.5 w-3.5" />}
+                {geoStatus === "prompting" ? "Locating…" : "Use my location"}
+              </Button>
+
+              <Select
+                value=""
+                onValueChange={(name) => {
+                  const city = CITIES.find((c) => c.name === name);
+                  if (city) setManualLocation({ lat: city.lat, lng: city.lng }, `${city.name}, ${city.country}`);
+                }}
+              >
+                <SelectTrigger className="w-[190px]"><SelectValue placeholder="Or pick a city…" /></SelectTrigger>
+                <SelectContent>
+                  {CITIES.map((c) => (<SelectItem key={c.name} value={c.name}>{c.name}, {c.country}</SelectItem>))}
+                </SelectContent>
+              </Select>
+
+              {userCoords && (
+                <Badge variant="secondary" className="gap-1.5">
+                  <MapPin className="h-3 w-3" /> {userCoords.label ?? "Your location"}
+                  <X className="h-3 w-3 cursor-pointer" onClick={clearLocation} />
+                </Badge>
+              )}
+
+              {geoStatus === "denied" && <p className="text-xs text-muted-foreground">Location access denied — pick a city instead.</p>}
+              {geoStatus === "unsupported" && <p className="text-xs text-muted-foreground">Geolocation isn't available in this browser — pick a city instead.</p>}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center gap-3">
+                <Label className="whitespace-nowrap text-xs text-muted-foreground">
+                  Within {radiusKm >= MAX_RADIUS_KM ? "any distance" : `${radiusKm.toLocaleString()} km`}
+                </Label>
+                <Slider
+                  className="w-[160px]"
+                  min={100}
+                  max={MAX_RADIUS_KM}
+                  step={100}
+                  value={[radiusKm]}
+                  onValueChange={(v) => setRadiusKm(v[0])}
+                  disabled={!userCoords}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Switch id="sort-nearest" checked={sortByNearest} onCheckedChange={setSortByNearest} disabled={!userCoords} />
+                <Label htmlFor="sort-nearest" className="text-xs text-muted-foreground">Sort by nearest</Label>
+              </div>
+
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => setShowHidden((v) => !v)}>
+                {showHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                Hidden ({hiddenIds.length}) — {showHidden ? "Hide" : "Show"}
+              </Button>
+            </div>
+
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Lock className="h-3 w-3" /> Your location stays on your device.
+            </p>
+          </div>
+
+          {!userCoords && (
+            <div className="border border-dashed border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+              Set your location to see distances from you.
+            </div>
+          )}
+
+          {sortedMapTournaments.length === 0 ? (
+            <EmptyState icon={<MapPin className="h-6 w-6 text-muted-foreground" />} title="No tournaments found" description="No tournaments match your filters." />
+          ) : (
+            <div className="space-y-4">
+              <TournamentMap
+                tournaments={sortedMapTournaments}
+                userCoords={userCoords}
+                radiusKm={userCoords ? radiusKm : null}
+                onAdd={handleAddToSchedule}
+                onHide={(id) => hideTournament.mutate(id)}
+                canAdd={isPlayer}
+              />
+
+              <div className="divide-y divide-border border border-border">
+                {sortedMapTournaments.map((t) => {
+                  const distance = distanceFromUser(userCoords, t);
+                  const isHidden = hiddenIds.includes(t.id);
+                  const entry = myEntryFor(t.id);
+                  return (
+                    <div key={t.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                      <div className="min-w-[220px] flex-1">
+                        <p className="font-medium text-foreground">{t.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t.city}, {t.country} · {format(new Date(t.startDate), "MMM d")} – {format(new Date(t.endDate), "MMM d, yyyy")}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className={surfaceColor[t.surface] ?? ""}>{t.surface}</Badge>
+                        {distance != null && <Badge variant="outline" className="border-primary/40 text-primary">{formatDistanceKm(distance)}</Badge>}
+                        {isPlayer && (
+                          entry ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 text-destructive hover:text-destructive"
+                              disabled={removePT.isPending}
+                              onClick={() => removePT.mutate(entry.id)}
+                            >
+                              <Check className="h-3.5 w-3.5" /> In schedule
+                            </Button>
+                          ) : (
+                            <Button size="sm" className="gap-1" disabled={addPT.isPending} onClick={() => handleAddToSchedule(t)}>
+                              <Plus className="h-3.5 w-3.5" /> Add
+                            </Button>
+                          )
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1 text-muted-foreground"
+                          disabled={hideTournament.isPending || unhideTournament.isPending}
+                          onClick={() => (isHidden ? unhideTournament.mutate(t.id) : hideTournament.mutate(t.id))}
+                        >
+                          {isHidden ? <><Eye className="h-3.5 w-3.5" /> Unhide</> : <><EyeOff className="h-3.5 w-3.5" /> Hide</>}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       <PlayerDetailDrawer player={detailPlayer} open={playerDetailOpen} onOpenChange={setPlayerDetailOpen} readOnly={isObserver} />

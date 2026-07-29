@@ -269,6 +269,20 @@ class MockStore {
     return clone(this.trainingRequests[idx]);
   }
 
+  // ─── Hidden Tournaments (per-session "eliminate from suggestions") ───
+  hiddenTournamentIds: string[] = [];
+  getHiddenTournaments() { return clone(this.hiddenTournamentIds); }
+  hideTournament(tournamentId: string) {
+    if (!this.hiddenTournamentIds.includes(tournamentId)) {
+      this.hiddenTournamentIds.push(tournamentId);
+    }
+    return clone(this.hiddenTournamentIds);
+  }
+  unhideTournament(tournamentId: string) {
+    this.hiddenTournamentIds = this.hiddenTournamentIds.filter((id) => id !== tournamentId);
+    return clone(this.hiddenTournamentIds);
+  }
+
   // ─── Player Tournaments ───
   getPlayerTournaments() { return clone(this.playerTournaments); }
   addPlayerTournament(data: Omit<PlayerTournament, "id">) {

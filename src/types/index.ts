@@ -189,6 +189,9 @@ export interface Tournament {
   description?: string;
   /** Sanctioning body — used for the calendar federation filter. */
   federation?: TournamentFederation;
+  /** Host-city coordinates, used for the map view + distance-from-me. Null/absent when unknown. */
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface PlayerTournament {

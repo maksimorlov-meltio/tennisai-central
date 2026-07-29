@@ -50,6 +50,8 @@ export function mapTournament(raw: Record<string, unknown>): Tournament {
     endDate: String(t.endDate ?? raw.end ?? raw.endsAt ?? t.startDate ?? ""),
     description: t.description as string | undefined,
     federation: inferFederation(t),
+    latitude: typeof t.latitude === "number" ? t.latitude : null,
+    longitude: typeof t.longitude === "number" ? t.longitude : null,
   };
 }
 

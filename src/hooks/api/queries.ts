@@ -9,6 +9,7 @@ import { trainingRequestsApi } from "@/api/endpoints/trainingRequests";
 import { teamsApi } from "@/api/endpoints/teams";
 import { calendarApi } from "@/api/endpoints/calendar";
 import { tournamentsApi } from "@/api/endpoints/tournaments";
+import { hiddenTournamentsApi } from "@/api/endpoints/hiddenTournaments";
 import { financeApi } from "@/api/endpoints/finance";
 import { equipmentApi } from "@/api/endpoints/equipment";
 import { notificationsApi } from "@/api/endpoints/notifications";
@@ -25,6 +26,7 @@ export const queryKeys = {
   calendarEvents: ["calendarEvents"] as const,
   tournaments: ["tournaments"] as const,
   playerTournaments: ["playerTournaments"] as const,
+  hiddenTournaments: ["hidden-tournaments"] as const,
   finance: (playerId: string) => ["finance", playerId] as const,
   financeSummary: (playerId: string) => ["financeSummary", playerId] as const,
   equipment: (playerId: string) => ["equipment", playerId] as const,
@@ -318,6 +320,41 @@ export function useRemovePlayerTournament() {
     mutationFn: (id: string) => tournamentsApi.removePlayerTournament(id),
     onSuccess: () => { inv.tournament(); toast.success("Removed from schedule"); },
     onError: (e: any) => toast.error(e?.message ?? "Failed to remove"),
+  });
+}
+
+// ─── Hidden Tournaments ("eliminate from suggestions") ───
+
+export function useHiddenTournaments() {
+  return useQuery({
+    queryKey: queryKeys.hiddenTournaments,
+    queryFn: async () => (await hiddenTournamentsApi.getHidden()).data,
+  });
+}
+
+export function useHideTournament() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tournamentId: string) => hiddenTournamentsApi.hide(tournamentId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.hiddenTournaments });
+      qc.invalidateQueries({ queryKey: queryKeys.tournaments });
+      toast.success("Tournament hidden");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to hide tournament"),
+  });
+}
+
+export function useUnhideTournament() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tournamentId: string) => hiddenTournamentsApi.unhide(tournamentId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.hiddenTournaments });
+      qc.invalidateQueries({ queryKey: queryKeys.tournaments });
+      toast.success("Tournament unhidden");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to unhide tournament"),
   });
 }
 
