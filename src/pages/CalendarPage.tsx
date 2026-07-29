@@ -662,6 +662,23 @@ const VIEW_ICONS: Record<ViewMode, React.ReactNode> = {
   day: <List className="h-3.5 w-3.5" />,
 };
 
+// ── Tournament circuit filter ──────────────────────────────────────
+// Circuits extend the raw federations with an "ITF Junior" split, derived
+// from a tournament's category/level (e.g. "ITF Juniors J300", "U18").
+type TournamentCircuit = TournamentFederation | "ITF Junior";
+const ALL_CIRCUITS: TournamentCircuit[] = ["ITF", "ITF Junior", "WTA", "ATP", "UTR", "USTA"];
+
+function isJuniorTournament(t: Tournament): boolean {
+  const hay = `${t.category ?? ""} ${t.level ?? ""} ${t.name ?? ""}`;
+  return /junior/i.test(hay) || /\bU\d{1,2}\b/.test(t.level ?? "");
+}
+
+/** The circuit chip a tournament belongs to (ITF juniors split out from ITF). */
+function circuitOf(t: Tournament): TournamentCircuit | undefined {
+  if (!t.federation) return undefined;
+  return t.federation === "ITF" && isJuniorTournament(t) ? "ITF Junior" : t.federation;
+}
+
 export default function CalendarPage() {
   const { user } = useAuth();
   const { connectedPlayers } = useConnections();
@@ -694,12 +711,12 @@ export default function CalendarPage() {
   const [detailPlayer, setDetailPlayer] = useState<ConnectedPlayer | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [calendarSource, setCalendarSource] = useState<"all" | "mine" | "international">("all");
-  // Sanctioning-body filter for international tournaments. Defaults to all on.
-  const ALL_FEDERATIONS: TournamentFederation[] = ["ITF", "WTA", "ATP", "UTR", "USTA"];
-  const [activeFederations, setActiveFederations] = useState<Set<TournamentFederation>>(
-    new Set(ALL_FEDERATIONS),
+  // Circuit filter for international tournaments (ITF split into pro + junior).
+  // Defaults to all on.
+  const [activeFederations, setActiveFederations] = useState<Set<TournamentCircuit>>(
+    new Set(ALL_CIRCUITS),
   );
-  const toggleFederation = (f: TournamentFederation) => {
+  const toggleFederation = (f: TournamentCircuit) => {
     setActiveFederations((prev) => {
       const next = new Set(prev);
       next.has(f) ? next.delete(f) : next.add(f);
@@ -711,15 +728,15 @@ export default function CalendarPage() {
     await queryClient.invalidateQueries({ queryKey: queryKeys.tournaments });
     const result = await refetchTournaments();
     if (result.data) {
-      const federationsInData = new Set(
+      const circuitsInData = new Set(
         result.data
-          .map((t) => t.federation)
-          .filter((f): f is TournamentFederation => !!f),
+          .map((t) => circuitOf(t))
+          .filter((c): c is TournamentCircuit => !!c),
       );
-      // Add any newly discovered federations to the active set
+      // Add any newly discovered circuits to the active set
       setActiveFederations((prev) => {
         const next = new Set(prev);
-        federationsInData.forEach((f) => next.add(f));
+        circuitsInData.forEach((c) => next.add(c));
         return next;
       });
       toast.success("Tournaments refreshed");
@@ -729,12 +746,17 @@ export default function CalendarPage() {
   // Convert international tournaments to calendar events
   const internationalEvents: CalendarEvent[] = useMemo(() => {
     return tournaments
-      // Hide tournaments whose federation is filtered off. Tournaments with
-      // no federation tagged are always shown so legacy data isn't dropped.
-      .filter((t) => !t.federation || activeFederations.has(t.federation))
-      .map((t) => ({
+      // Hide tournaments whose circuit is filtered off. Tournaments with no
+      // federation tagged are always shown so legacy data isn't dropped.
+      .filter((t) => {
+        const c = circuitOf(t);
+        return !c || activeFederations.has(c);
+      })
+      .map((t) => {
+        const circuit = circuitOf(t);
+        return {
         id: `intl-${t.id}`,
-        title: t.federation ? `[${t.federation}] ${t.name}` : t.name,
+        title: circuit ? `[${circuit}] ${t.name}` : t.name,
         type: "tournament" as CalendarEventType,
         startDate: t.startDate,
         endDate: t.endDate,
@@ -742,7 +764,8 @@ export default function CalendarPage() {
         description: `${t.category} · ${t.level} · ${t.surface} (${t.indoorOutdoor})${t.weatherSummary ? ` · ${t.weatherSummary}` : ""}`,
         state: "confirmed" as CalendarEventState,
         _isInternational: true,
-      })) as (CalendarEvent & { _isInternational?: boolean })[];
+      };
+      }) as (CalendarEvent & { _isInternational?: boolean })[];
   }, [tournaments, activeFederations]);
 
   const registeredIntlIds = useMemo(() => {
@@ -995,10 +1018,10 @@ export default function CalendarPage() {
           <span className="text-xs font-medium text-muted-foreground">Federation:</span>
           <PlayerFilterChip
             label="All"
-            active={activeFederations.size === ALL_FEDERATIONS.length}
-            onClick={() => setActiveFederations(new Set(ALL_FEDERATIONS))}
+            active={activeFederations.size === ALL_CIRCUITS.length}
+            onClick={() => setActiveFederations(new Set(ALL_CIRCUITS))}
           />
-          {ALL_FEDERATIONS.map((f) => (
+          {ALL_CIRCUITS.map((f) => (
             <PlayerFilterChip
               key={f}
               label={f}
