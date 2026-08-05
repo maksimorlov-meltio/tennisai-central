@@ -25,6 +25,9 @@ model User {
   onboardingCompletedAt DateTime? // set when the user finishes the intro questionnaire
   termsAcceptedAt       DateTime? // set at signup when the user accepts the Terms of Service
   ageConfirmedAt        DateTime? // set at signup when the user confirms the age requirement
+  // Bumped on every password change. A password-reset token issued BEFORE this
+  // timestamp is rejected, which makes reset links effectively single-use.
+  passwordChangedAt     DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -48,6 +51,7 @@ model User {
   equipmentItems         EquipmentItem[]
   notifications          Notification[]
   notificationPreference NotificationPreference?
+  pushSubscriptions      PushSubscription[]
 
   // back-relations (analytics domain — Stage 1, additive)
   profile                  PlayerProfile?     @relation("UserProfile")
@@ -352,6 +356,9 @@ model Notification {
   read      Boolean  @default(false)
   linkTo    String?
   createdAt DateTime @default(now())
+  // Set once this notification has been delivered by email, so a retry or a
+  // scheduled sweep can never send the same notification twice.
+  emailedAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -362,6 +369,11 @@ model Notification {
 model NotificationPreference {
   id                  String  @id @default(cuid())
   userId              String  @unique
+  // Channel-level switches. The per-category flags below decide WHAT is worth
+  // notifying about; these decide HOW it is delivered. Email/push are only ever
+  // sent when the channel is enabled AND the category flag is on.
+  emailEnabled        Boolean @default(true)
+  pushEnabled         Boolean @default(true)
   trainingReminders   Boolean @default(true)
   tournamentReminders Boolean @default(true)
   requestApprovals    Boolean @default(true)
@@ -372,6 +384,25 @@ model NotificationPreference {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
+}
+
+/// A browser Web-Push subscription. One user may have several (one per device).
+/// `endpoint` is the browser-issued URL; `p256dh`/`auth` are the client's public
+/// encryption keys. Sending requires server-side VAPID keys — when those env vars
+/// are unset, push self-disables and email/in-app delivery still work.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 // ═══════════════════════════════════════════════════════════════

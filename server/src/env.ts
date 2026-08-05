@@ -40,6 +40,14 @@ const schema = z.object({
   // Private-trial access gate. When set, signup requires a matching invite code.
   // Unset = open registration (local dev / tests). Not a secret sent to the client.
   SIGNUP_INVITE_CODE: z.string().min(1).optional(),
+  // Web-Push (VAPID) keys. Push self-disables when these are unset, so email and
+  // in-app notifications keep working. Generate with:
+  //   npx web-push generate-vapid-keys
+  // VAPID_PRIVATE_KEY is a server-side SECRET — only the public key may reach the
+  // browser. VAPID_SUBJECT is a contact URL/mailto the push service can use.
+  VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+  VAPID_SUBJECT: z.string().min(1).optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -86,6 +94,10 @@ export const env = {
   feedApiKey: e.FEED_API_KEY,
   // Optional private-trial invite code (undefined = open registration).
   signupInviteCode: e.SIGNUP_INVITE_CODE,
+  // Optional Web-Push config (undefined = push disabled). Private key is server-side only.
+  vapidPublicKey: e.VAPID_PUBLIC_KEY,
+  vapidPrivateKey: e.VAPID_PRIVATE_KEY,
+  vapidSubject: e.VAPID_SUBJECT,
 };
 
 // Guard: disabling email verification in production is almost never intended.

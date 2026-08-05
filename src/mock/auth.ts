@@ -65,6 +65,17 @@ const MOCK_USERS: Record<string, User & { password: string }> = {
 
 let currentUser: User | null = null;
 
+/**
+ * Outstanding mock reset tokens (token → email). Mirrors the real flow's rules:
+ * short-lived and single-use. The token is logged to the console — the same dev
+ * affordance the server gives when Gmail is not configured.
+ */
+const MOCK_RESET_TOKENS = new Map<string, { email: string; expiresAt: number }>();
+const RESET_TTL_MS = 60 * 60 * 1000; // 1 hour, matching the server
+const MIN_PASSWORD_LENGTH = 8;
+const RESET_INVALID_MESSAGE =
+  "This password reset link is invalid or has expired. Please request a new one.";
+
 function makeTokens(): AuthTokens {
   return { accessToken: "mock-access-token", refreshToken: "mock-refresh-token" };
 }
@@ -126,13 +137,37 @@ export const mockAuthService = {
     return { data: null, message: "Email verified successfully" };
   },
 
-  async forgotPassword(_email: string): Promise<ApiResponse<null>> {
+  /**
+   * Mock forgot-password. Returns the SAME generic message whether or not the
+   * account exists — no enumeration, exactly like the real endpoint.
+   */
+  async forgotPassword(email: string): Promise<ApiResponse<null>> {
     await delay();
-    return { data: null, message: "If the email exists, a reset link was sent" };
+    const normalized = email.trim().toLowerCase();
+    if (MOCK_USERS[normalized]) {
+      const token = `mock-reset-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+      MOCK_RESET_TOKENS.set(token, { email: normalized, expiresAt: Date.now() + RESET_TTL_MS });
+      // Stand-in for the email the server would send (dev-only convenience).
+      console.log(`[mock auth] password reset link: /reset-password?token=${token}`);
+    }
+    return { data: null, message: "If that email is registered, a reset link is on its way." };
   },
 
-  async resetPassword(_token: string, _password: string): Promise<ApiResponse<null>> {
+  /** Mock reset-password: validates length, consumes the token (single-use), swaps the password. */
+  async resetPassword(token: string, password: string): Promise<ApiResponse<null>> {
     await delay();
-    return { data: null, message: "Password reset successfully" };
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      throw { status: 400, message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` };
+    }
+    const entry = MOCK_RESET_TOKENS.get(token);
+    if (!entry || entry.expiresAt < Date.now()) {
+      MOCK_RESET_TOKENS.delete(token);
+      throw { status: 400, message: RESET_INVALID_MESSAGE };
+    }
+    const user = MOCK_USERS[entry.email];
+    if (!user) throw { status: 400, message: RESET_INVALID_MESSAGE };
+    user.password = password;
+    MOCK_RESET_TOKENS.delete(token); // single-use
+    return { data: null, message: "Your password has been updated. You can sign in with it now." };
   },
 };

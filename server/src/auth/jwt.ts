@@ -54,3 +54,44 @@ export function verifyPurposeToken(token: string, purpose: string): string | nul
     return null;
   }
 }
+
+/**
+ * Purpose marker for password-reset links. Declared next to the token helpers so
+ * the string can never drift between signing and verifying.
+ */
+export const RESET_PURPOSE = "reset_password";
+
+/** Reset links are deliberately short-lived (recovery rule: ≤ 1 hour). */
+export const RESET_TTL = "1h";
+
+/** Mint the password-reset token that travels in the emailed link. */
+export function signResetToken(userId: string): string {
+  return signPurposeToken(userId, RESET_PURPOSE, RESET_TTL);
+}
+
+export interface ResetTokenClaims {
+  userId: string;
+  /**
+   * `iat` in whole seconds. The reset route compares it against the user's
+   * `passwordChangedAt` so a link minted before the last password change is
+   * dead — which is what makes reset links effectively single-use.
+   */
+  issuedAtSeconds: number;
+}
+
+/**
+ * Verify a password-reset token. Returns the user id plus the issued-at second,
+ * or null if the token is invalid / expired / not a reset token.
+ *
+ * NOTE: this only proves the token is authentic — the caller MUST still reject
+ * tokens issued before `user.passwordChangedAt` (single-use enforcement).
+ */
+export function verifyResetToken(token: string): ResetTokenClaims | null {
+  const userId = verifyPurposeToken(token, RESET_PURPOSE);
+  if (!userId) return null;
+  // Signature, expiry and purpose are already verified above, so decoding the
+  // payload for `iat` introduces no new trust assumption.
+  const decoded = jwt.decode(token) as { iat?: number } | null;
+  if (typeof decoded?.iat !== "number") return null;
+  return { userId, issuedAtSeconds: decoded.iat };
+}

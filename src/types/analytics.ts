@@ -222,6 +222,145 @@ export interface Match {
   updatedAt: string;
 }
 
+// --- Match logging + derived statistics (API contract) ----------------
+// Mirrors server/src/matches/routes.ts and server/src/stats/compute.ts.
+// The API stores raw counts only and computes every percentage on read.
+
+/** Documented match formats accepted by the API. */
+export type MatchFormat = "best_of_3" | "best_of_5" | "pro_set" | "single_set" | "fast4";
+export type MatchResult = "win" | "loss";
+
+/** A match as returned by the API — carries the resolved opponent name. */
+export interface MatchView extends Match {
+  opponentName?: string;
+}
+
+/** Raw counts without the rally-bucket object (numeric fields only). */
+export type MatchCountFields = Omit<MatchStatsRaw, "rallyLengthBuckets">;
+
+/** POST payload. `playerId` defaults to the caller; `createdBy` is server-pinned. */
+export interface MatchCreateInput extends MatchStatsRaw {
+  playerId?: string;
+  opponentId?: string | null;
+  date: string; // ISO or yyyy-MM-dd
+  competition?: string;
+  surface: Surface;
+  indoorOutdoor: IndoorOutdoor;
+  format: MatchFormat;
+  result?: MatchResult;
+  scoreSets: MatchSetScore[];
+  conditions?: string;
+  notesBySet?: Record<string, string>;
+}
+
+/** PATCH payload — `null` explicitly clears a stored value. */
+export type MatchUpdateInput = {
+  opponentId?: string | null;
+  date?: string;
+  competition?: string | null;
+  surface?: Surface;
+  indoorOutdoor?: IndoorOutdoor;
+  format?: MatchFormat;
+  result?: MatchResult | null;
+  scoreSets?: MatchSetScore[];
+  conditions?: string | null;
+  rallyLengthBuckets?: RallyLengthBuckets | null;
+  notesBySet?: Record<string, string> | null;
+} & { [K in keyof MatchCountFields]?: number | null };
+
+/**
+ * A computed value plus the number of matches that fed it. `value === null`
+ * means the underlying counts were never entered — the UI must render "—",
+ * never 0 and never an invented figure.
+ */
+export interface StatMetric {
+  value: number | null;
+  sample: number;
+}
+
+export interface SurfaceSplitStats {
+  surface: string;
+  matches: number;
+  resultsRecorded: number;
+  wins: number | null;
+  losses: number | null;
+  winRatePct: number | null;
+}
+
+export interface RecentFormMatch {
+  id: string;
+  date: string | null;
+  surface: string;
+  result: MatchResult | null;
+}
+
+export interface RecentFormSummary {
+  sampleSize: number;
+  wins: number | null;
+  losses: number | null;
+  winRatePct: number | null;
+  /** Newest first. */
+  matches: RecentFormMatch[];
+}
+
+/** Aggregate returned by GET /api/matches/stats. */
+export interface AggregateMatchStats {
+  playerId?: string;
+  matchesPlayed: number;
+  /** Matches with an explicit win/loss — every W-L figure is scoped to these. */
+  resultsRecorded: number;
+  wins: number | null;
+  losses: number | null;
+  winRatePct: number | null;
+  firstMatchDate: string | null;
+  lastMatchDate: string | null;
+  surfaces: SurfaceSplitStats[];
+  serve: {
+    firstServePct: StatMetric;
+    firstServeWonPct: StatMetric;
+    secondServeWonPct: StatMetric;
+    aces: StatMetric;
+    doubleFaults: StatMetric;
+  };
+  returnGame: {
+    returnPointsWonPct: StatMetric;
+  };
+  breakPoints: {
+    conversionPct: StatMetric;
+    savePct: StatMetric;
+  };
+  rally: {
+    winners: StatMetric;
+    forcedErrors: StatMetric;
+    unforcedErrors: StatMetric;
+    winnerToUnforcedRatio: StatMetric;
+    netPointsWonPct: StatMetric;
+  };
+  recentForm: RecentFormSummary;
+}
+
+/** POST payload for an opponent record. `ownerId` is server-pinned. */
+export interface OpponentCreateInput {
+  firstName: string;
+  lastName: string;
+  dominantHand?: Handedness;
+  backhandType?: BackhandType;
+  preferredSurface?: Surface;
+  strongestStroke?: string;
+  weakestStroke?: string;
+  servePatterns?: string;
+  returnPosition?: string;
+  returnTendencies?: string;
+  forehandPreference?: string;
+  backhandPreference?: string;
+  netBehaviour?: string;
+  pressurePerformance?: string;
+  style?: PlayStyleDimensions;
+  observations?: string[];
+}
+
+export type OpponentUpdateInput = Partial<OpponentCreateInput>;
+
 // --- AI report contract ----------------------------------------------
 
 /** Metadata carried by every generated report for traceability + lifecycle. */

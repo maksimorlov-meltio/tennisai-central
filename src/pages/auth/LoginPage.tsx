@@ -55,7 +55,7 @@ export default function LoginPage() {
         {loading ? "Signing in…" : "Sign in"}
       </Button>
       <div className="flex justify-between text-sm">
-        <Link to="/forgot-password" className="text-muted-foreground hover:text-foreground">Forgot password?</Link>
+        <Link to="/forgot-password" className="text-muted-foreground hover:text-foreground">Forgot your password?</Link>
         <Link to="/signup" className="text-primary hover:underline">Create account</Link>
       </div>
     </form>

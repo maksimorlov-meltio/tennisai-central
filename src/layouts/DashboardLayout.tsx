@@ -22,6 +22,7 @@ import {
   Link2,
   AlertTriangle,
   BarChart3,
+  ClipboardList,
   Menu,
   X,
 } from "lucide-react";
@@ -51,6 +52,7 @@ const navItems: NavItem[] = [
   // Player nav
   { to: "/calendar", labelKey: "dashboard.nav.calendar", icon: <Calendar className="h-4 w-4" />, roles: ["player", "coach", "observer"] },
   { to: "/tournaments", labelKey: "dashboard.nav.tournaments", icon: <Trophy className="h-4 w-4" />, roles: ["player", "coach", "observer", "admin"] },
+  { to: "/matches", labelKey: "dashboard.nav.matches", icon: <ClipboardList className="h-4 w-4" />, roles: ["player"] },
   { to: "/stats", labelKey: "dashboard.nav.stats", icon: <BarChart3 className="h-4 w-4" />, roles: ["player"] },
   { to: "/equipment", labelKey: "dashboard.nav.equipment", icon: <Package className="h-4 w-4" />, roles: ["player"] },
   { to: "/finance", labelKey: "dashboard.nav.finance", icon: <Wallet className="h-4 w-4" />, roles: ["player", "observer"] },

@@ -5,8 +5,9 @@ import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead 
 import { LoadingState, ErrorState, EmptyState } from "@/components/ui/shared";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bell, CheckCheck, Inbox } from "lucide-react";
+import { Bell, CheckCheck, Inbox, Settings2 } from "lucide-react";
 import { format } from "date-fns";
+import { NotificationPreferencesCard } from "@/components/notifications/NotificationPreferencesCard";
 
 export default function NotificationsPage() {
   const { user } = useAuth();
@@ -15,6 +16,7 @@ export default function NotificationsPage() {
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [showPrefs, setShowPrefs] = useState(false);
 
   const filtered = useMemo(() => {
     if (filter === "unread") return notifications.filter((n) => !n.read);
@@ -39,11 +41,16 @@ export default function NotificationsPage() {
               <CheckCheck className="h-3.5 w-3.5" /> Mark all read
             </Button>
           )}
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowPrefs((v) => !v)}>
+            <Settings2 className="h-3.5 w-3.5" /> {showPrefs ? "Hide settings" : "Notification settings"}
+          </Button>
           <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
             <TabsList><TabsTrigger value="all">All</TabsTrigger><TabsTrigger value="unread">Unread {unreadCount > 0 && `(${unreadCount})`}</TabsTrigger></TabsList>
           </Tabs>
         </div>
       </div>
+
+      {showPrefs && <NotificationPreferencesCard />}
 
       {filtered.length === 0 ? (
         <EmptyState icon={<Inbox className="h-6 w-6 text-muted-foreground" />} title={filter === "unread" ? "No unread notifications" : "No notifications yet"} description="Notifications about connections, trainings, and tournaments will appear here." />

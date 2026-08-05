@@ -1,6 +1,6 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import { env, emailEnabled } from "../env";
-import { welcomeEmail, verifyEmailTemplate } from "./templates";
+import { welcomeEmail, verifyEmailTemplate, resetPasswordTemplate, notificationTemplate } from "./templates";
 
 let transporter: Transporter | null = null;
 
@@ -79,6 +79,91 @@ export async function sendVerificationEmail(to: string, firstName: string, verif
     return { sent: true };
   } catch (err) {
     console.error(`📧 Verification email FAILED for ${to}:`, err instanceof Error ? err.message : err);
+    return { sent: false };
+  }
+}
+
+/**
+ * Send the password-reset link. Same fire-and-forget contract as the other
+ * mails: never throws, so the /forgot-password response is unaffected by the
+ * mail provider.
+ *
+ * The reset URL contains a live credential, so it is only echoed to the console
+ * outside production (the dev path where Gmail is not configured). In production
+ * a missing transport is logged as a misconfiguration WITHOUT the link.
+ */
+export async function sendPasswordResetEmail(to: string, firstName: string, resetUrl: string): Promise<{ sent: boolean }> {
+  const { subject, text, html } = resetPasswordTemplate({ firstName, resetUrl });
+  const transport = getTransport();
+
+  if (!transport) {
+    if (env.isProd) {
+      console.error(
+        `📧 [password-reset email NOT SENT — Gmail is not configured]` +
+          `\n   To: ${to} — set GMAIL_USER + GMAIL_APP_PASSWORD. Link withheld from logs.`,
+      );
+    } else {
+      console.log(
+        `\n📧 [password-reset email — Gmail disabled, logging only]` +
+          `\n   To:    ${to}` +
+          `\n   Reset: ${resetUrl}\n`,
+      );
+    }
+    return { sent: false };
+  }
+
+  try {
+    await transport.sendMail({ from: `"${env.mailFromName}" <${env.gmailUser}>`, to, subject, text, html });
+    console.log(`📧 Password-reset email sent to ${to}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`📧 Password-reset email FAILED for ${to}:`, err instanceof Error ? err.message : err);
+    return { sent: false };
+  }
+}
+
+/**
+ * Send a generic transactional notification email (e.g. "your coach shared a
+ * game plan"). Plain and factual — this is not a marketing channel.
+ *
+ * Same contract as every other mail here: fire-and-forget, never throws, logs
+ * instead of sending when Gmail credentials are absent.
+ */
+export async function sendNotificationEmail(opts: {
+  to: string;
+  firstName: string;
+  title: string;
+  message: string;
+  linkUrl?: string;
+}): Promise<{ sent: boolean }> {
+  const { to, firstName, title, message, linkUrl } = opts;
+  const { subject, text, html } = notificationTemplate({
+    firstName,
+    title,
+    message,
+    linkUrl,
+    appUrl: env.appUrl,
+  });
+  const transport = getTransport();
+
+  if (!transport) {
+    console.log(
+      `\n📧 [notification email — Gmail disabled, logging only]` +
+        `\n   To:      ${to}` +
+        `\n   Subject: ${subject}` +
+        `\n   Body:    ${message}` +
+        (linkUrl ? `\n   Link:    ${linkUrl}` : "") +
+        `\n`,
+    );
+    return { sent: false };
+  }
+
+  try {
+    await transport.sendMail({ from: `"${env.mailFromName}" <${env.gmailUser}>`, to, subject, text, html });
+    console.log(`📧 Notification email sent to ${to}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`📧 Notification email FAILED for ${to}:`, err instanceof Error ? err.message : err);
     return { sent: false };
   }
 }
