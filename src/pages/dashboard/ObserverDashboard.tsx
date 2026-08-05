@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { IncomingRequestsCard } from "@/components/dashboard/IncomingRequestsCard";
+import { statCardClass, statLinkClass } from "@/components/dashboard/statLinkStyles";
 import { StatusBadge, ReadOnlyBadge, ReadOnlyBanner, EmptyState, LoadingState, ErrorState } from "@/components/ui/shared";
 import {
   Users,
@@ -74,28 +76,48 @@ export default function ObserverDashboard() {
 
       <ReadOnlyBanner />
 
-      {/* Top stats */}
+      {/*
+        A player may send a request to a parent (see ALLOWED_CONNECTIONS in
+        src/mock/directory.ts), so this inbox is real for an observer too. It
+        renders nothing when empty. Approving a request addressed to you is an
+        account action, not an edit of a player's data — read-only still holds.
+      */}
+      <IncomingRequestsCard />
+
+      {/* Top stats — every figure links to the page that owns it. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Connected Players"
-          value={connectedPlayers.length}
-          icon={<Users className="h-4 w-4" />}
-        />
-        <StatCard
-          label="Pending Requests"
-          value={pendingRequests.length}
-          icon={<Users className="h-4 w-4" />}
-        />
-        <StatCard
-          label="Upcoming Events"
-          value={upcomingEvents.length}
-          icon={<Calendar className="h-4 w-4" />}
-        />
-        <StatCard
-          label="Unread Notifications"
-          value={unreadNotifications.length}
-          icon={<Bell className="h-4 w-4" />}
-        />
+        <Link to="/connections" className={statLinkClass}>
+          <StatCard
+            label="Connected Players"
+            value={connectedPlayers.length}
+            icon={<Users className="h-4 w-4" />}
+            className={statCardClass}
+          />
+        </Link>
+        <Link to="/connections" className={statLinkClass}>
+          <StatCard
+            label="Pending Requests"
+            value={pendingRequests.length}
+            icon={<Users className="h-4 w-4" />}
+            className={statCardClass}
+          />
+        </Link>
+        <Link to="/calendar" className={statLinkClass}>
+          <StatCard
+            label="Upcoming Events"
+            value={upcomingEvents.length}
+            icon={<Calendar className="h-4 w-4" />}
+            className={statCardClass}
+          />
+        </Link>
+        <Link to="/notifications" className={statLinkClass}>
+          <StatCard
+            label="Unread Notifications"
+            value={unreadNotifications.length}
+            icon={<Bell className="h-4 w-4" />}
+            className={statCardClass}
+          />
+        </Link>
       </div>
 
       {/* Connected Players Summary */}

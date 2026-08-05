@@ -3,6 +3,10 @@
     "trainings": {
       "unreviewedBadge": "{count}",
       "unreviewedAria": "{count, plural, one {# session needs review} other {# sessions need review}}"
+    },
+    "notifications": {
+      "unreadBadge": "{count}",
+      "unreadAria": "{count, plural, one {# unread notification} other {# unread notifications}}"
     }
   }
   ,
@@ -20,14 +24,14 @@
       "teams": "Teams",
       "trainings": "Trainings",
       "sessionBuilder": "Session Builder",
-      "trainingRequests": "Requests",
-      "connections": "Requests",
+      "trainingPlans": "Training plans",
+      "trainingRequests": "Training requests",
+      "connections": "Connections",
       "aiInsights": "AI Insights",
       "notifications": "Notifications",
       "adminUsers": "Users",
       "adminRelationships": "Relationships",
-      "adminAlerts": "System Alerts",
-      "settings": "Settings"
+      "adminAlerts": "System Alerts"
     },
     "actions": {
       "logout": "Log out"

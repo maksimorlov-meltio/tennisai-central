@@ -1,151 +1,77 @@
 // ============================================================
-// Statistics — every figure on this page is computed by the API from match
-// rows the user logged (GET /api/matches/stats). Nothing is seeded, sampled
-// or estimated: a metric whose counts were never entered renders "—".
+// Statistics — every figure on this page is computed from match rows the user
+// logged: the aggregates by the API (GET /api/matches/stats), the trend line in
+// the browser from the same match list (GET /api/matches). Nothing is seeded,
+// sampled, smoothed or estimated: a metric whose counts were never entered
+// renders "—", and a trend with too few entered points is not drawn at all.
+//
+// Two scopes coexist on this page and are labelled as such:
+//   • WINDOWED (the Window control) — recent form and the trend chart.
+//   • ALL MATCHES — the overall win rate and every pooled serve/return/rally
+//     figure. The API does not window those, so the UI never implies it does.
 // ============================================================
 
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Activity, BarChart3, ClipboardList, Plus, Swords, Target } from "lucide-react";
+import { Activity, BarChart3, ClipboardList, Loader2, Plus, Swords, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/shared";
+import {
+  ExpandableMatchRow,
+  HeadlineCard,
+  MetricTile,
+  PerformanceTrendChart,
+  RecentFormStrip,
+  StatsWindowControl,
+  SurfaceSplitList,
+  buildWindowOptions,
+  recentParamFor,
+  type StatsWindowId,
+} from "@/components/stats";
 import { useMatchStats, useMatches } from "@/hooks/api/matches";
 import {
   NO_VALUE,
-  formatCount,
   formatMatchDate,
   formatPct,
-  formatRatio,
-  formatSample,
-  formatScore,
   formatWinLoss,
-  matchFormatLabel,
-  surfaceLabel,
+  matchCountLabel,
 } from "@/lib/stats/format";
-import { cn } from "@/lib/utils";
-import type { MatchView, RecentFormMatch, StatMetric, SurfaceSplitStats } from "@/types";
 
-// ─── Small presentational pieces ───
-
-function HeadlineCard({ label, value, caption }: { label: string; value: string; caption: string }) {
-  const missing = value === NO_VALUE;
-  return (
-    <div className="border border-border bg-card p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={cn("mt-1 text-2xl font-bold", missing ? "text-muted-foreground" : "text-foreground")}>{value}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{caption}</p>
-    </div>
-  );
-}
-
-/** A pooled metric: the number plus the honest sample behind it. */
-function MetricTile({ label, metric, kind }: { label: string; metric: StatMetric; kind: "pct" | "count" | "ratio" }) {
-  const value = kind === "pct" ? formatPct(metric) : kind === "count" ? formatCount(metric) : formatRatio(metric);
-  const missing = value === NO_VALUE;
-  return (
-    <div className="border-b border-border py-3 last:border-b-0">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={cn("text-lg font-semibold", missing ? "text-muted-foreground" : "text-foreground")}>{value}</p>
-      <p className="text-[11px] text-muted-foreground">{formatSample(metric)}</p>
-    </div>
-  );
-}
-
-function FormChip({ entry }: { entry: RecentFormMatch }) {
-  if (entry.result === null) {
-    return (
-      <span
-        title="Result not recorded"
-        className="flex h-7 w-7 items-center justify-center border border-dashed border-border text-xs text-muted-foreground"
-      >
-        {NO_VALUE}
-      </span>
-    );
-  }
-  return (
-    <span
-      title={entry.date ? formatMatchDate(entry.date) : undefined}
-      className={cn(
-        "flex h-7 w-7 items-center justify-center text-xs font-bold",
-        entry.result === "win" ? "bg-primary/15 text-primary" : "bg-muted text-foreground",
-      )}
-    >
-      {entry.result === "win" ? "W" : "L"}
-    </span>
-  );
-}
-
-function SurfaceRow({ split }: { split: SurfaceSplitStats }) {
-  return (
-    <div className="space-y-1.5 border-b border-border py-3 last:border-b-0">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-foreground">{surfaceLabel(split.surface)}</span>
-        <span className="text-xs text-muted-foreground">
-          {split.matches} match{split.matches === 1 ? "" : "es"} ·{" "}
-          {split.resultsRecorded > 0 ? formatWinLoss(split.wins, split.losses) : "no result recorded"}
-        </span>
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="h-1.5 flex-1 bg-muted">
-          {split.winRatePct !== null && (
-            <div className="h-full bg-primary" style={{ width: `${Math.min(100, split.winRatePct)}%` }} />
-          )}
-        </div>
-        <span
-          className={cn(
-            "w-16 text-right text-sm font-semibold",
-            split.winRatePct === null ? "text-muted-foreground" : "text-foreground",
-          )}
-        >
-          {formatPct(split.winRatePct)}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function RecentMatchRow({ match }: { match: MatchView }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border py-3 last:border-b-0">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-foreground">
-          {match.opponentName ?? "Opponent not recorded"}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {formatMatchDate(match.date)} · {surfaceLabel(match.surface)} · {matchFormatLabel(match.format)}
-        </p>
-      </div>
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-foreground">{formatScore(match.scoreSets)}</span>
-        <span
-          className={cn(
-            "px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
-            match.result === "win"
-              ? "bg-primary/10 text-primary"
-              : match.result === "loss"
-                ? "bg-muted text-foreground"
-                : "bg-muted text-muted-foreground",
-          )}
-        >
-          {match.result === "win" ? "Win" : match.result === "loss" ? "Loss" : "Not recorded"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ─── Page ───
+const DEFAULT_WINDOW: StatsWindowId = "last10";
 
 export default function StatsPage() {
-  const { data: stats, isLoading, error, refetch } = useMatchStats();
-  const { data: matches = [], isLoading: matchesLoading } = useMatches();
+  const [windowId, setWindowId] = useState<StatsWindowId>(DEFAULT_WINDOW);
+  const [openMatchId, setOpenMatchId] = useState<string | null>(null);
 
-  if (isLoading || matchesLoading) return <LoadingState message="Computing your statistics…" />;
+  const { data: matches = [], isLoading: matchesLoading, error: matchesError, refetch: refetchMatches } = useMatches();
 
-  if (error || !stats) {
-    return (
-      <ErrorState message="Failed to load your statistics." onRetry={() => void refetch()} />
-    );
+  // Windows are derived from the real list, so a window larger than the number
+  // of logged matches is never offered.
+  const windowOptions = useMemo(() => buildWindowOptions(matches), [matches]);
+  // The default window may not be on offer yet (too few matches) — fall back to
+  // the widest one so the control never highlights an option that isn't there.
+  const activeWindow = windowOptions.find((o) => o.id === windowId) ?? windowOptions[windowOptions.length - 1];
+  const activeWindowId: StatsWindowId = activeWindow?.id ?? "all";
+  const recentParam = recentParamFor(activeWindow);
+
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isFetching: statsFetching,
+    error: statsError,
+    refetch: refetchStats,
+  } = useMatchStats(undefined, recentParam);
+
+  const retry = () => {
+    void refetchStats();
+    void refetchMatches();
+  };
+
+  if (statsLoading || matchesLoading) return <LoadingState message="Computing your statistics…" />;
+
+  if (statsError || matchesError || !stats) {
+    return <ErrorState message="Failed to load your statistics." onRetry={retry} />;
   }
 
   const header = (
@@ -154,7 +80,7 @@ export default function StatsPage() {
         <h1 className="text-2xl font-bold text-foreground">Statistics</h1>
         <p className="text-sm text-muted-foreground">
           {stats.matchesPlayed > 0
-            ? `Computed from the ${stats.matchesPlayed} match${stats.matchesPlayed === 1 ? "" : "es"} you logged` +
+            ? `Computed from the ${matchCountLabel(stats.matchesPlayed)} you logged` +
               (stats.firstMatchDate && stats.lastMatchDate
                 ? ` (${formatMatchDate(stats.firstMatchDate)} – ${formatMatchDate(stats.lastMatchDate)}).`
                 : ".")
@@ -176,7 +102,7 @@ export default function StatsPage() {
         <EmptyState
           icon={<BarChart3 className="h-6 w-6 text-muted-foreground" />}
           title="No match data recorded yet"
-          description="Log a match and your win rate, surface splits, serve and return percentages and recent form appear here — all computed from what you entered."
+          description="Log a match and your win rate, surface splits, serve and return percentages, recent form and trend appear here — all computed from what you entered."
         >
           <Button asChild className="gap-1.5">
             <Link to="/matches">
@@ -188,11 +114,34 @@ export default function StatsPage() {
     );
   }
 
-  const recentMatches = matches.slice(0, 5);
+  const windowLabel = activeWindow?.label ?? "All";
+  // The window's true sample is whatever the server actually aggregated.
+  const formSample = stats.recentForm.sampleSize;
 
   return (
     <div className="space-y-6">
       {header}
+
+      {/* ── Window control — scoped, and says what it is scoped to ── */}
+      <div className="space-y-2 border border-border bg-card p-4">
+        <StatsWindowControl
+          options={windowOptions}
+          value={activeWindowId}
+          onChange={setWindowId}
+          hint={
+            statsFetching ? (
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" /> Updating…
+              </span>
+            ) : null
+          }
+        />
+        <p className="text-xs text-muted-foreground">
+          The window applies to <span className="font-medium text-foreground">recent form</span> and the{" "}
+          <span className="font-medium text-foreground">trend</span> chart. Overall win rate and the pooled serve,
+          return and rally figures always cover all {matchCountLabel(stats.matchesPlayed)}.
+        </p>
+      </div>
 
       {/* ── Headline ── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -206,111 +155,145 @@ export default function StatsPage() {
           }
         />
         <HeadlineCard
-          label="Win rate"
+          label="Win rate (all matches)"
           value={formatPct(stats.winRatePct)}
           caption={
             stats.resultsRecorded > 0
-              ? `from ${stats.resultsRecorded} match${stats.resultsRecorded === 1 ? "" : "es"} with a result`
+              ? `from ${matchCountLabel(stats.resultsRecorded)} with a result`
               : "no win/loss recorded yet"
           }
         />
         <HeadlineCard
-          label="Win – loss"
+          label="Win – loss (all matches)"
           value={formatWinLoss(stats.wins, stats.losses)}
           caption={stats.resultsRecorded > 0 ? "wins – losses" : "no win/loss recorded yet"}
         />
         <HeadlineCard
-          label={`Recent form (last ${stats.recentForm.sampleSize})`}
+          label={`Form · ${windowLabel}`}
           value={formatPct(stats.recentForm.winRatePct)}
           caption={
             stats.recentForm.wins !== null
-              ? `${formatWinLoss(stats.recentForm.wins, stats.recentForm.losses)} in the last ${stats.recentForm.sampleSize}`
-              : "no results recorded in these matches"
+              ? `${formatWinLoss(stats.recentForm.wins, stats.recentForm.losses)} in the last ${matchCountLabel(
+                  formSample,
+                )}`
+              : `no results recorded in these ${matchCountLabel(formSample)}`
           }
         />
       </div>
+
+      {/* ── Trend ── */}
+      <PerformanceTrendChart
+        matches={matches}
+        windowSize={activeWindow?.size ?? matches.length}
+        windowLabel={windowLabel}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* ── Surfaces ── */}
         <DashboardCard
           title="By surface"
-          description="Win rate per court type — only surfaces you have played"
+          description="Win rate per court type — only surfaces you have played · all matches"
           icon={<Target className="h-4 w-4" />}
         >
-          {stats.surfaces.length === 0 ? (
-            <p className="py-4 text-sm text-muted-foreground">No surfaces recorded yet.</p>
-          ) : (
-            <div>
-              {stats.surfaces.map((split) => (
-                <SurfaceRow key={split.surface} split={split} />
-              ))}
-            </div>
-          )}
+          <SurfaceSplitList splits={stats.surfaces} />
         </DashboardCard>
 
         {/* ── Recent form ── */}
         <DashboardCard
           title="Recent form"
-          description={`Newest first · last ${stats.recentForm.sampleSize} match${stats.recentForm.sampleSize === 1 ? "" : "es"}`}
+          description={`Newest first · ${windowLabel} (${matchCountLabel(formSample)})`}
           icon={<Activity className="h-4 w-4" />}
         >
-          {stats.recentForm.matches.length === 0 ? (
-            <p className="py-4 text-sm text-muted-foreground">Nothing logged yet.</p>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-1.5">
-                {stats.recentForm.matches.map((entry) => (
-                  <FormChip key={entry.id} entry={entry} />
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {stats.recentForm.winRatePct === null
-                  ? "None of these matches has a recorded win or loss."
-                  : `${formatWinLoss(stats.recentForm.wins, stats.recentForm.losses)} · ${formatPct(
-                      stats.recentForm.winRatePct,
-                    )} win rate over this window.`}
-              </p>
-            </div>
-          )}
+          <RecentFormStrip form={stats.recentForm} />
         </DashboardCard>
 
         {/* ── Serve ── */}
         <DashboardCard
           title="Serve"
-          description="Pooled from the serve counts you entered"
+          description="Pooled from the serve counts you entered · all matches"
           icon={<Swords className="h-4 w-4" />}
         >
           <div>
-            <MetricTile label="1st serve in" metric={stats.serve.firstServePct} kind="pct" />
-            <MetricTile label="1st serve points won" metric={stats.serve.firstServeWonPct} kind="pct" />
-            <MetricTile label="2nd serve points won" metric={stats.serve.secondServeWonPct} kind="pct" />
-            <MetricTile label="Aces" metric={stats.serve.aces} kind="count" />
-            <MetricTile label="Double faults" metric={stats.serve.doubleFaults} kind="count" />
-            <MetricTile label="Break points saved" metric={stats.breakPoints.savePct} kind="pct" />
+            <MetricTile
+              label="1st serve in"
+              metric={stats.serve.firstServePct}
+              kind="pct"
+              requires="first-serve attempts and serves in"
+            />
+            <MetricTile
+              label="1st serve points won"
+              metric={stats.serve.firstServeWonPct}
+              kind="pct"
+              requires="first serves in and points won behind them"
+            />
+            <MetricTile
+              label="2nd serve points won"
+              metric={stats.serve.secondServeWonPct}
+              kind="pct"
+              requires="second serves played and points won"
+            />
+            <MetricTile label="Aces" metric={stats.serve.aces} kind="count" requires="aces" />
+            <MetricTile
+              label="Double faults"
+              metric={stats.serve.doubleFaults}
+              kind="count"
+              requires="double faults"
+            />
+            <MetricTile
+              label="Break points saved"
+              metric={stats.breakPoints.savePct}
+              kind="pct"
+              requires="break points faced and saved"
+            />
           </div>
         </DashboardCard>
 
         {/* ── Return & rally ── */}
         <DashboardCard
           title="Return & rally"
-          description="Pooled from the return and rally counts you entered"
+          description="Pooled from the return and rally counts you entered · all matches"
           icon={<BarChart3 className="h-4 w-4" />}
         >
           <div>
-            <MetricTile label="Return points won" metric={stats.returnGame.returnPointsWonPct} kind="pct" />
-            <MetricTile label="Break points converted" metric={stats.breakPoints.conversionPct} kind="pct" />
-            <MetricTile label="Winners" metric={stats.rally.winners} kind="count" />
-            <MetricTile label="Unforced errors" metric={stats.rally.unforcedErrors} kind="count" />
-            <MetricTile label="Winners : unforced errors" metric={stats.rally.winnerToUnforcedRatio} kind="ratio" />
-            <MetricTile label="Net points won" metric={stats.rally.netPointsWonPct} kind="pct" />
+            <MetricTile
+              label="Return points won"
+              metric={stats.returnGame.returnPointsWonPct}
+              kind="pct"
+              requires="return points played and won"
+            />
+            <MetricTile
+              label="Break points converted"
+              metric={stats.breakPoints.conversionPct}
+              kind="pct"
+              requires="break points created and converted"
+            />
+            <MetricTile label="Winners" metric={stats.rally.winners} kind="count" requires="winners" />
+            <MetricTile
+              label="Unforced errors"
+              metric={stats.rally.unforcedErrors}
+              kind="count"
+              requires="unforced errors"
+            />
+            <MetricTile
+              label="Winners : unforced errors"
+              metric={stats.rally.winnerToUnforcedRatio}
+              kind="ratio"
+              requires="winners and unforced errors"
+            />
+            <MetricTile
+              label="Net points won"
+              metric={stats.rally.netPointsWonPct}
+              kind="pct"
+              requires="net approaches and net points won"
+            />
           </div>
         </DashboardCard>
       </div>
 
-      {/* ── Recent matches ── */}
+      {/* ── Recent matches — drill down to the match behind the numbers ── */}
       <DashboardCard
         title="Recent matches"
-        description="The most recent matches behind these numbers"
+        description="Open a match to see the percentages computed from its own counts"
         icon={<ClipboardList className="h-4 w-4" />}
         action={
           <Button asChild variant="ghost" size="sm">
@@ -318,12 +301,17 @@ export default function StatsPage() {
           </Button>
         }
       >
-        {recentMatches.length === 0 ? (
+        {matches.length === 0 ? (
           <p className="py-4 text-sm text-muted-foreground">No matches to show.</p>
         ) : (
           <div>
-            {recentMatches.map((match) => (
-              <RecentMatchRow key={match.id} match={match} />
+            {matches.slice(0, 5).map((match) => (
+              <ExpandableMatchRow
+                key={match.id}
+                match={match}
+                isOpen={openMatchId === match.id}
+                onToggle={() => setOpenMatchId(openMatchId === match.id ? null : match.id)}
+              />
             ))}
           </div>
         )}
@@ -332,7 +320,7 @@ export default function StatsPage() {
       <p className="text-xs text-muted-foreground">
         Percentages are computed on read from the raw counts entered for each match. A metric shows{" "}
         <span className="font-medium text-foreground">{NO_VALUE}</span> when the counts behind it were never entered —
-        it is never shown as zero.
+        it is never shown as zero, and the trend line breaks rather than bridging a match with no counts.
       </p>
     </div>
   );

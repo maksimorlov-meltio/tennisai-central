@@ -4,19 +4,19 @@ import { ArrowRight } from "lucide-react";
 
 // ── Content ───────────────────────────────────────────────
 const capabilities = [
-  { title: "Scheduling", desc: "Lessons, courts and coaches on one calendar — booked around school, work and weather." },
+  { title: "One season calendar", desc: "Trainings, matches and tournament entries on a single colour-coded calendar — the same view for coach, player and parent." },
   { title: "Session Builder", desc: "Set the focus and get a structured, best-practice training session to start from — the coach adjusts, never starts from zero." },
-  { title: "Gear tracking", desc: "Strings, grips and restring cycles per player — nothing snaps mid-match." },
+  { title: "Kit log", desc: "Each player keeps their own list of rackets, strings and shoes — brand, model, condition and when it was bought." },
   { title: "Tournaments", desc: "Browse tournaments by surface, level and location, and keep entries on the shared calendar." },
 ];
 
 const steps = [
   { n: "01", lead: "Connect the roster.", desc: "Coaches, players and parents join one workspace and connect their accounts." },
   { n: "02", lead: "Let it build.", desc: "Set the focus for a session and the builder assembles a structured plan for the coach to fine-tune." },
-  { n: "03", lead: "Play the right events.", desc: "Gear stays match-ready; tournament entries and training sessions live on one shared calendar." },
+  { n: "03", lead: "Play the right events.", desc: "Tournament entries and training sessions sit on one shared calendar, so the season is visible to everyone at once." },
 ];
 
-// Small red square — the recurring modernist marker.
+// Small accent square — the recurring modernist marker.
 function Marker() {
   return <span aria-hidden className="mb-5 block h-2.5 w-2.5 bg-primary" />;
 }
@@ -31,13 +31,13 @@ const Index = () => {
             Run the season like a system.
           </h1>
           <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl">
-            Tennis AI runs the season between coach and player — trainings scheduled, sessions
-            planned, gear tracked, tournaments chosen. Built for coaches, academies and the
-            parents who drive.
+            Tennis AI keeps the season between coach and player in one place — trainings
+            scheduled, sessions planned, kit logged, tournaments chosen. Built for coaches,
+            players and the parents who drive.
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-6">
             <Button size="lg" className="h-12 px-7 text-sm font-semibold" asChild>
-              <Link to="/signup">Sign up free</Link>
+              <Link to="/signup">Get Started</Link>
             </Button>
             <a
               href="#how-it-works"
@@ -106,7 +106,7 @@ const Index = () => {
             </p>
             <div className="mt-8">
               <Button size="lg" className="h-12 px-7 text-sm font-semibold" asChild>
-                <Link to="/signup">Sign up free</Link>
+                <Link to="/signup">Get Started</Link>
               </Button>
             </div>
           </div>
@@ -121,7 +121,7 @@ const Index = () => {
           </h2>
           <div className="mt-10 flex flex-wrap items-center gap-6">
             <Button size="lg" className="h-12 px-7 text-sm font-semibold" asChild>
-              <Link to="/signup">Sign up free</Link>
+              <Link to="/signup">Get Started</Link>
             </Button>
             <Link to="/login" className="text-sm font-semibold text-foreground underline-offset-4 hover:underline">
               Already on Tennis AI? Sign in

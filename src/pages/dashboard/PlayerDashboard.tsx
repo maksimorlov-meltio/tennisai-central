@@ -2,19 +2,18 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { GetStartedCard, type GetStartedItem } from "@/components/dashboard/GetStartedCard";
+import { IncomingRequestsCard } from "@/components/dashboard/IncomingRequestsCard";
+import { StatisticsSummaryCard } from "@/components/dashboard/StatisticsSummaryCard";
+import { statCardClass, statLinkClass } from "@/components/dashboard/statLinkStyles";
 import { StatusBadge, LoadingState, ErrorState } from "@/components/ui/shared";
-import { RoleBadge } from "@/components/ui/shared";
 import {
-  UserPlus,
   Calendar,
   Trophy,
-  BarChart3,
   Wallet,
   Package,
   Brain,
   Bell,
-  Check,
-  X,
   ArrowRight,
   Clock,
 } from "lucide-react";
@@ -27,6 +26,7 @@ import {
   useFinanceSummary,
   useEquipment,
 } from "@/hooks/api/queries";
+import { useMatchStats } from "@/hooks/api/matches";
 import { isBefore } from "date-fns";
 
 function formatDate(iso: string) {
@@ -47,18 +47,19 @@ const eventTypeColor: Record<string, string> = {
 
 export default function PlayerDashboard() {
   const { user } = useAuth();
-  const { requests } = useConnections();
+  // Incoming pending requests are rendered by <IncomingRequestsCard />, which
+  // reads the same store and hides itself when the inbox is empty.
+  const { activeRelationships } = useConnections();
 
-  // Incoming pending requests for this player
-  const pendingRequests = requests.filter(
-    (r) => r.status === "pending" && r.toUserId === user?.id
-  );
   const uid = user?.id ?? "";
   const { data: calendarEvents = [], isLoading: loadingEvents, error: errorEvents } = useCalendarEvents();
   const { data: playerTournaments = [], isLoading: loadingPT, error: errorPT } = usePlayerTournaments();
   const { data: notifications = [], isLoading: loadingNotif, error: errorNotif } = useNotifications(uid);
   const { data: financeSummary, isLoading: loadingFinance, error: errorFinance } = useFinanceSummary(uid);
   const { data: equipment = [], isLoading: loadingEquip, error: errorEquip } = useEquipment(uid);
+  // Same query key as the Statistics card, so this is a shared cache read, not
+  // a second request. Used only to derive the "Get started" ticks.
+  const { data: matchStats, isLoading: loadingMatchStats, error: errorMatchStats } = useMatchStats();
 
   const isLoading = loadingEvents || loadingPT || loadingNotif || loadingFinance || loadingEquip;
   const hasError = errorEvents || errorPT || errorNotif || errorFinance || errorEquip;
@@ -76,6 +77,35 @@ export default function PlayerDashboard() {
     totalEquipment: financeSummary?.totalEquipment ?? 0,
   };
 
+  // First-run checklist. Every tick comes from data already on this page —
+  // nothing is assumed done.
+  const getStartedItems: GetStartedItem[] = [
+    {
+      id: "connect-coach",
+      label: "Connect your coach",
+      description: "Approve or send a request so your coach can plan with you.",
+      to: "/connections",
+      actionLabel: "Connections",
+      done: activeRelationships.length > 0,
+    },
+    {
+      id: "log-match",
+      label: "Log your first match",
+      description: "Statistics are computed from the matches you record.",
+      to: "/matches",
+      actionLabel: "Log match",
+      done: (matchStats?.matchesPlayed ?? 0) > 0,
+    },
+    {
+      id: "add-tournament",
+      label: "Add a tournament",
+      description: "Plan your season and keep travel and costs together.",
+      to: "/tournaments",
+      actionLabel: "Tournaments",
+      done: playerTournaments.length > 0,
+    },
+  ];
+
   if (isLoading) return <LoadingState message="Loading your dashboard…" />;
   if (hasError) return <ErrorState message="Failed to load dashboard data" onRetry={() => window.location.reload()} />;
 
@@ -89,28 +119,45 @@ export default function PlayerDashboard() {
         <p className="text-muted-foreground">Here's your tennis overview for today.</p>
       </div>
 
-      {/* Top stats row */}
+      {/* Anything waiting on a decision comes first. */}
+      <IncomingRequestsCard />
+
+      {/* Rendered only once the match count is known, so no tick can be wrong. */}
+      {!loadingMatchStats && !errorMatchStats && (
+        <GetStartedCard storageKey={`player:${uid}`} items={getStartedItems} />
+      )}
+
+      {/* Top stats row — every figure links to the page that owns it. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          label="Upcoming Events"
-          value={upcomingEvents.length}
-          icon={<Calendar className="h-4 w-4" />}
-        />
-        <StatCard
-          label="Tournaments"
-          value={playerTournaments.length}
-          icon={<Trophy className="h-4 w-4" />}
-          trend={
-            playerTournaments.length
-              ? `${playerTournaments.filter((t) => t.status === "registered").length} registered`
-              : undefined
-          }
-        />
-        <StatCard
-          label="Unread Notifications"
-          value={unreadNotifications.length}
-          icon={<Bell className="h-4 w-4" />}
-        />
+        <Link to="/calendar" className={statLinkClass}>
+          <StatCard
+            label="Upcoming Events"
+            value={upcomingEvents.length}
+            icon={<Calendar className="h-4 w-4" />}
+            className={statCardClass}
+          />
+        </Link>
+        <Link to="/tournaments" className={statLinkClass}>
+          <StatCard
+            label="Tournaments"
+            value={playerTournaments.length}
+            icon={<Trophy className="h-4 w-4" />}
+            trend={
+              playerTournaments.length
+                ? `${playerTournaments.filter((t) => t.status === "registered").length} registered`
+                : undefined
+            }
+            className={statCardClass}
+          />
+        </Link>
+        <Link to="/notifications" className={statLinkClass}>
+          <StatCard
+            label="Unread Notifications"
+            value={unreadNotifications.length}
+            icon={<Bell className="h-4 w-4" />}
+            className={statCardClass}
+          />
+        </Link>
       </div>
 
       {/* Calendar + Tournaments row */}
@@ -184,15 +231,7 @@ export default function PlayerDashboard() {
 
       {/* Stats + Finance + Equipment row */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <DashboardCard
-          title="Statistics"
-          description="Season performance overview"
-          icon={<BarChart3 className="h-4 w-4" />}
-        >
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            No match data yet. Your stats will appear here once matches are recorded.
-          </p>
-        </DashboardCard>
+        <StatisticsSummaryCard />
 
         <DashboardCard
           title="Finance"

@@ -6,7 +6,7 @@
 // never linger from before an edit.
 // ============================================================
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { matchesApi } from "@/api/endpoints/matches";
 import { opponentsApi } from "@/api/endpoints/opponents";
@@ -47,10 +47,23 @@ export function useMatches(playerId?: string, limit?: number) {
   });
 }
 
+/**
+ * Aggregate statistics. `recent` is the recent-FORM window (the server's
+ * `recent` param): it resizes `recentForm` only — every pooled serve/return/
+ * rally figure and the overall win rate always cover every logged match. The
+ * UI must label that distinction; it must never present a pooled figure as if
+ * it were windowed.
+ *
+ * `keepPreviousData` keeps the previous window's numbers on screen while the
+ * next one loads instead of blanking the page. Safe for honesty because the
+ * sample captions are read off the same `data` object, so a figure and its
+ * stated sample always come from the same response.
+ */
 export function useMatchStats(playerId?: string, recent?: number) {
   return useQuery<AggregateMatchStats>({
     queryKey: [...matchQueryKeys.matchStats(playerId), recent ?? "default"],
     queryFn: async () => (await matchesApi.getMatchStats(playerId, recent)).data,
+    placeholderData: keepPreviousData,
   });
 }
 

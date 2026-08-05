@@ -64,6 +64,12 @@ export function categoryForType(type: string): CategoryFlag {
     case "training_request_approved":
     case "training_request_rejected":
     case "training_request_rescheduled":
+    // Connection requests live in the same bucket: the notification-settings UI
+    // labels `requestApprovals` "Connection Requests", so a user who turns that
+    // toggle off must stop getting connection mail/push too.
+    case "connection_request_created":
+    case "connection_request_approved":
+    case "connection_request_rejected":
       return "requestApprovals";
     case "finance_update":
       return "financeUpdates";
@@ -130,10 +136,17 @@ export async function createAndDeliverNotification(
     },
   });
 
-  void deliver(prisma, notification).catch((err) => {
-    // deliver() already catches per-channel errors; this is a last-resort net
-    // so a bug in the funnel itself can never surface as an unhandled rejection.
-    console.error(`[notifications] delivery funnel failed for ${notification.id}:`, err instanceof Error ? err.message : err);
+  // Defensive: if the row didn't come back there is nothing to deliver against,
+  // and attempting it would crash the "safety net" below on a missing id.
+  if (!notification) return notification;
+
+  void deliver(prisma, notification).catch((err: unknown) => {
+    // deliver() already catches per-channel errors; this is a last-resort net so
+    // a bug in the funnel itself can never surface as an unhandled rejection.
+    // It must therefore be crash-proof itself — read the id defensively, since
+    // an unhandled throw in here would defeat the whole point of the catch.
+    const id = notification?.id ?? "unknown";
+    console.error(`[notifications] delivery funnel failed for ${id}:`, err instanceof Error ? err.message : err);
   });
 
   return notification;

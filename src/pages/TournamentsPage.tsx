@@ -1,5 +1,5 @@
 // Tournaments — with React Query, team filter, player detail, and a map view
-import { useState, useMemo } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -21,7 +22,11 @@ import { Label } from "@/components/ui/label";
 import { TeamFilterSelect } from "@/components/TeamFilterSelect";
 import { PlayerFilterSelect } from "@/components/PlayerFilterSelect";
 import { PlayerDetailDrawer } from "@/components/PlayerDetailDrawer";
-import { TournamentMap } from "@/components/tournaments/TournamentMap";
+// Loaded on demand: Leaflet + its CSS are ~160 KB and only the Map tab needs
+// them, so they must not ship with the rest of this page.
+const TournamentMap = lazy(() =>
+  import("@/components/tournaments/TournamentMap").then((m) => ({ default: m.TournamentMap })),
+);
 import {
   useTournaments, usePlayerTournaments, useUpdatePlayerTournament, useAddPlayerTournament, useRemovePlayerTournament, useTeams,
   useHiddenTournaments, useHideTournament, useUnhideTournament,
@@ -44,6 +49,31 @@ const MAX_RADIUS_KM = 20000; // ~ half the Earth's circumference — effectively
 function distanceFromUser(userCoords: { lat: number; lng: number } | null, t: Tournament): number | null {
   if (!userCoords || typeof t.latitude !== "number" || typeof t.longitude !== "number") return null;
   return haversineKm(userCoords, { lat: t.latitude, lng: t.longitude });
+}
+
+/** Removing a tournament entry is destructive — it always goes through here. */
+function RemoveFromScheduleDialog({ open, onOpenChange, tournamentName, onConfirm, loading }: {
+  open: boolean; onOpenChange: (o: boolean) => void; tournamentName: string; onConfirm: () => void; loading?: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Remove from your schedule?</DialogTitle>
+          <DialogDescription>
+            <span className="font-semibold text-foreground">{tournamentName}</span> will be taken off your schedule,
+            along with the status you set for it. You can add it again from the Browse tab.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Keep it</Button>
+          <Button variant="destructive" disabled={loading} onClick={() => { onConfirm(); onOpenChange(false); }}>
+            <Trash2 className="mr-1.5 h-4 w-4" /> {loading ? "Removing…" : "Remove"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export default function TournamentsPage() {
@@ -94,6 +124,9 @@ export default function TournamentsPage() {
   // Player detail drawer
   const [playerDetailOpen, setPlayerDetailOpen] = useState(false);
   const [detailPlayer, setDetailPlayer] = useState<ConnectedPlayer | null>(null);
+
+  // Pending "remove from schedule" confirmation ({ id } is the entry id).
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
 
   // Team filter → restrict player filter
   const teamPlayerIds = useMemo(() => {
@@ -297,8 +330,9 @@ export default function TournamentsPage() {
                               size="icon"
                               className="h-7 w-7 text-muted-foreground hover:text-destructive"
                               title="Remove from schedule"
+                              aria-label={`Remove ${pt.tournament.name} from your schedule`}
                               disabled={removePT.isPending}
-                              onClick={() => removePT.mutate(pt.id)}
+                              onClick={() => setRemoveTarget({ id: pt.id, name: pt.tournament.name })}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
@@ -335,6 +369,7 @@ export default function TournamentsPage() {
                         size="icon"
                         className="h-6 w-6 text-muted-foreground hover:text-foreground"
                         title="Hide from suggestions"
+                        aria-label={`Hide ${t.name} from suggestions`}
                         disabled={hideTournament.isPending}
                         onClick={() => hideTournament.mutate(t.id)}
                       >
@@ -371,8 +406,9 @@ export default function TournamentsPage() {
                         variant="outline"
                         size="sm"
                         className="w-full gap-1.5 text-destructive hover:text-destructive"
+                        aria-label={`Remove ${t.name} from your schedule`}
                         disabled={removePT.isPending}
-                        onClick={() => removePT.mutate(entry.id)}
+                        onClick={() => setRemoveTarget({ id: entry.id, name: t.name })}
                       >
                         <Check className="h-3.5 w-3.5" /> In schedule — remove
                       </Button>
@@ -476,14 +512,16 @@ export default function TournamentsPage() {
             <EmptyState icon={<MapPin className="h-6 w-6 text-muted-foreground" />} title="No tournaments found" description="No tournaments match your filters." />
           ) : (
             <div className="space-y-4">
-              <TournamentMap
-                tournaments={sortedMapTournaments}
-                userCoords={userCoords}
-                radiusKm={userCoords ? radiusKm : null}
-                onAdd={handleAddToSchedule}
-                onHide={(id) => hideTournament.mutate(id)}
-                canAdd={isPlayer}
-              />
+              <Suspense fallback={<LoadingState message="Loading map…" />}>
+                <TournamentMap
+                  tournaments={sortedMapTournaments}
+                  userCoords={userCoords}
+                  radiusKm={userCoords ? radiusKm : null}
+                  onAdd={handleAddToSchedule}
+                  onHide={(id) => hideTournament.mutate(id)}
+                  canAdd={isPlayer}
+                />
+              </Suspense>
 
               <div className="divide-y divide-border border border-border">
                 {sortedMapTournaments.map((t) => {
@@ -503,14 +541,21 @@ export default function TournamentsPage() {
                         {distance != null && <Badge variant="outline" className="border-primary/40 text-primary">{formatDistanceKm(distance)}</Badge>}
                         {isPlayer && (
                           entry ? (
+                            // Reads as a status at rest, but it removes — so it
+                            // flips to an explicit "Remove" on hover/focus and
+                            // still asks for confirmation.
                             <Button
                               variant="outline"
                               size="sm"
-                              className="gap-1 text-destructive hover:text-destructive"
+                              className="group gap-1 text-muted-foreground hover:text-destructive focus-visible:text-destructive"
+                              aria-label={`Remove ${t.name} from your schedule`}
                               disabled={removePT.isPending}
-                              onClick={() => removePT.mutate(entry.id)}
+                              onClick={() => setRemoveTarget({ id: entry.id, name: t.name })}
                             >
-                              <Check className="h-3.5 w-3.5" /> In schedule
+                              <Check className="h-3.5 w-3.5 group-hover:hidden group-focus-visible:hidden" />
+                              <X className="hidden h-3.5 w-3.5 group-hover:block group-focus-visible:block" />
+                              <span className="group-hover:hidden group-focus-visible:hidden">In schedule</span>
+                              <span className="hidden group-hover:inline group-focus-visible:inline">Remove</span>
                             </Button>
                           ) : (
                             <Button size="sm" className="gap-1" disabled={addPT.isPending} onClick={() => handleAddToSchedule(t)}>
@@ -538,6 +583,16 @@ export default function TournamentsPage() {
       )}
 
       <PlayerDetailDrawer player={detailPlayer} open={playerDetailOpen} onOpenChange={setPlayerDetailOpen} readOnly={isObserver} />
+
+      {removeTarget && (
+        <RemoveFromScheduleDialog
+          open={!!removeTarget}
+          onOpenChange={(o) => { if (!o) setRemoveTarget(null); }}
+          tournamentName={removeTarget.name}
+          loading={removePT.isPending}
+          onConfirm={() => { removePT.mutate(removeTarget.id); setRemoveTarget(null); }}
+        />
+      )}
     </div>
   );
 }

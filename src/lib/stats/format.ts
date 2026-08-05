@@ -75,10 +75,15 @@ export function formatRatio(metric: StatMetric | number | null | undefined): str
   return value.toFixed(2);
 }
 
+/** "4 matches" / "1 match" — pluralised match count for captions. */
+export function matchCountLabel(count: number): string {
+  return `${count} match${count === 1 ? "" : "es"}`;
+}
+
 /** "from 4 matches" — the honest sample behind a pooled metric. */
 export function formatSample(metric: StatMetric | undefined | null): string {
   if (!metric || metric.value === null || metric.sample <= 0) return "no data entered";
-  return `from ${metric.sample} match${metric.sample === 1 ? "" : "es"}`;
+  return `from ${matchCountLabel(metric.sample)}`;
 }
 
 /** "12–4" (en dash) — or "—" when no result has been recorded. */

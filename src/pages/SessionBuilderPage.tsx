@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useConnections } from "@/store/ConnectionStore";
+import { DraftRestoredNotice } from "@/lib/drafts/DraftRestoredNotice";
+import { useFormDraft } from "@/lib/drafts/useFormDraft";
 import { useCreateTrainingPlan } from "@/hooks/api/queries";
 import { sessionToTrainingPlanInput } from "@/lib/session/toTrainingPlan";
 import { generateSession } from "@/lib/session/generateSession";
@@ -58,18 +60,40 @@ const blockAccent: Record<string, string> = {
   cooldown: "border-l-muted-foreground",
 };
 
+const DEFAULT_PREFS: SessionPreferences = {
+  level: "intermediate",
+  focusAreas: ["serve", "forehand"],
+  durationMinutes: 90,
+  intensity: "medium",
+  format: "individual",
+  playersCount: 1,
+  surface: "hard",
+  goal: "technical",
+};
+
+/** Preferences + the generated session survive navigation and refreshes. */
+const DRAFT_KEY = "session-builder";
+
+interface SessionBuilderDraft {
+  prefs: SessionPreferences;
+  session: GeneratedSession | null;
+}
+
 export default function SessionBuilderPage() {
-  const [prefs, setPrefs] = useState<SessionPreferences>({
-    level: "intermediate",
-    focusAreas: ["serve", "forehand"],
-    durationMinutes: 90,
-    intensity: "medium",
-    format: "individual",
-    playersCount: 1,
-    surface: "hard",
-    goal: "technical",
-  });
+  const [prefs, setPrefs] = useState<SessionPreferences>(DEFAULT_PREFS);
   const [session, setSession] = useState<GeneratedSession | null>(null);
+
+  const draftValue = useMemo<SessionBuilderDraft>(() => ({ prefs, session }), [prefs, session]);
+  const draft = useFormDraft<SessionBuilderDraft>(DRAFT_KEY, draftValue, (d) => {
+    if (d.prefs) setPrefs({ ...DEFAULT_PREFS, ...d.prefs });
+    setSession(d.session ?? null);
+  });
+
+  const startFresh = () => {
+    draft.clear();
+    setPrefs(DEFAULT_PREFS);
+    setSession(null);
+  };
 
   const { connectedPlayers } = useConnections();
   const createPlan = useCreateTrainingPlan();
@@ -114,6 +138,15 @@ export default function SessionBuilderPage() {
           to do it.
         </p>
       </div>
+
+      <DraftRestoredNotice
+        savedAt={draft.restoredAt}
+        onDiscard={startFresh}
+        onDismiss={draft.acknowledge}
+        discardLabel="Start fresh"
+      >
+        Restored your last preferences{session ? " and generated session" : ""}.
+      </DraftRestoredNotice>
 
       <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
         {/* Preferences */}

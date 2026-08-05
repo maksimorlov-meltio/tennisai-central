@@ -50,6 +50,11 @@ export type NotificationType =
   | "training_request_approved"
   | "training_request_rejected"
   | "training_request_rescheduled"
+  // Emitted by server/src/connections/routes.ts so a connection request is no
+  // longer silent. Mapped to the "requestApprovals" preference category.
+  | "connection_request_created"
+  | "connection_request_approved"
+  | "connection_request_rejected"
   | "training_created"
   | "training_updated"
   | "training_deleted"

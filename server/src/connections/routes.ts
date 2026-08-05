@@ -3,9 +3,32 @@ import { z } from "zod";
 import type { ConnectionRequest, User } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
+import { createAndDeliverNotification, type DeliverInput } from "../notifications/deliver";
 
 export const connectionsRouter = Router();
 connectionsRouter.use(requireAuth);
+
+/**
+ * Fire-and-forget notification for a connection mutation.
+ *
+ * HARD RULES enforced here:
+ *  - never awaited by the route → a slow mail/push provider can't delay the
+ *    HTTP response, and a rejection can never turn a successful mutation into
+ *    a 500 (the funnel's own `notification.create` await lives inside this
+ *    promise, so even a DB failure while writing the row is swallowed);
+ *  - never notify the actor about their own action.
+ */
+function notifyCounterparty(actorId: string, input: DeliverInput): void {
+  if (input.userId === actorId) return;
+  void createAndDeliverNotification(prisma, input).catch((err) => {
+    console.error(
+      `[connections] notification (${input.type}) for ${input.userId} failed:`,
+      err instanceof Error ? err.message : err,
+    );
+  });
+}
+
+const fullName = (u: Pick<User, "firstName" | "lastName">) => `${u.firstName} ${u.lastName}`;
 
 const sendSchema = z.object({
   toUserId: z.string().min(1),
@@ -86,6 +109,17 @@ connectionsRouter.post(
       create: { fromUserId, toUserId, status: "pending" },
       include: withUsers,
     });
+
+    // The recipient is the one who has to act — tell them, exactly as the
+    // client promises ("They'll be notified and can approve or decline").
+    notifyCounterparty(fromUserId, {
+      userId: created.toUserId,
+      type: "connection_request_created",
+      title: "New connection request",
+      message: `${fullName(created.fromUser)} (${created.fromUser.role}) wants to connect with you.`,
+      linkTo: "/connections",
+    });
+
     return ok(res, present(created), "Connection request sent", 201);
   }),
 );
@@ -108,6 +142,22 @@ connectionsRouter.patch(
       data: { status },
       include: withUsers,
     });
+
+    // Only the ORIGINAL SENDER is notified — they're the party waiting on an
+    // answer. The recipient just performed the action, so they get nothing.
+    // Revoke (DELETE) deliberately stays silent: ending a relationship is not
+    // an event the other side needs pushed to their phone.
+    notifyCounterparty(req.userId!, {
+      userId: updated.fromUserId,
+      type: status === "active" ? "connection_request_approved" : "connection_request_rejected",
+      title: status === "active" ? "Connection accepted" : "Connection request declined",
+      message:
+        status === "active"
+          ? `${fullName(updated.toUser)} accepted your connection request.`
+          : `${fullName(updated.toUser)} declined your connection request for now.`,
+      linkTo: "/connections",
+    });
+
     return ok(res, present(updated), status === "active" ? "Connection approved" : "Request rejected");
   }),
 );

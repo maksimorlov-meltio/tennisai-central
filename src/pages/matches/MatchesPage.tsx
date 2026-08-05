@@ -94,19 +94,19 @@ export default function MatchesPage() {
     return created.data.id;
   }
 
+  /**
+   * Throws on failure. `MatchForm` catches it, keeps the form (and its saved
+   * draft) exactly as the user left it, and the mutation hooks have already
+   * surfaced the error in a toast.
+   */
   async function handleSubmit(values: MatchFormValues) {
-    try {
-      const opponentId = await resolveOpponentId(values);
-      if (view.mode === "edit") {
-        await updateMatch.mutateAsync({ id: view.match.id, input: toUpdateInput(values, opponentId) });
-      } else {
-        await createMatch.mutateAsync(toCreateInput(values, opponentId));
-      }
-      setView({ mode: "list" });
-    } catch {
-      // The mutation hooks already surfaced the failure in a toast; keep the
-      // form open with the user's input intact so nothing is lost.
+    const opponentId = await resolveOpponentId(values);
+    if (view.mode === "edit") {
+      await updateMatch.mutateAsync({ id: view.match.id, input: toUpdateInput(values, opponentId) });
+    } else {
+      await createMatch.mutateAsync(toCreateInput(values, opponentId));
     }
+    setView({ mode: "list" });
   }
 
   if (view.mode !== "list") {

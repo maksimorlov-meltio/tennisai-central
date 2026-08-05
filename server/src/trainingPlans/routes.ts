@@ -29,7 +29,35 @@ const createSchema = z.object({
   drills: z.array(drillSchema).min(1),
 });
 
+/** PATCH body for ticking a drill off — anything outside the enum is a 400. */
+const drillStatusSchema = z.object({
+  completionStatus: z.enum(["pending", "done", "skipped"]),
+});
+
 type PlanWithDrills = TrainingPlan & { drills: TrainingDrill[] };
+
+const withDrills = { drills: { orderBy: { createdAt: "asc" } } } as const;
+
+function presentDrill(d: TrainingDrill) {
+  return {
+    id: d.id,
+    planId: d.planId,
+    objective: d.objective,
+    category: d.category,
+    instructions: d.instructions,
+    durationMin: d.durationMin ?? undefined,
+    reps: d.reps ?? undefined,
+    equipment: d.equipment ?? undefined,
+    intensity: d.intensity ?? undefined,
+    successCriteria: d.successCriteria,
+    relatedInsight: d.relatedInsight ?? undefined,
+    coachNotes: d.coachNotes ?? undefined,
+    completionStatus: d.completionStatus,
+    trainingId: d.trainingId ?? undefined,
+    createdAt: d.createdAt.toISOString(),
+    updatedAt: d.updatedAt.toISOString(),
+  };
+}
 
 function present(p: PlanWithDrills) {
   return {
@@ -44,25 +72,26 @@ function present(p: PlanWithDrills) {
     promptVersion: p.promptVersion ?? undefined,
     generatedAt: p.generatedAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
-    drills: p.drills.map((d) => ({
-      id: d.id,
-      planId: d.planId,
-      objective: d.objective,
-      category: d.category,
-      instructions: d.instructions,
-      durationMin: d.durationMin ?? undefined,
-      reps: d.reps ?? undefined,
-      equipment: d.equipment ?? undefined,
-      intensity: d.intensity ?? undefined,
-      successCriteria: d.successCriteria,
-      relatedInsight: d.relatedInsight ?? undefined,
-      coachNotes: d.coachNotes ?? undefined,
-      completionStatus: d.completionStatus,
-      trainingId: d.trainingId ?? undefined,
-      createdAt: d.createdAt.toISOString(),
-      updatedAt: d.updatedAt.toISOString(),
-    })),
+    drills: p.drills.map(presentDrill),
   };
+}
+
+/**
+ * Load a plan the caller is allowed to READ, using exactly the predicate the
+ * list endpoint filters on (`createdById === me OR playerId === me`) — the
+ * player the plan is about and the coach who created it, nobody else.
+ * 404 for an unknown plan, 403 for a plan that exists but isn't theirs.
+ */
+async function loadReadablePlan(planId: string, userId: string): Promise<PlanWithDrills> {
+  const plan = await prisma.trainingPlan.findUnique({
+    where: { id: planId },
+    include: withDrills,
+  });
+  if (!plan) throw new HttpError(404, "Training plan not found");
+  if (plan.createdById !== userId && plan.playerId !== userId) {
+    throw new HttpError(403, "You do not have access to this training plan");
+  }
+  return plan;
 }
 
 /**
@@ -100,10 +129,19 @@ trainingPlansRouter.get(
     };
     const plans = await prisma.trainingPlan.findMany({
       where,
-      include: { drills: { orderBy: { createdAt: "asc" } } },
+      include: withDrills,
       orderBy: { generatedAt: "desc" },
     });
     return ok(res, plans.map(present));
+  }),
+);
+
+// GET /api/training-plans/:id — one plan with its drills (same read authz).
+trainingPlansRouter.get(
+  "/:id",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const plan = await loadReadablePlan(req.params.id, req.userId!);
+    return ok(res, present(plan));
   }),
 );
 
@@ -139,9 +177,31 @@ trainingPlansRouter.post(
           })),
         },
       },
-      include: { drills: { orderBy: { createdAt: "asc" } } },
+      include: withDrills,
     });
 
     return ok(res, present(plan), "Session saved to the player's training plan", 201);
+  }),
+);
+
+// PATCH /api/training-plans/:planId/drills/:drillId — tick a drill off.
+// Allowed for the plan's player (doing the work) and its creator (the coach
+// reviewing it); everybody else gets a 403. The drill is resolved from THIS
+// plan's drill list, so a valid drill id belonging to another plan is a 404 —
+// never a silent cross-plan write.
+trainingPlansRouter.patch(
+  "/:planId/drills/:drillId",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const { completionStatus } = drillStatusSchema.parse(req.body);
+    const plan = await loadReadablePlan(req.params.planId, req.userId!);
+
+    const drill = plan.drills.find((d) => d.id === req.params.drillId);
+    if (!drill) throw new HttpError(404, "Drill not found in this training plan");
+
+    const updated = await prisma.trainingDrill.update({
+      where: { id: drill.id },
+      data: { completionStatus },
+    });
+    return ok(res, presentDrill(updated), "Drill updated");
   }),
 );

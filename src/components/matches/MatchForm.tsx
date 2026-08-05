@@ -4,6 +4,9 @@
 // Only what the user types is submitted. Blank detailed-stat fields are sent
 // as "not entered" (and, when editing, explicitly cleared) — the form never
 // substitutes a zero, and it computes nothing on the user's behalf.
+//
+// The form is long, so everything typed is kept as a localStorage draft
+// (see `@/lib/drafts/useFormDraft`) until the match is saved or cancelled.
 // ============================================================
 
 import { useMemo, useState } from "react";
@@ -13,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SurfacePicker } from "@/components/SurfacePicker";
+import { DraftRestoredNotice } from "@/lib/drafts/DraftRestoredNotice";
+import { draftKey, useFormDraft } from "@/lib/drafts/useFormDraft";
 import {
   ALL_COUNT_KEYS,
   MatchStatsFields,
@@ -60,7 +65,8 @@ export interface MatchFormProps {
   initial?: MatchView;
   opponents: Opponent[];
   submitting?: boolean;
-  onSubmit: (values: MatchFormValues) => void;
+  /** Rejects when the save fails — the form then keeps the input and its draft. */
+  onSubmit: (values: MatchFormValues) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -68,6 +74,24 @@ interface SetRow {
   player: string;
   opponent: string;
   tiebreak: string;
+}
+
+/** Everything the user can type here — the shape persisted as a draft. */
+interface MatchFormDraft {
+  opponentChoice: string;
+  newFirstName: string;
+  newLastName: string;
+  date: string;
+  competition: string;
+  surface: Surface;
+  indoorOutdoor: IndoorOutdoor;
+  format: MatchFormat;
+  result: string;
+  conditions: string;
+  sets: SetRow[];
+  counts: Record<CountKey, string>;
+  buckets: Record<RallyBucketKey, string>;
+  statsOpen: boolean;
 }
 
 /** Count pairs that must stay coherent — same rules the API enforces. */
@@ -121,44 +145,59 @@ function parseCount(value: string): number | null {
   return Math.floor(n);
 }
 
+/** The state the form opens with — also the baseline a draft is compared against. */
+function initialDraft(initial?: MatchView): MatchFormDraft {
+  const counts = emptyCounts();
+  if (initial) for (const key of ALL_COUNT_KEYS) counts[key] = numberOrEmpty(initial.stats?.[key]);
+
+  const buckets = emptyBuckets();
+  const existingBuckets = initial?.stats?.rallyLengthBuckets;
+  if (existingBuckets) for (const key of RALLY_BUCKET_KEYS) buckets[key] = numberOrEmpty(existingBuckets[key]);
+
+  const existingSets = initial?.scoreSets ?? [];
+
+  return {
+    opponentChoice: initial?.opponentId ?? NO_OPPONENT,
+    newFirstName: "",
+    newLastName: "",
+    date: dateInputValue(initial?.date),
+    competition: initial?.competition ?? "",
+    surface: (initial?.surface as Surface) ?? "hard",
+    indoorOutdoor: (initial?.indoorOutdoor as IndoorOutdoor) ?? "outdoor",
+    format: (initial?.format as MatchFormat) ?? "best_of_3",
+    result: initial?.result ?? NO_RESULT,
+    conditions: initial?.conditions ?? "",
+    sets:
+      existingSets.length === 0
+        ? [{ player: "", opponent: "", tiebreak: "" }]
+        : existingSets.map((s) => ({
+            player: String(s.player),
+            opponent: String(s.opponent),
+            tiebreak: s.tiebreak ?? "",
+          })),
+    counts,
+    buckets,
+    statsOpen: ALL_COUNT_KEYS.some((key) => (initial ? typeof initial.stats?.[key] === "number" : false)),
+  };
+}
+
 export function MatchForm({ mode, initial, opponents, submitting, onSubmit, onCancel }: MatchFormProps) {
-  const [opponentChoice, setOpponentChoice] = useState<string>(initial?.opponentId ?? NO_OPPONENT);
-  const [newFirstName, setNewFirstName] = useState("");
-  const [newLastName, setNewLastName] = useState("");
-  const [date, setDate] = useState(dateInputValue(initial?.date));
-  const [competition, setCompetition] = useState(initial?.competition ?? "");
-  const [surface, setSurface] = useState<Surface>((initial?.surface as Surface) ?? "hard");
-  const [indoorOutdoor, setIndoorOutdoor] = useState<IndoorOutdoor>(
-    (initial?.indoorOutdoor as IndoorOutdoor) ?? "outdoor",
-  );
-  const [format, setFormat] = useState<MatchFormat>((initial?.format as MatchFormat) ?? "best_of_3");
-  const [result, setResult] = useState<string>(initial?.result ?? NO_RESULT);
-  const [conditions, setConditions] = useState(initial?.conditions ?? "");
-  const [sets, setSets] = useState<SetRow[]>(() => {
-    const existing = initial?.scoreSets ?? [];
-    if (existing.length === 0) return [{ player: "", opponent: "", tiebreak: "" }];
-    return existing.map((s) => ({
-      player: String(s.player),
-      opponent: String(s.opponent),
-      tiebreak: s.tiebreak ?? "",
-    }));
-  });
-  const [counts, setCounts] = useState<Record<CountKey, string>>(() => {
-    const base = emptyCounts();
-    if (!initial) return base;
-    for (const key of ALL_COUNT_KEYS) base[key] = numberOrEmpty(initial.stats?.[key]);
-    return base;
-  });
-  const [buckets, setBuckets] = useState<Record<RallyBucketKey, string>>(() => {
-    const base = emptyBuckets();
-    const existing = initial?.stats?.rallyLengthBuckets;
-    if (!existing) return base;
-    for (const key of RALLY_BUCKET_KEYS) base[key] = numberOrEmpty(existing[key]);
-    return base;
-  });
-  const [statsOpen, setStatsOpen] = useState(() =>
-    ALL_COUNT_KEYS.some((key) => (initial ? typeof initial.stats?.[key] === "number" : false)),
-  );
+  const pristine = useMemo(() => initialDraft(initial), [initial]);
+
+  const [opponentChoice, setOpponentChoice] = useState<string>(pristine.opponentChoice);
+  const [newFirstName, setNewFirstName] = useState(pristine.newFirstName);
+  const [newLastName, setNewLastName] = useState(pristine.newLastName);
+  const [date, setDate] = useState(pristine.date);
+  const [competition, setCompetition] = useState(pristine.competition);
+  const [surface, setSurface] = useState<Surface>(pristine.surface);
+  const [indoorOutdoor, setIndoorOutdoor] = useState<IndoorOutdoor>(pristine.indoorOutdoor);
+  const [format, setFormat] = useState<MatchFormat>(pristine.format);
+  const [result, setResult] = useState<string>(pristine.result);
+  const [conditions, setConditions] = useState(pristine.conditions);
+  const [sets, setSets] = useState<SetRow[]>(pristine.sets);
+  const [counts, setCounts] = useState<Record<CountKey, string>>(pristine.counts);
+  const [buckets, setBuckets] = useState<Record<RallyBucketKey, string>>(pristine.buckets);
+  const [statsOpen, setStatsOpen] = useState(pristine.statsOpen);
   const [errors, setErrors] = useState<{
     date?: string;
     opponent?: string;
@@ -174,6 +213,44 @@ export function MatchForm({ mode, initial, opponents, submitting, onSubmit, onCa
     [opponents],
   );
 
+  // ── Draft persistence. Keyed by mode (+ id) so a half-typed new match never
+  // bleeds into an edit of an existing one.
+  const storageKey = draftKey("match-form", mode, mode === "edit" ? initial?.id : null);
+
+  const draftValue = useMemo<MatchFormDraft>(
+    () => ({
+      opponentChoice, newFirstName, newLastName, date, competition, surface,
+      indoorOutdoor, format, result, conditions, sets, counts, buckets, statsOpen,
+    }),
+    [opponentChoice, newFirstName, newLastName, date, competition, surface,
+      indoorOutdoor, format, result, conditions, sets, counts, buckets, statsOpen],
+  );
+
+  const applyDraft = (d: MatchFormDraft) => {
+    setOpponentChoice(d.opponentChoice ?? NO_OPPONENT);
+    setNewFirstName(d.newFirstName ?? "");
+    setNewLastName(d.newLastName ?? "");
+    setDate(d.date ?? pristine.date);
+    setCompetition(d.competition ?? "");
+    setSurface(d.surface ?? pristine.surface);
+    setIndoorOutdoor(d.indoorOutdoor ?? pristine.indoorOutdoor);
+    setFormat(d.format ?? pristine.format);
+    setResult(d.result ?? NO_RESULT);
+    setConditions(d.conditions ?? "");
+    setSets(Array.isArray(d.sets) && d.sets.length > 0 ? d.sets : pristine.sets);
+    setCounts({ ...pristine.counts, ...(d.counts ?? {}) });
+    setBuckets({ ...pristine.buckets, ...(d.buckets ?? {}) });
+    setStatsOpen(Boolean(d.statsOpen));
+  };
+
+  const draft = useFormDraft<MatchFormDraft>(storageKey, draftValue, applyDraft);
+
+  const discardDraft = () => {
+    draft.clear();
+    applyDraft(pristine);
+    setErrors({});
+  };
+
   const setCount = (key: CountKey, value: string) => setCounts((prev) => ({ ...prev, [key]: value }));
   const setBucket = (key: RallyBucketKey, value: string) => setBuckets((prev) => ({ ...prev, [key]: value }));
 
@@ -186,7 +263,7 @@ export function MatchForm({ mode, initial, opponents, submitting, onSubmit, onCa
   const removeSet = (index: number) =>
     setSets((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
     const nextErrors: typeof errors = {};
@@ -253,27 +330,40 @@ export function MatchForm({ mode, initial, opponents, submitting, onSubmit, onCa
       return acc;
     }, {});
 
-    onSubmit({
-      opponentId: opponentChoice === NO_OPPONENT || opponentChoice === NEW_OPPONENT ? null : opponentChoice,
-      newOpponent:
-        opponentChoice === NEW_OPPONENT
-          ? { firstName: newFirstName.trim(), lastName: newLastName.trim() }
-          : undefined,
-      date,
-      competition: competition.trim() ? competition.trim() : null,
-      surface,
-      indoorOutdoor,
-      format,
-      result: result === NO_RESULT ? null : (result as MatchResult),
-      scoreSets,
-      conditions: conditions.trim() ? conditions.trim() : null,
-      counts: parsedCounts,
-      rallyLengthBuckets: Object.keys(enteredBuckets).length > 0 ? enteredBuckets : null,
-    });
+    try {
+      await onSubmit({
+        opponentId: opponentChoice === NO_OPPONENT || opponentChoice === NEW_OPPONENT ? null : opponentChoice,
+        newOpponent:
+          opponentChoice === NEW_OPPONENT
+            ? { firstName: newFirstName.trim(), lastName: newLastName.trim() }
+            : undefined,
+        date,
+        competition: competition.trim() ? competition.trim() : null,
+        surface,
+        indoorOutdoor,
+        format,
+        result: result === NO_RESULT ? null : (result as MatchResult),
+        scoreSets,
+        conditions: conditions.trim() ? conditions.trim() : null,
+        counts: parsedCounts,
+        rallyLengthBuckets: Object.keys(enteredBuckets).length > 0 ? enteredBuckets : null,
+      });
+      // Saved for real — the draft is no longer needed.
+      draft.clear();
+    } catch {
+      // The mutation hooks already surfaced the failure in a toast; keep the
+      // form (and its draft) intact so nothing the user typed is lost.
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <DraftRestoredNotice savedAt={draft.restoredAt} onDiscard={discardDraft} onDismiss={draft.acknowledge}>
+        {mode === "edit"
+          ? "Restored the unsaved edits you had in progress."
+          : "Restored the match you started logging earlier."}
+      </DraftRestoredNotice>
+
       {/* ── Who and when ── */}
       <div className="space-y-4 border border-border bg-card p-4">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -511,7 +601,13 @@ export function MatchForm({ mode, initial, opponents, submitting, onSubmit, onCa
           <Check className="h-4 w-4" />
           {submitting ? "Saving…" : mode === "edit" ? "Save changes" : "Log match"}
         </Button>
-        <Button type="button" variant="outline" className="gap-1.5" onClick={onCancel} disabled={submitting}>
+        <Button
+          type="button"
+          variant="outline"
+          className="gap-1.5"
+          onClick={() => { draft.clear(); onCancel(); }}
+          disabled={submitting}
+        >
           <X className="h-4 w-4" /> Cancel
         </Button>
       </div>
