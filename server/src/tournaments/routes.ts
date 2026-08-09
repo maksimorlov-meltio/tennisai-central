@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Tournament, PlayerTournament, User } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
-import { requireRole } from "../authz";
+import { requireRole, readablePlayerIds } from "../authz";
 import { importTournaments } from "./feed";
 
 export const tournamentsRouter = Router();
@@ -99,8 +99,13 @@ playerTournamentsRouter.use(requireAuth);
 playerTournamentsRouter.get(
   "/",
   asyncHandler(async (req: AuthedRequest, res) => {
+    // Everyone the caller may read, not just themselves. Scoped to the caller
+    // for a player; a coach or guardian sees their players' entries too, which
+    // is the whole point of the coach's tournament view — it was returning an
+    // empty list for every coach against the real API.
+    const playerIds = await readablePlayerIds(req.userId!);
     const rows = await prisma.playerTournament.findMany({
-      where: { playerId: req.userId! },
+      where: { playerId: { in: playerIds } },
       include: { tournament: true, player: true },
       orderBy: { createdAt: "desc" },
     });

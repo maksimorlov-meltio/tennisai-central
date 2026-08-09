@@ -217,3 +217,63 @@ describe("POST /api/player-tournaments", () => {
     expect(db.playerTournament.upsert).not.toHaveBeenCalled();
   });
 });
+
+// ── GET / — read scope ──────────────────────────────────────────────────────
+//
+// A coach must see their players' entries, not just their own. This is the
+// query that made the coach's tournament view permanently empty against the
+// real API: it filtered on the caller's own id, and a coach has no entries.
+
+describe("GET /api/player-tournaments — whose entries come back", () => {
+  const COACH = "user-coach";
+  const PLAYER = "user-player";
+
+  it("scopes a PLAYER to their own entries only", async () => {
+    db.user.findUnique.mockResolvedValue({ role: "player" });
+    db.playerTournament.findMany.mockResolvedValue([]);
+
+    await request(app).get("/api/player-tournaments").set("Authorization", bearer(PLAYER));
+
+    expect(firstCallArg(db.playerTournament.findMany).where).toEqual({
+      playerId: { in: [PLAYER] },
+    });
+  });
+
+  it("includes a COACH's connected players, not just assigned ones", async () => {
+    db.user.findUnique.mockResolvedValue({ role: "coach" });
+    db.coachAssignment.findMany.mockResolvedValue([]); // no formal assignment…
+    db.connectionRequest.findMany.mockResolvedValue([
+      { fromUserId: COACH, toUserId: PLAYER }, // …only an active connection
+    ]);
+    db.user.findMany.mockResolvedValue([{ id: PLAYER }]);
+    db.playerTournament.findMany.mockResolvedValue([]);
+
+    await request(app).get("/api/player-tournaments").set("Authorization", bearer(COACH));
+
+    const ids = firstCallArg(db.playerTournament.findMany).where as { playerId: { in: string[] } };
+    expect(ids.playerId.in).toContain(PLAYER);
+    expect(ids.playerId.in).toContain(COACH);
+  });
+
+  it("does not widen the scope to non-players a coach happens to be connected to", async () => {
+    db.user.findUnique.mockResolvedValue({ role: "coach" });
+    db.coachAssignment.findMany.mockResolvedValue([]);
+    db.connectionRequest.findMany.mockResolvedValue([
+      { fromUserId: COACH, toUserId: "another-coach" },
+    ]);
+    // The role filter returns nothing — the connection is not to a player.
+    db.user.findMany.mockResolvedValue([]);
+    db.playerTournament.findMany.mockResolvedValue([]);
+
+    await request(app).get("/api/player-tournaments").set("Authorization", bearer(COACH));
+
+    const ids = firstCallArg(db.playerTournament.findMany).where as { playerId: { in: string[] } };
+    expect(ids.playerId.in).toEqual([COACH]);
+  });
+
+  it("401s an unauthenticated caller before any read", async () => {
+    const res = await request(app).get("/api/player-tournaments");
+    expect(res.status).toBe(401);
+    expect(db.playerTournament.findMany).not.toHaveBeenCalled();
+  });
+});
