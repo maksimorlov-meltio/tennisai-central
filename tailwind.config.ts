@@ -90,10 +90,27 @@ export default {
             height: "0",
           },
         },
+        /** Scroll/enter reveal: rise + fade. Small distance on purpose — this
+         *  brand is matte and editorial, not bouncy. */
+        "rise-in": {
+          from: { opacity: "0", transform: "translateY(14px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "fade-in-soft": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        /** Skeleton placeholder sweep. */
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "rise-in": "rise-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "fade-in-soft": "fade-in-soft 0.5s ease-out both",
+        shimmer: "shimmer 1.6s infinite",
       },
     },
   },

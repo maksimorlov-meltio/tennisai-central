@@ -164,6 +164,25 @@
     font-weight: 800;
     letter-spacing: -0.02em;
   }
+
+  /* ── Reduced motion ────────────────────────────────────────────────────
+     A global off-switch for everyone who asked their OS for less motion —
+     people with vestibular disorders can be made genuinely unwell by
+     parallax and large movement. Kept to ~0 rather than `none` so that
+     transitionend/animationend listeners still fire and nothing that waits
+     on them (Radix unmounts its popovers this way) gets stuck open.
+     Opacity-only fades are left alone: they don't cause motion sickness and
+     removing them makes the UI feel broken rather than calm. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 @layer utilities {
