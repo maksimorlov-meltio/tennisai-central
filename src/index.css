@@ -10,7 +10,7 @@
 
 @layer base {
   /* ── Modernist design system ──────────────────────────────
-     Warm paper background, near-black ink, single red accent,
+     Warm paper background, near-black ink, single matte forest-green accent,
      sharp corners, thin ruled borders. */
   :root {
     --background: 40 33% 97%;        /* warm paper */
@@ -22,7 +22,7 @@
     --popover: 40 33% 99%;
     --popover-foreground: 0 0% 9%;
 
-    --primary: 6 78% 51%;            /* signal red */
+    --primary: 146 24% 33%;            /* matte forest green */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 40 16% 92%;
@@ -39,12 +39,11 @@
 
     --border: 40 14% 86%;
     --input: 40 14% 84%;
-    --ring: 6 78% 51%;
+    --ring: 146 24% 33%;
 
     --radius: 0rem;                  /* sharp corners */
 
     /* Custom tokens */
-    --hero-gradient: linear-gradient(135deg, hsl(152 60% 42%) 0%, hsl(168 55% 38%) 50%, hsl(190 50% 35%) 100%);
     --surface-elevated: 0 0% 100%;
     --surface-sunken: 220 20% 97%;
 
@@ -56,20 +55,33 @@
     --court-line: 0 0% 100%;
     --net-shadow: 220 30% 12%;
 
-    /* Landing — Emerald Prestige palette */
-    --emerald-deep: 162 78% 17%;     /* #064e3b */
-    --emerald-mid: 162 80% 26%;      /* #0d7a5f */
-    --gold: 44 50% 54%;              /* #c9a84c */
-    --cream: 45 60% 92%;             /* #f5f0e0 */
+    /* Calendar palette — event-type & federation colours. Matte/desaturated
+       hues kept consistent (same H/S) between themes; only L is tuned per
+       theme so every hue clears WCAG AA (4.5:1) as TEXT against
+       --background in both light and dark. Consumed via colors.ts as
+       hsl(var(--cal-...)) — do not hardcode these hexes in components. */
+    --cal-event-training: 210 29% 42%;      /* #4c6b8a — steel blue, light: 5.24:1 */
+    --cal-event-tournament: 258 20.8% 47.1%; /* #6e5f91 — violet, light: 5.34:1 */
+    --cal-event-match: 16.3 40.7% 46%;      /* #a55f46 — rust, light: 4.58:1 */
+    --cal-event-travel: 39.2 51.2% 37%;     /* #8f6d2e — amber, light: 4.51:1 */
+    --cal-event-recovery: 152.5 20.2% 40%;  /* #517b68 — sage, light: 4.52:1 */
+    --cal-fed-atp: 215.5 36% 38.6%;         /* #3f5c86 — blue, light: 6.42:1 */
+    --cal-fed-wta: 272.7 23% 46.9%;         /* #7a5c93 — purple, light: 5.24:1 */
+    --cal-fed-itf: 172 37.3% 35%;           /* #387b72 — teal, light: 4.67:1 */
+    /* ITF Junior: sibling of the ITF teal (same saturation, greener hue) so the
+       two read as one family while staying tellable apart on an 8px dot. */
+    --cal-fed-itf-junior: 156 37.3% 33%;    /* #35745a — green-teal, light: 5.25:1 */
+    --cal-fed-utr: 27.7 45.5% 41%;          /* #986539 — orange, light: 4.66:1 */
+    --cal-fed-usta: 335.6 31.8% 50%;        /* #a85778 — rose, light: 4.61:1 */
 
     --sidebar-background: 40 30% 95%;
     --sidebar-foreground: 0 0% 20%;
-    --sidebar-primary: 6 78% 51%;
+    --sidebar-primary: 146 24% 33%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 40 16% 90%;
     --sidebar-accent-foreground: 0 0% 9%;
     --sidebar-border: 40 14% 86%;
-    --sidebar-ring: 6 78% 51%;
+    --sidebar-ring: 146 24% 33%;
   }
 
   .dark {
@@ -82,7 +94,7 @@
     --popover: 0 0% 9%;
     --popover-foreground: 40 20% 92%;
 
-    --primary: 6 82% 56%;            /* signal red */
+    --primary: 146 22% 46%;            /* matte forest green */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 0 0% 15%;
@@ -99,19 +111,19 @@
 
     --border: 0 0% 18%;
     --input: 0 0% 18%;
-    --ring: 6 82% 56%;
+    --ring: 146 22% 46%;
 
     --surface-elevated: 222 25% 11%;
     --surface-sunken: 222 30% 5%;
 
     --sidebar-background: 0 0% 9%;
     --sidebar-foreground: 40 20% 88%;
-    --sidebar-primary: 6 82% 56%;
+    --sidebar-primary: 146 22% 46%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 15%;
     --sidebar-accent-foreground: 40 20% 92%;
     --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 6 82% 56%;
+    --sidebar-ring: 146 22% 46%;
 
     --tennis-ball: 72 90% 58%;
     --court-clay: 14 60% 48%;
@@ -120,10 +132,19 @@
     --court-line: 210 20% 92%;
     --net-shadow: 0 0% 0%;
 
-    --emerald-deep: 162 78% 13%;
-    --emerald-mid: 162 70% 28%;
-    --gold: 44 60% 58%;
-    --cream: 45 50% 88%;
+    /* Calendar palette — same H/S as light, L raised so each hue clears
+       4.5:1 as TEXT against the dark --background. */
+    --cal-event-training: 210 29% 51%;      /* #5e82a6 — dark: 4.66:1 */
+    --cal-event-tournament: 258 20.8% 56%;  /* #8577a6 — dark: 4.63:1 */
+    --cal-event-match: 16.3 40.7% 50.4%;    /* #b4694d — dark: 4.52:1 */
+    --cal-event-travel: 39.2 51.2% 50.2%;   /* #c1943f — dark: 6.76:1 */
+    --cal-event-recovery: 152.5 20.2% 46.7%; /* #5f8f79 — dark: 5.08:1 */
+    --cal-fed-atp: 215.5 36% 53%;           /* #5c7fb2 — dark: 4.58:1 */
+    --cal-fed-wta: 272.7 23% 55%;           /* #8f72a7 — dark: 4.58:1 */
+    --cal-fed-itf: 172 37.3% 39.4%;         /* #3f8a80 — dark: 4.60:1 */
+    --cal-fed-itf-junior: 156 37.3% 40%;    /* #408c6e — dark: 4.64:1 */
+    --cal-fed-utr: 27.7 45.5% 49.6%;        /* #b87a45 — dark: 5.27:1 */
+    --cal-fed-usta: 335.6 31.8% 55%;        /* #b16885 — dark: 4.63:1 */
   }
 }
 
@@ -276,24 +297,4 @@
     to { transform: translateX(-50%); }
   }
   .animate-marquee { animation: marquee 40s linear infinite; }
-
-  @keyframes shine {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-  }
-  .text-shine {
-    background: linear-gradient(
-      90deg,
-      hsl(var(--foreground)) 0%,
-      hsl(var(--foreground)) 40%,
-      hsl(var(--primary)) 50%,
-      hsl(var(--foreground)) 60%,
-      hsl(var(--foreground)) 100%
-    );
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    animation: shine 6s linear infinite;
-  }
 }

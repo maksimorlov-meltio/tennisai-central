@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Team, TeamMember, User } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
+import { assertCanActOnPlayer } from "../authz";
 
 export const teamsRouter = Router();
 teamsRouter.use(requireAuth);
@@ -114,6 +115,9 @@ teamsRouter.post(
 
     const player = await prisma.user.findUnique({ where: { id: playerUserId } });
     if (!player) throw new HttpError(404, "Player not found");
+    // Only actual players may be added, and only ones this coach may act on.
+    if (player.role !== "player") throw new HttpError(400, "Only players can be added to a team");
+    await assertCanActOnPlayer(req.userId!, playerUserId);
 
     await prisma.teamMember.upsert({
       where: { teamId_playerId: { teamId: req.params.id, playerId: playerUserId } },

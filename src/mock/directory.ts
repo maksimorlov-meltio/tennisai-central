@@ -48,7 +48,9 @@ export const mockDirectoryService = {
     if (import.meta.env.VITE_API_BASE_URL) {
       try {
         const { usersApi } = await import("@/api/endpoints/users");
-        const dir = await usersApi.getDirectory();
+        // Look the user up by public ID directly — the server scopes the
+        // unfiltered directory to the caller's existing relationships.
+        const dir = await usersApi.getDirectory(normalized);
         return dir.find((u) => u.publicId === normalized) ?? null;
       } catch {
         return null;
@@ -76,7 +78,7 @@ export const mockDirectoryService = {
       const labels: Record<UserRole, string> = {
         player: "Players",
         coach: "Coaches",
-        observer: "Fans",
+        observer: "Parents",
         admin: "Admins",
       };
       return {

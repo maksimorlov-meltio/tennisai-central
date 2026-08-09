@@ -22,7 +22,7 @@ export function DashboardCard({
   noPadding,
 }: DashboardCardProps) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card", className)}>
+    <div className={cn("border border-border bg-card", className)}>
       <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
         <div className="flex items-center gap-3">
           {icon && (

@@ -18,7 +18,7 @@ export default function SignUpPage() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const [role, setRole] = useState<UserRole | null>(null);
-  const [form, setForm] = useState({ email: "", password: "", confirmPassword: "", firstName: "", lastName: "" });
+  const [form, setForm] = useState({ email: "", password: "", confirmPassword: "", firstName: "", lastName: "", inviteCode: "" });
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState("");
@@ -31,9 +31,12 @@ export default function SignUpPage() {
     e.preventDefault();
     setError("");
     if (!role) return setError("Please select a role");
+    // Private-trial gate. The server enforces the real check (SIGNUP_INVITE_CODE);
+    // this only stops an obviously blank submission.
+    if (!form.inviteCode.trim()) return setError("An invite code is required — this is a private trial");
     if (form.password.length < 8) return setError("Password must be at least 8 characters");
     if (form.password !== form.confirmPassword) return setError("Passwords do not match");
-    if (!ageConfirmed) return setError("You must confirm you are 13 or older");
+    if (!ageConfirmed) return setError("You must confirm you are 16 or older");
     if (!termsAccepted) return setError("You must accept the terms");
     setLoading(true);
     try {
@@ -101,6 +104,18 @@ export default function SignUpPage() {
         </div>
       </div>
       <div className="space-y-1">
+        <Label htmlFor="inviteCode">Invite code</Label>
+        <Input
+          id="inviteCode"
+          value={form.inviteCode}
+          onChange={(e) => update("inviteCode", e.target.value)}
+          placeholder="Enter your invite code"
+          autoComplete="off"
+          required
+        />
+        <p className="text-xs text-muted-foreground">This is a private trial — enter the invite code you were given.</p>
+      </div>
+      <div className="space-y-1">
         <Label htmlFor="email">Email</Label>
         <Input id="email" type="email" value={form.email} onChange={(e) => update("email", e.target.value)} required />
       </div>
@@ -114,11 +129,20 @@ export default function SignUpPage() {
       </div>
       <div className="flex items-center gap-2">
         <Checkbox id="age" checked={ageConfirmed} onCheckedChange={(v) => setAgeConfirmed(!!v)} />
-        <Label htmlFor="age" className="text-sm text-muted-foreground">I confirm I am 13 years of age or older</Label>
+        <Label htmlFor="age" className="text-sm text-muted-foreground">I confirm I am 16 years of age or older</Label>
       </div>
       <div className="flex items-center gap-2">
         <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(v) => setTermsAccepted(!!v)} />
-        <Label htmlFor="terms" className="text-sm text-muted-foreground">I accept the Terms of Service and Privacy Policy</Label>
+        <Label htmlFor="terms" className="text-sm text-muted-foreground">
+          I accept the{" "}
+          <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:no-underline">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:no-underline">
+            Privacy Policy
+          </Link>
+        </Label>
       </div>
       <Button type="submit" className="w-full" disabled={loading}>{loading ? "Creating account…" : "Create account"}</Button>
       <p className="text-center text-sm text-muted-foreground">

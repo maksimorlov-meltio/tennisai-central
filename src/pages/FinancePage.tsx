@@ -1,9 +1,11 @@
 // Finance — Transaction list + category breakdown via React Query
 import { useState } from "react";
 import { useAuth } from "@/auth/AuthContext";
+import { useConnections } from "@/store/ConnectionStore";
 import { useFinanceEntries, useFinanceSummary, useCreateFinanceEntry } from "@/hooks/api/queries";
 import { ReadOnlyBanner, ReadOnlyBadge, LoadingState, ErrorState, EmptyState } from "@/components/ui/shared";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
+import { PlayerFilterSelect } from "@/components/PlayerFilterSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Wallet, Plus, Dumbbell, Plane, Trophy, Package } from "lucide-react";
 import type { FinanceCategory } from "@/types";
 import { format } from "date-fns";
+
+const ALL_PLAYERS = "__all__";
 
 const CATEGORIES: { value: FinanceCategory; label: string; icon: React.ReactNode }[] = [
   { value: "training", label: "Training", icon: <Dumbbell className="h-4 w-4" /> },
@@ -22,9 +26,17 @@ const CATEGORIES: { value: FinanceCategory; label: string; icon: React.ReactNode
 
 export default function FinancePage() {
   const { user } = useAuth();
+  const { connectedPlayers } = useConnections();
   const role = user?.role ?? "player";
   const isObserver = role === "observer";
-  const playerId = role === "player" ? (user?.id ?? "p1") : "p1"; // TODO: observer should pick connected player
+
+  // Observer views a connected player's finances — defaults to the first connected player.
+  const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const observerPlayerId =
+    selectedPlayerId && selectedPlayerId !== ALL_PLAYERS
+      ? selectedPlayerId
+      : connectedPlayers[0]?.id ?? "";
+  const playerId = !user ? "" : role === "player" ? user.id : observerPlayerId;
 
   const { data: entries = [], isLoading, error } = useFinanceEntries(playerId);
   const { data: summary } = useFinanceSummary(playerId);
@@ -33,10 +45,29 @@ export default function FinancePage() {
   const [form, setForm] = useState({ description: "", amount: "", category: "training" as FinanceCategory, date: "", currency: "USD" });
 
   const handleAdd = () => {
+    if (!playerId) return;
     createMut.mutate({ playerId, data: { description: form.description, amount: parseFloat(form.amount), category: form.category, date: form.date || new Date().toISOString().slice(0, 10), currency: form.currency } }, {
       onSuccess: () => { setAddOpen(false); setForm({ description: "", amount: "", category: "training", date: "", currency: "USD" }); },
     });
   };
+
+  if (!user) return <LoadingState message="Loading…" />;
+
+  // Observer with nothing connected yet — no player to show finances for, no fake numbers.
+  if (isObserver && connectedPlayers.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2"><h1 className="text-2xl font-bold text-foreground">Finance</h1><ReadOnlyBadge /></div>
+            <p className="text-muted-foreground">Track training, travel, tournament, and equipment costs.</p>
+          </div>
+        </div>
+        <ReadOnlyBanner />
+        <EmptyState icon={<Wallet className="h-6 w-6 text-muted-foreground" />} title="No connected players" description="Connect with a player to view their expenses." />
+      </div>
+    );
+  }
 
   if (isLoading) return <LoadingState message="Loading finance data…" />;
   if (error) return <ErrorState message="Failed to load finance data" onRetry={() => window.location.reload()} />;
@@ -50,7 +81,16 @@ export default function FinancePage() {
           <div className="flex items-center gap-2"><h1 className="text-2xl font-bold text-foreground">Finance</h1>{isObserver && <ReadOnlyBadge />}</div>
           <p className="text-muted-foreground">Track training, travel, tournament, and equipment costs.</p>
         </div>
-        {!isObserver && <Button className="gap-2 self-start" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4" /> Add Expense</Button>}
+        <div className="flex items-center gap-2 self-start">
+          {isObserver && connectedPlayers.length > 1 && (
+            <PlayerFilterSelect
+              players={connectedPlayers}
+              value={selectedPlayerId || connectedPlayers[0]?.id || ALL_PLAYERS}
+              onValueChange={setSelectedPlayerId}
+            />
+          )}
+          {!isObserver && <Button className="gap-2" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4" /> Add Expense</Button>}
+        </div>
       </div>
 
       {isObserver && <ReadOnlyBanner />}

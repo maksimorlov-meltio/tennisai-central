@@ -2,6 +2,12 @@
 // TennisAI — Core Type Definitions
 // ============================================================
 
+// Analytics domain (Stage 1): profile → opponent → match → scouting →
+// game plan → post-match → training plan. See ./analytics.ts.
+export * from "./analytics";
+// Roles & tenancy (Stage 2): academies, coach assignments, guardianships.
+export * from "./roles";
+
 // --- Enums / Unions ---
 
 export type UserRole = "player" | "coach" | "observer" | "admin";
@@ -44,6 +50,11 @@ export type NotificationType =
   | "training_request_approved"
   | "training_request_rejected"
   | "training_request_rescheduled"
+  // Emitted by server/src/connections/routes.ts so a connection request is no
+  // longer silent. Mapped to the "requestApprovals" preference category.
+  | "connection_request_created"
+  | "connection_request_approved"
+  | "connection_request_rejected"
   | "training_created"
   | "training_updated"
   | "training_deleted"
@@ -58,11 +69,15 @@ export type TrainingRequestStatus = "pending" | "approved" | "rejected" | "resch
 export interface User {
   id: string;
   email: string;
+  /** Shareable directory ID (e.g. TAI-P-001) others use to connect with you. */
+  publicId?: string;
   role: UserRole;
   firstName: string;
   lastName: string;
   avatarUrl?: string;
   emailVerified: boolean;
+  /** Set once the user finishes the role-based onboarding questionnaire. */
+  onboardingCompletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -179,6 +194,9 @@ export interface Tournament {
   description?: string;
   /** Sanctioning body — used for the calendar federation filter. */
   federation?: TournamentFederation;
+  /** Host-city coordinates, used for the map view + distance-from-me. Null/absent when unknown. */
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface PlayerTournament {
@@ -406,4 +424,6 @@ export interface SignUpRequest {
   dominantHand?: "left" | "right";
   organization?: string;
   relationToPlayer?: string;
+  /** Private-trial access code (required only when the server has one configured). */
+  inviteCode?: string;
 }

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma, type CalendarEvent } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
+import { assertCanActOnPlayer } from "../authz";
 import { expandRecurrence, type PresentedEvent } from "./recurrence";
 
 export const calendarRouter = Router();
@@ -10,12 +11,18 @@ calendarRouter.use(requireAuth);
 
 const EVENT_TYPES = ["training", "tournament", "match", "travel", "recovery"] as const;
 
+// A date string must be something `new Date()` can parse — otherwise the row
+// would store an Invalid Date and reads would 500. Reject malformed input at 400.
+const dateString = z
+  .string()
+  .refine((v) => !Number.isNaN(Date.parse(v)), { message: "Invalid date/time value" });
+
 const baseSchema = z.object({
   title: z.string().min(1),
   type: z.enum(EVENT_TYPES),
   state: z.string().optional(),
-  startDate: z.string().min(1),
-  endDate: z.string().min(1),
+  startDate: dateString,
+  endDate: dateString,
   location: z.string().optional(),
   description: z.string().optional(),
   playerId: z.string().optional(),
@@ -23,7 +30,9 @@ const baseSchema = z.object({
   teamId: z.string().optional(),
   tournamentId: z.string().optional(),
   coachNotes: z.string().optional(),
-  createdBy: z.string().optional(),
+  // SECURITY: `createdBy` is NOT accepted from the client — the creator is
+  // always the authenticated user (set server-side on create). Accepting it
+  // previously allowed forging event ownership.
   createdByRole: z.string().optional(),
   trainingRequestId: z.string().optional(),
   recurrence: z.record(z.unknown()).nullable().optional(),
@@ -114,6 +123,10 @@ calendarRouter.post(
   "/events",
   asyncHandler(async (req: AuthedRequest, res) => {
     const d = createSchema.parse(req.body);
+    // Creating an event ON BEHALF OF another player requires a relationship.
+    if (d.playerId && d.playerId !== req.userId) {
+      await assertCanActOnPlayer(req.userId!, d.playerId);
+    }
     const created = await prisma.calendarEvent.create({
       data: {
         ...toData(d),
@@ -121,8 +134,8 @@ calendarRouter.post(
         type: d.type,
         startDate: new Date(d.startDate),
         endDate: new Date(d.endDate),
-        // Owner defaults to the current user when the client omits it.
-        createdBy: d.createdBy ?? req.userId!,
+        // Owner is ALWAYS the authenticated user — never client-controlled.
+        createdBy: req.userId!,
       },
     });
     return ok(res, present(created), "Event created", 201);
@@ -136,6 +149,10 @@ calendarRouter.patch(
     const d = updateSchema.parse(req.body);
     const parentId = req.params.id.split("_occ_")[0];
     await assertVisible(parentId, req.userId!);
+    // Reassigning the event to another player requires a relationship with them.
+    if (d.playerId && d.playerId !== req.userId) {
+      await assertCanActOnPlayer(req.userId!, d.playerId);
+    }
     const updated = await prisma.calendarEvent.update({ where: { id: parentId }, data: toData(d) });
     return ok(res, present(updated), "Event updated");
   }),

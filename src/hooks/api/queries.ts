@@ -9,11 +9,13 @@ import { trainingRequestsApi } from "@/api/endpoints/trainingRequests";
 import { teamsApi } from "@/api/endpoints/teams";
 import { calendarApi } from "@/api/endpoints/calendar";
 import { tournamentsApi } from "@/api/endpoints/tournaments";
+import { hiddenTournamentsApi } from "@/api/endpoints/hiddenTournaments";
 import { financeApi } from "@/api/endpoints/finance";
 import { equipmentApi } from "@/api/endpoints/equipment";
 import { notificationsApi } from "@/api/endpoints/notifications";
 import { profileApi } from "@/api/endpoints/profile";
-import type { TrainingSession, TrainingRequest, Team, CalendarEvent, PlayerTournament, FinanceEntry, EquipmentItem, NotificationSettings, ConnectedPlayer, User } from "@/types";
+import { trainingPlansApi } from "@/api/endpoints/trainingPlans";
+import type { TrainingSession, TrainingRequest, Team, CalendarEvent, PlayerTournament, FinanceEntry, EquipmentItem, Notification, NotificationSettings, ConnectedPlayer, User, TrainingPlanCreateInput } from "@/types";
 import { toast } from "sonner";
 
 // ─── Query Keys ───
@@ -24,11 +26,13 @@ export const queryKeys = {
   calendarEvents: ["calendarEvents"] as const,
   tournaments: ["tournaments"] as const,
   playerTournaments: ["playerTournaments"] as const,
+  hiddenTournaments: ["hidden-tournaments"] as const,
   finance: (playerId: string) => ["finance", playerId] as const,
   financeSummary: (playerId: string) => ["financeSummary", playerId] as const,
   equipment: (playerId: string) => ["equipment", playerId] as const,
   notifications: (userId: string) => ["notifications", userId] as const,
   notificationPrefs: ["notificationPrefs"] as const,
+  trainingPlans: ["trainingPlans"] as const,
 };
 
 function useInvalidateRelated() {
@@ -184,6 +188,26 @@ export function useCreateTeam() {
   });
 }
 
+// ─── Training plans (saved from the Session Builder) ───
+export function useTrainingPlans() {
+  return useQuery({
+    queryKey: queryKeys.trainingPlans,
+    queryFn: async () => (await trainingPlansApi.list()).data,
+  });
+}
+
+export function useCreateTrainingPlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: TrainingPlanCreateInput) => trainingPlansApi.create(input),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.trainingPlans });
+      toast.success(res.message ?? "Session saved");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to save session"),
+  });
+}
+
 export function useUpdateTeam() {
   const inv = useInvalidateRelated();
   return useMutation({
@@ -272,12 +296,27 @@ export function usePlayerTournaments() {
   });
 }
 
+// Optimistic: a status change on an entry the client already has is a field patch
+// on a row that exists — the UI can show it immediately and roll back cleanly.
 export function useUpdatePlayerTournament() {
+  const qc = useQueryClient();
   const inv = useInvalidateRelated();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<PlayerTournament> }) => tournamentsApi.updatePlayerTournament(id, data),
-    onSuccess: () => { inv.tournament(); toast.success("Tournament status updated"); },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to update"),
+    onMutate: async ({ id, data }) => {
+      await qc.cancelQueries({ queryKey: queryKeys.playerTournaments });
+      const previous = qc.getQueryData<PlayerTournament[]>(queryKeys.playerTournaments);
+      qc.setQueryData<PlayerTournament[]>(queryKeys.playerTournaments, (old) =>
+        old?.map((pt) => (pt.id === id ? { ...pt, ...data } : pt)),
+      );
+      return { previous };
+    },
+    onSuccess: () => { toast.success("Tournament status updated"); },
+    onError: (e: any, _vars, ctx) => {
+      if (ctx?.previous !== undefined) qc.setQueryData(queryKeys.playerTournaments, ctx.previous);
+      toast.error(e?.message ?? "Failed to update");
+    },
+    onSettled: () => { inv.tournament(); },
   });
 }
 
@@ -285,8 +324,74 @@ export function useAddPlayerTournament() {
   const inv = useInvalidateRelated();
   return useMutation({
     mutationFn: (data: Omit<PlayerTournament, "id">) => tournamentsApi.addPlayerTournament(data),
-    onSuccess: () => { inv.tournament(); toast.success("Registered for tournament"); },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to register"),
+    onSuccess: () => { inv.tournament(); toast.success("Added to schedule"); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to add"),
+  });
+}
+
+export function useRemovePlayerTournament() {
+  const inv = useInvalidateRelated();
+  return useMutation({
+    mutationFn: (id: string) => tournamentsApi.removePlayerTournament(id),
+    onSuccess: () => { inv.tournament(); toast.success("Removed from schedule"); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to remove"),
+  });
+}
+
+// ─── Hidden Tournaments ("eliminate from suggestions") ───
+
+export function useHiddenTournaments() {
+  return useQuery({
+    queryKey: queryKeys.hiddenTournaments,
+    queryFn: async () => (await hiddenTournamentsApi.getHidden()).data,
+  });
+}
+
+// Optimistic: hide/unhide is a per-account boolean filter over a list of ids —
+// the cheapest possible thing to apply locally and reverse if the write fails.
+export function useHideTournament() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tournamentId: string) => hiddenTournamentsApi.hide(tournamentId),
+    onMutate: async (tournamentId) => {
+      await qc.cancelQueries({ queryKey: queryKeys.hiddenTournaments });
+      const previous = qc.getQueryData<string[]>(queryKeys.hiddenTournaments);
+      qc.setQueryData<string[]>(queryKeys.hiddenTournaments, (old) =>
+        old ? (old.includes(tournamentId) ? old : [...old, tournamentId]) : [tournamentId],
+      );
+      return { previous };
+    },
+    onSuccess: () => { toast.success("Tournament hidden"); },
+    onError: (e: any, _tournamentId, ctx) => {
+      if (ctx?.previous !== undefined) qc.setQueryData(queryKeys.hiddenTournaments, ctx.previous);
+      toast.error(e?.message ?? "Failed to hide tournament");
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.hiddenTournaments });
+      qc.invalidateQueries({ queryKey: queryKeys.tournaments });
+    },
+  });
+}
+
+export function useUnhideTournament() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tournamentId: string) => hiddenTournamentsApi.unhide(tournamentId),
+    onMutate: async (tournamentId) => {
+      await qc.cancelQueries({ queryKey: queryKeys.hiddenTournaments });
+      const previous = qc.getQueryData<string[]>(queryKeys.hiddenTournaments);
+      qc.setQueryData<string[]>(queryKeys.hiddenTournaments, (old) => old?.filter((id) => id !== tournamentId));
+      return { previous };
+    },
+    onSuccess: () => { toast.success("Tournament unhidden"); },
+    onError: (e: any, _tournamentId, ctx) => {
+      if (ctx?.previous !== undefined) qc.setQueryData(queryKeys.hiddenTournaments, ctx.previous);
+      toast.error(e?.message ?? "Failed to unhide tournament");
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.hiddenTournaments });
+      qc.invalidateQueries({ queryKey: queryKeys.tournaments });
+    },
   });
 }
 
@@ -366,11 +471,26 @@ export function useNotifications(userId: string) {
   });
 }
 
+// Optimistic: marking one notification read is a single boolean flip, fired the
+// moment the user taps a row — waiting for a round-trip before the badge drops
+// is the most visible lag in the app. Every ["notifications", userId] cache is
+// patched, then restored verbatim if the write fails.
 export function useMarkNotificationRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => notificationsApi.markRead(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["notifications"] }); },
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["notifications"] });
+      const previous = qc.getQueriesData<Notification[]>({ queryKey: ["notifications"] });
+      qc.setQueriesData<Notification[]>({ queryKey: ["notifications"] }, (old) =>
+        old?.map((n) => (n.id === id ? { ...n, read: true } : n)),
+      );
+      return { previous };
+    },
+    onError: (_e, _id, ctx) => {
+      ctx?.previous.forEach(([key, data]) => { qc.setQueryData(key, data); });
+    },
+    onSettled: () => { qc.invalidateQueries({ queryKey: ["notifications"] }); },
   });
 }
 

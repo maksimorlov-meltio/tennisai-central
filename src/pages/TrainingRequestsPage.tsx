@@ -73,9 +73,10 @@ function PlayerRequestForm({ open, onOpenChange, coachId, coachName }: {
   const valid = form.preferredDate && form.preferredStartTime && form.preferredEndTime;
 
   const handleSubmit = () => {
+    if (!user) return;
     createMut.mutate({
-      playerId: user?.id ?? "p1",
-      playerName: `${user?.firstName ?? "Alex"} ${user?.lastName ?? "Rivera"}`,
+      playerId: user.id,
+      playerName: `${user.firstName} ${user.lastName}`,
       coachId,
       coachName,
       ...form,
@@ -292,6 +293,33 @@ function CoachRequestDrawer({ request, open, onOpenChange }: {
   );
 }
 
+// ─── Cancel confirmation ───
+function CancelRequestDialog({ open, onOpenChange, request, onConfirm, loading }: {
+  open: boolean; onOpenChange: (o: boolean) => void; request: TrainingRequest; onConfirm: () => void; loading?: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Cancel this request?</DialogTitle>
+          <DialogDescription>
+            Your request to {request.coachName} for{" "}
+            <span className="font-semibold text-foreground">{request.preferredDate}</span>{" "}
+            ({request.preferredStartTime} – {request.preferredEndTime}) will be withdrawn. You would need to send a new
+            one to ask again.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Keep request</Button>
+          <Button variant="destructive" disabled={loading} onClick={() => { onConfirm(); onOpenChange(false); }}>
+            <X className="mr-1.5 h-4 w-4" /> {loading ? "Cancelling…" : "Cancel request"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Page ───
 export default function TrainingRequestsPage() {
   const { user } = useAuth();
@@ -308,6 +336,7 @@ export default function TrainingRequestsPage() {
   const [detailRequest, setDetailRequest] = useState<TrainingRequest | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<TrainingRequestStatus | "all">("all");
+  const [cancelTarget, setCancelTarget] = useState<TrainingRequest | null>(null);
 
   // For player: find connected coach
   const connectedCoach = useMemo(() => {
@@ -324,14 +353,14 @@ export default function TrainingRequestsPage() {
   // Filter requests by role
   const filtered = useMemo(() => {
     let list = requests;
-    if (isPlayer) list = requests.filter((r) => r.playerId === user?.id || r.playerId === "p1");
-    if (isCoach) list = requests.filter((r) => r.coachId === user?.id || r.coachId === "c1");
+    if (isPlayer) list = requests.filter((r) => r.playerId === user?.id);
+    if (isCoach) list = requests.filter((r) => r.coachId === user?.id);
     if (isObserver) list = [];
     if (statusFilter !== "all") list = list.filter((r) => r.status === statusFilter);
     return list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }, [requests, isPlayer, isCoach, isObserver, user?.id, statusFilter]);
 
-  const pendingCount = requests.filter((r) => r.status === "pending" && (isCoach ? r.coachId === user?.id || r.coachId === "c1" : r.playerId === user?.id || r.playerId === "p1")).length;
+  const pendingCount = requests.filter((r) => r.status === "pending" && (isCoach ? r.coachId === user?.id : r.playerId === user?.id)).length;
 
   if (isLoading) return <LoadingState message="Loading requests…" />;
   if (error) return <ErrorState message="Failed to load requests" onRetry={() => window.location.reload()} />;
@@ -387,7 +416,7 @@ export default function TrainingRequestsPage() {
               <button
                 key={req.id}
                 onClick={() => { setDetailRequest(req); setDetailOpen(true); }}
-                className="flex w-full items-start gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5"
+                className="flex w-full items-start gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/20 hover:bg-accent/20"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
                   {req.playerName.split(" ").map((n) => n[0]).join("")}
@@ -411,7 +440,10 @@ export default function TrainingRequestsPage() {
                     size="sm"
                     variant="ghost"
                     className="shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={(e) => { e.stopPropagation(); cancelMut.mutate(req.id); }}
+                    title="Cancel request"
+                    aria-label={`Cancel your ${typeLabel} request for ${req.preferredDate}`}
+                    disabled={cancelMut.isPending}
+                    onClick={(e) => { e.stopPropagation(); setCancelTarget(req); }}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -424,6 +456,15 @@ export default function TrainingRequestsPage() {
 
       {connectedCoach && <PlayerRequestForm open={formOpen} onOpenChange={setFormOpen} coachId={connectedCoach.id} coachName={connectedCoach.name} />}
       <CoachRequestDrawer request={detailRequest} open={detailOpen} onOpenChange={(o) => { setDetailOpen(o); if (!o) setDetailRequest(null); }} />
+      {cancelTarget && (
+        <CancelRequestDialog
+          open={!!cancelTarget}
+          onOpenChange={(o) => { if (!o) setCancelTarget(null); }}
+          request={cancelTarget}
+          loading={cancelMut.isPending}
+          onConfirm={() => { cancelMut.mutate(cancelTarget.id); setCancelTarget(null); }}
+        />
+      )}
     </div>
   );
 }

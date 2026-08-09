@@ -48,10 +48,10 @@ export const trainingsApi = {
       await delay(900);
       const t = mockStore.getTraining(id);
       if (!t) throw { status: 404, message: "Training not found" };
+      // Internal engine identifier is intentionally not surfaced to users as an "AI" credit.
       const analysis: TrainingAnalysis = {
         summary: buildMockSummary(t),
         generatedAt: new Date().toISOString(),
-        model: "mock-analyzer-v1",
       };
       return { data: mockStore.updateTraining(id, { analysis }), message: "Analysis ready" };
     }

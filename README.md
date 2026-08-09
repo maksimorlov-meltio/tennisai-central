@@ -1,76 +1,63 @@
-# Welcome to your Lovable project
+# TennisAI
 
-## Project info
+Player/coach tennis platform: a React + Vite frontend and an Express + Prisma
+API, backed by **PostgreSQL**.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Quick start (Windows, one click)
 
-## How can I edit this code?
+Double-click **`Start-TennisAI.bat`** in the project root. It starts Postgres, the
+API and the website, waits for each to be genuinely ready, and opens
+<http://localhost:5180>. **`Stop-TennisAI.bat`** shuts it all down again.
 
-There are several ways of editing your application.
+**Accounts you create through the sign-up page are permanent.** They live in a
+Postgres data directory outside the repo — `D:\SQL\data\tennisai` by default —
+so you can stop, restart, or reboot and log straight back in. Nothing is stored
+in a temp folder.
 
-**Use Lovable**
+| | |
+|---|---|
+| Sign up | <http://localhost:5180/signup> — creates a real, saved account |
+| Database files | `D:\SQL\data\tennisai` (override: `TENNISAI_PGDATA`) |
+| Postgres binaries | `D:\SQL\bin` (override: `TENNISAI_PGBIN`) |
+| Logs | `.local-logs/` (postgres, api, web, migrate) |
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+The launcher applies pending migrations on every boot but deliberately does
+**not** re-seed: seeding upserts the demo accounts and would overwrite changes
+you made yourself (a password, for instance). Restore demo data on purpose with
+`cd server && npm run prisma:seed`.
 
-Changes made via Lovable will be committed automatically to this repo.
+## Quick start (manual / non-Windows)
 
-**Use your preferred IDE**
+This is a **two-server app** — both need to be running, in separate terminals:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+```bash
+# Backend — http://localhost:4000
+cd server
+npm install
+cp .env.example .env          # then point DATABASE_URL at a reachable Postgres
+npm run db:setup              # applies Prisma migrations + seeds demo users
+npm run dev
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Frontend — http://localhost:5180 (proxies /api → :4000)
+npm install --legacy-peer-deps
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Demo logins (seeded): `player@test.com` / `coach@test.com` / `observer@test.com` /
+`admin@test.com`, password `password123` for all.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Node **20.x** is expected (see `.nvmrc` / `engines` in `package.json`).
 
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- **Deploying** (Vercel + Render + managed Postgres): see [`DEPLOY.md`](./DEPLOY.md).
+- **Backend details** (endpoints, env vars, migration status): see
+  [`server/README.md`](./server/README.md).
 
 ## What technologies are used for this project?
 
 This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- Vite, TypeScript, React, shadcn-ui, Tailwind CSS (frontend)
+- Express, Prisma, PostgreSQL (backend, see `server/`)
 
 ## Troubleshooting
 

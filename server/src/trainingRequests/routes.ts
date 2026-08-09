@@ -10,11 +10,23 @@ trainingRequestsRouter.use(requireAuth);
 
 const TRAINING_TYPES = ["individual", "team", "match_practice", "fitness", "recovery", "tactical"] as const;
 
+// These feed `new Date(\`${date}T${time}:00Z\`)` on approve/reschedule — malformed
+// values would silently produce an Invalid Date (→ 500 / bad rows). Validate the
+// exact shapes ("yyyy-MM-dd" / "HH:mm") so bad input is rejected at 400.
+const dateOnly = z
+  .string()
+  .refine((v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)), {
+    message: "Invalid date (expected yyyy-MM-dd)",
+  });
+const timeOnly = z
+  .string()
+  .refine((v) => /^([01]\d|2[0-3]):[0-5]\d$/.test(v), { message: "Invalid time (expected HH:mm)" });
+
 const createSchema = z.object({
   coachId: z.string().min(1),
-  preferredDate: z.string().min(1),
-  preferredStartTime: z.string().min(1),
-  preferredEndTime: z.string().min(1),
+  preferredDate: dateOnly,
+  preferredStartTime: timeOnly,
+  preferredEndTime: timeOnly,
   trainingType: z.enum(TRAINING_TYPES),
   location: z.string().optional(),
   notes: z.string().optional(),
@@ -23,9 +35,9 @@ const createSchema = z.object({
 
 const messageSchema = z.object({ coachMessage: z.string().optional() });
 const rescheduleSchema = z.object({
-  proposedDate: z.string().min(1),
-  proposedStartTime: z.string().min(1),
-  proposedEndTime: z.string().min(1),
+  proposedDate: dateOnly,
+  proposedStartTime: timeOnly,
+  proposedEndTime: timeOnly,
   coachMessage: z.string().optional(),
 });
 
@@ -97,7 +109,9 @@ trainingRequestsRouter.post(
   asyncHandler(async (req: AuthedRequest, res) => {
     const d = createSchema.parse(req.body);
     const coach = await prisma.user.findUnique({ where: { id: d.coachId } });
-    if (!coach) throw new HttpError(404, "Coach not found");
+    // Must be an actual coach — not merely an existing user of any role.
+    // Uniform 404 (don't reveal that the id exists but is a non-coach).
+    if (!coach || coach.role !== "coach") throw new HttpError(404, "Coach not found");
     const created = await prisma.trainingRequest.create({
       data: { ...d, playerId: req.userId! },
       include: withUsers,
@@ -211,14 +225,27 @@ trainingRequestsRouter.post(
 );
 
 // POST /api/training-requests/:id/cancel — either party cancels.
+const TERMINAL_STATUSES = ["approved", "rejected", "cancelled"] as const;
 trainingRequestsRouter.post(
   "/:id/cancel",
   asyncHandler(async (req: AuthedRequest, res) => {
     const r = await involved(req.params.id, req.userId!);
-    const updated = await prisma.trainingRequest.update({
-      where: { id: r.id },
-      data: { status: "cancelled" },
-      include: withUsers,
+    // Guard: a request in a terminal state can't be (re-)cancelled.
+    if ((TERMINAL_STATUSES as readonly string[]).includes(r.status)) {
+      throw new HttpError(409, `This request is already ${r.status} and can no longer be cancelled.`);
+    }
+    // Cancel and, if a calendar event was linked, remove it in the SAME
+    // transaction so cancelling never orphans a scheduled event. deleteMany
+    // (not delete) keeps this idempotent if the event is already gone.
+    const updated = await prisma.$transaction(async (tx) => {
+      if (r.calendarEventId) {
+        await tx.calendarEvent.deleteMany({ where: { id: r.calendarEventId } });
+      }
+      return tx.trainingRequest.update({
+        where: { id: r.id },
+        data: { status: "cancelled", calendarEventId: null },
+        include: withUsers,
+      });
     });
     return ok(res, present(updated), "Request cancelled");
   }),

@@ -31,7 +31,7 @@ import type { SendResult } from "@/store/ConnectionStore";
 const ROLE_LABEL: Record<UserRole, string> = {
   player: "Player",
   coach: "Coach",
-  observer: "Fan",
+  observer: "Parent",
   admin: "Admin",
 };
 
@@ -55,7 +55,7 @@ function getHelpText(role: UserRole): string {
     case "coach":
       return "Enter a Player ID (e.g. TAI-P-001) to request a connection.";
     case "player":
-      return "Enter a Coach ID (e.g. TAI-C-001) or Fan ID (e.g. TAI-F-001) to connect.";
+      return "Enter a Coach ID (e.g. TAI-C-001) or Parent ID (e.g. TAI-F-001) to connect.";
     case "observer":
       return "Enter a Player ID (e.g. TAI-P-001) to follow their progress.";
     default:

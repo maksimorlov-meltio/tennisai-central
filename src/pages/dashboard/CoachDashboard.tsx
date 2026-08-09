@@ -2,7 +2,10 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { StatusBadge } from "@/components/ui/shared";
+import { GetStartedCard, type GetStartedItem } from "@/components/dashboard/GetStartedCard";
+import { IncomingRequestsCard } from "@/components/dashboard/IncomingRequestsCard";
+import { statCardClass, statLinkClass } from "@/components/dashboard/statLinkStyles";
+import { StatusBadge, LoadingState, ErrorState } from "@/components/ui/shared";
 import {
   Users,
   UserPlus,
@@ -19,13 +22,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
-import { useTrainings } from "@/hooks/api/queries";
+import { useTrainings, useTeams, useCalendarEvents, usePlayerTournaments, useTrainingPlans } from "@/hooks/api/queries";
 import { isBefore } from "date-fns";
-import {
-  mockCalendarEvents,
-  mockTeams,
-  mockPlayerTournaments,
-} from "@/mock/data";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -42,7 +40,16 @@ const eventTypeColor: Record<string, string> = {
 export default function CoachDashboard() {
   const { user } = useAuth();
   const { connectedPlayers, requests } = useConnections();
-  const { data: trainings = [] } = useTrainings();
+  const { data: trainings = [], isLoading: loadingTrainings, error: errorTrainings } = useTrainings();
+  const { data: teams = [], isLoading: loadingTeams, error: errorTeams } = useTeams();
+  const { data: calendarEvents = [], isLoading: loadingEvents, error: errorEvents } = useCalendarEvents();
+  const { data: playerTournaments = [], isLoading: loadingPT, error: errorPT } = usePlayerTournaments();
+  // Only used to derive the "built a session" tick — a failure here must not
+  // take the dashboard down, so it stays out of the loading/error gate.
+  const { data: trainingPlans = [], isLoading: loadingPlans } = useTrainingPlans();
+
+  const isLoading = loadingTrainings || loadingTeams || loadingEvents || loadingPT;
+  const hasError = errorTrainings || errorTeams || errorEvents || errorPT;
 
   const now = new Date();
   const unreviewedSessions = trainings
@@ -53,7 +60,42 @@ export default function CoachDashboard() {
   const pendingRequests = requests.filter(
     (r) => r.status === "pending" && r.fromUserId === user?.id
   );
-  const upcomingEvents = mockCalendarEvents.slice(0, 4);
+  const upcomingEvents = [...calendarEvents]
+    .filter((e) => !isBefore(new Date(e.startDate), now))
+    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+    .slice(0, 4);
+
+  // First-run checklist. Every tick is derived from data this page already
+  // queried — nothing is assumed done on the coach's behalf.
+  const getStartedItems: GetStartedItem[] = [
+    {
+      id: "connect-player",
+      label: "Connect your first player",
+      description: "Send a request with the player's public ID, or approve an incoming one.",
+      to: "/connections",
+      actionLabel: "Connections",
+      done: connectedPlayers.length > 0,
+    },
+    {
+      id: "build-session",
+      label: "Build a session",
+      description: "Assemble drills in the Session Builder and save it as a plan.",
+      to: "/session-builder",
+      actionLabel: "Session Builder",
+      done: trainingPlans.length > 0,
+    },
+    {
+      id: "schedule-training",
+      label: "Schedule a training",
+      description: "Put a session on the calendar so your players can see it.",
+      to: "/trainings",
+      actionLabel: "Trainings",
+      done: trainings.length > 0,
+    },
+  ];
+
+  if (isLoading) return <LoadingState message="Loading your dashboard…" />;
+  if (hasError) return <ErrorState message="Failed to load dashboard data" onRetry={() => window.location.reload()} />;
 
   return (
     <div className="space-y-6">
@@ -75,12 +117,26 @@ export default function CoachDashboard() {
         </div>
       </div>
 
-      {/* Top stats */}
+      {/* Anything waiting on a decision comes first. */}
+      <IncomingRequestsCard />
+
+      {/* Rendered once the plan list has resolved, so no tick can be wrong. */}
+      {!loadingPlans && <GetStartedCard storageKey={`coach:${user?.id ?? ""}`} items={getStartedItems} />}
+
+      {/* Top stats — every figure links to the page that owns it. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Connected Players" value={connectedPlayers.length} icon={<Users className="h-4 w-4" />} />
-        <StatCard label="Pending Requests" value={pendingRequests.length} icon={<UserPlus className="h-4 w-4" />} />
-        <StatCard label="Teams" value={mockTeams.length} icon={<Shield className="h-4 w-4" />} />
-        <StatCard label="Upcoming Events" value={upcomingEvents.length} icon={<Calendar className="h-4 w-4" />} />
+        <Link to="/players" className={statLinkClass}>
+          <StatCard label="Connected Players" value={connectedPlayers.length} icon={<Users className="h-4 w-4" />} className={statCardClass} />
+        </Link>
+        <Link to="/connections" className={statLinkClass}>
+          <StatCard label="Pending Requests" value={pendingRequests.length} icon={<UserPlus className="h-4 w-4" />} className={statCardClass} />
+        </Link>
+        <Link to="/teams" className={statLinkClass}>
+          <StatCard label="Teams" value={teams.length} icon={<Shield className="h-4 w-4" />} className={statCardClass} />
+        </Link>
+        <Link to="/calendar" className={statLinkClass}>
+          <StatCard label="Upcoming Events" value={upcomingEvents.length} icon={<Calendar className="h-4 w-4" />} className={statCardClass} />
+        </Link>
       </div>
 
       {/* Connected Players + Pending Requests */}
@@ -113,8 +169,11 @@ export default function CoachDashboard() {
                     <p className="text-sm font-medium text-foreground">{player.firstName} {player.lastName}</p>
                     <p className="font-mono text-xs text-muted-foreground">{player.playerPublicId}</p>
                   </div>
+                  {/* ?player=<id> opens that player's stats drawer on /players. */}
                   <Button size="sm" variant="ghost" className="text-xs" asChild>
-                    <Link to="/players">View <ArrowRight className="ml-1 h-3 w-3" /></Link>
+                    <Link to={`/players?player=${encodeURIComponent(player.id)}`}>
+                      View <ArrowRight className="ml-1 h-3 w-3" />
+                    </Link>
                   </Button>
                 </div>
               ))}
@@ -158,7 +217,7 @@ export default function CoachDashboard() {
       {/* Teams */}
       <DashboardCard
         title="My Teams"
-        description={`${mockTeams.length} team${mockTeams.length !== 1 ? "s" : ""}`}
+        description={`${teams.length} team${teams.length !== 1 ? "s" : ""}`}
         icon={<Shield className="h-4 w-4" />}
         action={
           <Button variant="ghost" size="sm" asChild>
@@ -167,7 +226,7 @@ export default function CoachDashboard() {
         }
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          {mockTeams.map((team) => (
+          {teams.map((team) => (
             <div key={team.id} className="rounded-lg border border-border bg-secondary/30 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-foreground">{team.name}</h4>
@@ -210,7 +269,7 @@ export default function CoachDashboard() {
         icon={<AlertCircle className="h-4 w-4" />}
         action={
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/trainings">All trainings <ArrowRight className="ml-1 h-3 w-3" /></Link>
+            <Link to="/trainings?filter=past">Past sessions <ArrowRight className="ml-1 h-3 w-3" /></Link>
           </Button>
         }
       >
@@ -235,8 +294,13 @@ export default function CoachDashboard() {
                     {session.location && <span>· {session.location}</span>}
                   </div>
                 </div>
+                {/*
+                  /trainings defaults to the Upcoming tab, which filters a past
+                  session out. Carry the intent: show the past list and open the
+                  review for this session.
+                */}
                 <Button size="sm" variant="outline" className="shrink-0 text-xs" asChild>
-                  <Link to="/trainings">Review</Link>
+                  <Link to={`/trainings?filter=past&review=${encodeURIComponent(session.id)}`}>Review</Link>
                 </Button>
               </div>
             ))}
@@ -257,6 +321,14 @@ export default function CoachDashboard() {
           }
         >
           <div className="space-y-3">
+            {upcomingEvents.length === 0 && (
+              <div className="py-4 text-center">
+                <p className="text-sm text-muted-foreground">No upcoming events yet.</p>
+                <Button size="sm" variant="outline" className="mt-3" asChild>
+                  <Link to="/trainings"><Plus className="mr-1.5 h-3.5 w-3.5" /> Schedule a training</Link>
+                </Button>
+              </div>
+            )}
             {upcomingEvents.map((event) => (
               <div key={event.id} className="flex items-start gap-3">
                 <div className="mt-1.5 flex flex-col items-center">
@@ -288,11 +360,11 @@ export default function CoachDashboard() {
             </Button>
           }
         >
-          {mockPlayerTournaments.length === 0 ? (
+          {playerTournaments.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">No tournament data for connected players</p>
           ) : (
             <div className="space-y-3">
-              {mockPlayerTournaments.map((pt) => (
+              {playerTournaments.map((pt) => (
                 <div key={pt.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/30 px-4 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{pt.tournament.name}</p>

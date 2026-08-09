@@ -2,34 +2,32 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { StatusBadge } from "@/components/ui/shared";
-import { RoleBadge } from "@/components/ui/shared";
+import { GetStartedCard, type GetStartedItem } from "@/components/dashboard/GetStartedCard";
+import { IncomingRequestsCard } from "@/components/dashboard/IncomingRequestsCard";
+import { StatisticsSummaryCard } from "@/components/dashboard/StatisticsSummaryCard";
+import { statCardClass, statLinkClass } from "@/components/dashboard/statLinkStyles";
+import { StatusBadge, LoadingState, ErrorState } from "@/components/ui/shared";
 import {
-  Copy,
-  UserPlus,
   Calendar,
   Trophy,
-  BarChart3,
   Wallet,
   Package,
   Brain,
   Bell,
-  Check,
-  X,
   ArrowRight,
   Clock,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
 import {
-  mockCalendarEvents,
-  mockPlayerTournaments,
-  mockFinanceSummary,
-  mockEquipment,
-  mockNotifications,
-} from "@/mock/data";
-import { useState } from "react";
-import { toast } from "@/hooks/use-toast";
+  useCalendarEvents,
+  usePlayerTournaments,
+  useNotifications,
+  useFinanceSummary,
+  useEquipment,
+} from "@/hooks/api/queries";
+import { useMatchStats } from "@/hooks/api/matches";
+import { isBefore } from "date-fns";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -49,24 +47,67 @@ const eventTypeColor: Record<string, string> = {
 
 export default function PlayerDashboard() {
   const { user } = useAuth();
-  const { requests } = useConnections();
-  const [copied, setCopied] = useState(false);
+  // Incoming pending requests are rendered by <IncomingRequestsCard />, which
+  // reads the same store and hides itself when the inbox is empty.
+  const { activeRelationships } = useConnections();
 
-  const playerPublicId = "playerPublicId" in (user ?? {}) ? (user as any).playerPublicId : "TAI-2025-001";
+  const uid = user?.id ?? "";
+  const { data: calendarEvents = [], isLoading: loadingEvents, error: errorEvents } = useCalendarEvents();
+  const { data: playerTournaments = [], isLoading: loadingPT, error: errorPT } = usePlayerTournaments();
+  const { data: notifications = [], isLoading: loadingNotif, error: errorNotif } = useNotifications(uid);
+  const { data: financeSummary, isLoading: loadingFinance, error: errorFinance } = useFinanceSummary(uid);
+  const { data: equipment = [], isLoading: loadingEquip, error: errorEquip } = useEquipment(uid);
+  // Same query key as the Statistics card, so this is a shared cache read, not
+  // a second request. Used only to derive the "Get started" ticks.
+  const { data: matchStats, isLoading: loadingMatchStats, error: errorMatchStats } = useMatchStats();
 
-  // Incoming pending requests for this player
-  const pendingRequests = requests.filter(
-    (r) => r.status === "pending" && r.toUserId === user?.id
-  );
-  const upcomingEvents = mockCalendarEvents.slice(0, 4);
-  const unreadNotifications = mockNotifications.filter((n) => !n.read);
+  const isLoading = loadingEvents || loadingPT || loadingNotif || loadingFinance || loadingEquip;
+  const hasError = errorEvents || errorPT || errorNotif || errorFinance || errorEquip;
 
-  const copyPlayerId = () => {
-    navigator.clipboard.writeText(playerPublicId);
-    setCopied(true);
-    toast({ title: "Copied!", description: "Player ID copied to clipboard." });
-    setTimeout(() => setCopied(false), 2000);
+  const now = new Date();
+  const upcomingEvents = [...calendarEvents]
+    .filter((e) => !isBefore(new Date(e.startDate), now))
+    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+    .slice(0, 4);
+  const unreadNotifications = notifications.filter((n) => !n.read);
+  const finance = {
+    totalTraining: financeSummary?.totalTraining ?? 0,
+    totalTravel: financeSummary?.totalTravel ?? 0,
+    totalTournament: financeSummary?.totalTournament ?? 0,
+    totalEquipment: financeSummary?.totalEquipment ?? 0,
   };
+
+  // First-run checklist. Every tick comes from data already on this page —
+  // nothing is assumed done.
+  const getStartedItems: GetStartedItem[] = [
+    {
+      id: "connect-coach",
+      label: "Connect your coach",
+      description: "Approve or send a request so your coach can plan with you.",
+      to: "/connections",
+      actionLabel: "Connections",
+      done: activeRelationships.length > 0,
+    },
+    {
+      id: "log-match",
+      label: "Log your first match",
+      description: "Statistics are computed from the matches you record.",
+      to: "/matches",
+      actionLabel: "Log match",
+      done: (matchStats?.matchesPlayed ?? 0) > 0,
+    },
+    {
+      id: "add-tournament",
+      label: "Add a tournament",
+      description: "Plan your season and keep travel and costs together.",
+      to: "/tournaments",
+      actionLabel: "Tournaments",
+      done: playerTournaments.length > 0,
+    },
+  ];
+
+  if (isLoading) return <LoadingState message="Loading your dashboard…" />;
+  if (hasError) return <ErrorState message="Failed to load dashboard data" onRetry={() => window.location.reload()} />;
 
   return (
     <div className="space-y-6">
@@ -78,24 +119,45 @@ export default function PlayerDashboard() {
         <p className="text-muted-foreground">Here's your tennis overview for today.</p>
       </div>
 
-      {/* Top stats row */}
+      {/* Anything waiting on a decision comes first. */}
+      <IncomingRequestsCard />
+
+      {/* Rendered only once the match count is known, so no tick can be wrong. */}
+      {!loadingMatchStats && !errorMatchStats && (
+        <GetStartedCard storageKey={`player:${uid}`} items={getStartedItems} />
+      )}
+
+      {/* Top stats row — every figure links to the page that owns it. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          label="Upcoming Events"
-          value={upcomingEvents.length}
-          icon={<Calendar className="h-4 w-4" />}
-        />
-        <StatCard
-          label="Tournaments"
-          value={mockPlayerTournaments.length}
-          icon={<Trophy className="h-4 w-4" />}
-          trend={`${mockPlayerTournaments.filter((t) => t.status === "registered").length} registered`}
-        />
-        <StatCard
-          label="Unread Notifications"
-          value={unreadNotifications.length}
-          icon={<Bell className="h-4 w-4" />}
-        />
+        <Link to="/calendar" className={statLinkClass}>
+          <StatCard
+            label="Upcoming Events"
+            value={upcomingEvents.length}
+            icon={<Calendar className="h-4 w-4" />}
+            className={statCardClass}
+          />
+        </Link>
+        <Link to="/tournaments" className={statLinkClass}>
+          <StatCard
+            label="Tournaments"
+            value={playerTournaments.length}
+            icon={<Trophy className="h-4 w-4" />}
+            trend={
+              playerTournaments.length
+                ? `${playerTournaments.filter((t) => t.status === "registered").length} registered`
+                : undefined
+            }
+            className={statCardClass}
+          />
+        </Link>
+        <Link to="/notifications" className={statLinkClass}>
+          <StatCard
+            label="Unread Notifications"
+            value={unreadNotifications.length}
+            icon={<Bell className="h-4 w-4" />}
+            className={statCardClass}
+          />
+        </Link>
       </div>
 
       {/* Calendar + Tournaments row */}
@@ -111,6 +173,9 @@ export default function PlayerDashboard() {
           }
         >
           <div className="space-y-3">
+            {upcomingEvents.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">No upcoming events yet.</p>
+            )}
             {upcomingEvents.map((event) => (
               <div key={event.id} className="flex items-start gap-3">
                 <div className="mt-1.5 flex flex-col items-center">
@@ -143,7 +208,10 @@ export default function PlayerDashboard() {
           }
         >
           <div className="space-y-3">
-            {mockPlayerTournaments.map((pt) => (
+            {playerTournaments.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">No tournaments yet.</p>
+            )}
+            {playerTournaments.map((pt) => (
               <div key={pt.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/30 px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-foreground">{pt.tournament.name}</p>
@@ -163,30 +231,7 @@ export default function PlayerDashboard() {
 
       {/* Stats + Finance + Equipment row */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <DashboardCard
-          title="Statistics"
-          description="Season performance overview"
-          icon={<BarChart3 className="h-4 w-4" />}
-        >
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Matches Played</p>
-              <p className="text-xl font-bold text-foreground">24</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Win Rate</p>
-              <p className="text-xl font-bold text-primary">67%</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Tournaments</p>
-              <p className="text-xl font-bold text-foreground">8</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Best Result</p>
-              <p className="text-xl font-bold text-foreground">SF</p>
-            </div>
-          </div>
-        </DashboardCard>
+        <StatisticsSummaryCard />
 
         <DashboardCard
           title="Finance"
@@ -200,10 +245,10 @@ export default function PlayerDashboard() {
         >
           <div className="space-y-3">
             {[
-              { label: "Training", amount: mockFinanceSummary.totalTraining },
-              { label: "Travel", amount: mockFinanceSummary.totalTravel },
-              { label: "Tournaments", amount: mockFinanceSummary.totalTournament },
-              { label: "Equipment", amount: mockFinanceSummary.totalEquipment },
+              { label: "Training", amount: finance.totalTraining },
+              { label: "Travel", amount: finance.totalTravel },
+              { label: "Tournaments", amount: finance.totalTournament },
+              { label: "Equipment", amount: finance.totalEquipment },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">{item.label}</p>
@@ -214,7 +259,7 @@ export default function PlayerDashboard() {
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-foreground">Total</p>
                 <p className="text-sm font-bold text-foreground">
-                  ${(mockFinanceSummary.totalTraining + mockFinanceSummary.totalTravel + mockFinanceSummary.totalTournament + mockFinanceSummary.totalEquipment).toLocaleString()}
+                  ${(finance.totalTraining + finance.totalTravel + finance.totalTournament + finance.totalEquipment).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -223,7 +268,7 @@ export default function PlayerDashboard() {
 
         <DashboardCard
           title="Equipment"
-          description={`${mockEquipment.length} items tracked`}
+          description={`${equipment.length} item${equipment.length !== 1 ? "s" : ""} tracked`}
           icon={<Package className="h-4 w-4" />}
           action={
             <Button variant="ghost" size="sm" asChild>
@@ -232,7 +277,10 @@ export default function PlayerDashboard() {
           }
         >
           <div className="space-y-3">
-            {mockEquipment.map((item) => (
+            {equipment.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">No equipment tracked yet.</p>
+            )}
+            {equipment.map((item) => (
               <div key={item.id} className="flex items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
@@ -253,7 +301,7 @@ export default function PlayerDashboard() {
       <div className="grid gap-6 lg:grid-cols-2">
         <DashboardCard
           title="AI Insights"
-          description="AI-powered match preparation"
+          description="Best-practice match-prep suggestions"
           icon={<Brain className="h-4 w-4" />}
           action={
             <Button variant="ghost" size="sm" asChild>
@@ -262,12 +310,12 @@ export default function PlayerDashboard() {
           }
         >
           <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
-            <p className="text-sm font-medium text-foreground">City Open 2026 — Preparation Ready</p>
+            <p className="text-sm font-medium text-foreground">No match prep yet</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Clay court at 650m altitude with warm sunny conditions. AI analysis suggests adjusting string tension and increasing hydration prep.
+              Generate match-preparation insights based on your surface, conditions and recent training.
             </p>
             <Button size="sm" variant="outline" className="mt-3" asChild>
-              <Link to="/ai-insights">View full analysis</Link>
+              <Link to="/ai-insights">Generate insights</Link>
             </Button>
           </div>
         </DashboardCard>
@@ -290,7 +338,10 @@ export default function PlayerDashboard() {
           }
         >
           <div className="space-y-3">
-            {mockNotifications.slice(0, 3).map((notif) => (
+            {notifications.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">No notifications yet.</p>
+            )}
+            {notifications.slice(0, 3).map((notif) => (
               <div key={notif.id} className="flex items-start gap-3">
                 <div className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notif.read ? "bg-muted" : "bg-primary"}`} />
                 <div className="min-w-0 flex-1">

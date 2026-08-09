@@ -3,6 +3,8 @@ import { z } from "zod";
 import type { Tournament, PlayerTournament, User } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
+import { requireRole } from "../authz";
+import { importTournaments } from "./feed";
 
 export const tournamentsRouter = Router();
 
@@ -36,6 +38,11 @@ function presentTournament(t: Tournament) {
     weatherSummary: t.weatherSummary ?? undefined,
     category: t.category ?? undefined,
     level: t.level ?? undefined,
+    // Coordinates power the tournaments map + distance sort. Contract shape is
+    // `number | null` (explicit null, not undefined) so the client can tell
+    // "no coordinates" from "field omitted".
+    latitude: t.latitude ?? null,
+    longitude: t.longitude ?? null,
     startDate: t.startDate.toISOString(),
     endDate: t.endDate.toISOString(),
     description: t.description ?? undefined,
@@ -70,6 +77,18 @@ tournamentsRouter.get(
   asyncHandler(async (_req, res) => {
     const rows = await prisma.tournament.findMany({ orderBy: { startDate: "asc" } });
     return ok(res, rows.map(presentTournament));
+  }),
+);
+
+// POST /api/tournaments/import — admin-only. Pulls tournaments from the active
+// feed provider (curated static snapshot, or a real live feed when configured)
+// and upserts them into the catalog. Idempotent.
+tournamentsRouter.post(
+  "/import",
+  requireRole("admin"),
+  asyncHandler(async (_req, res) => {
+    const result = await importTournaments(prisma);
+    return ok(res, result, `Imported ${result.imported} tournaments from ${result.source}`);
   }),
 );
 
@@ -133,5 +152,77 @@ playerTournamentsRouter.patch(
       include: { tournament: true, player: true },
     });
     return ok(res, presentPlayerTournament(pt), "Tournament status updated");
+  }),
+);
+
+// DELETE /api/player-tournaments/:id — remove a tournament from the schedule (owner only).
+playerTournamentsRouter.delete(
+  "/:id",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const existing = await prisma.playerTournament.findUnique({
+      where: { id: req.params.id },
+      select: { playerId: true },
+    });
+    if (!existing) throw new HttpError(404, "Tournament entry not found");
+    if (existing.playerId !== req.userId) throw new HttpError(403, "Not your tournament entry");
+
+    await prisma.playerTournament.delete({ where: { id: req.params.id } });
+    return ok(res, null, "Removed from schedule");
+  }),
+);
+
+// ── Hidden tournaments (per-user "eliminate from suggestions") ─────────────
+// All routes are auth-required and strictly owner-scoped: a user can only read
+// and mutate their OWN hidden list (scoped by req.userId, never a body/param id).
+export const hiddenTournamentsRouter = Router();
+hiddenTournamentsRouter.use(requireAuth);
+
+const hideSchema = z.object({ tournamentId: z.string().min(1) });
+
+// GET /api/hidden-tournaments — the tournamentIds the current user has hidden.
+hiddenTournamentsRouter.get(
+  "/",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const rows = await prisma.hiddenTournament.findMany({
+      where: { userId: req.userId! },
+      select: { tournamentId: true },
+      orderBy: { createdAt: "desc" },
+    });
+    return ok(res, rows.map((r) => r.tournamentId));
+  }),
+);
+
+// POST /api/hidden-tournaments — hide a tournament for the current user.
+// Idempotent: hiding an already-hidden tournament still returns 201.
+hiddenTournamentsRouter.post(
+  "/",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const { tournamentId } = hideSchema.parse(req.body);
+
+    // Guard against orphan hides + give a clean 404 (vs a raw FK error).
+    const exists = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { id: true },
+    });
+    if (!exists) throw new HttpError(404, "Tournament not found");
+
+    await prisma.hiddenTournament.upsert({
+      where: { userId_tournamentId: { userId: req.userId!, tournamentId } },
+      update: {},
+      create: { userId: req.userId!, tournamentId },
+    });
+    return ok(res, { tournamentId }, "Tournament hidden from suggestions", 201);
+  }),
+);
+
+// DELETE /api/hidden-tournaments/:tournamentId — unhide (idempotent: a no-op
+// delete when the row is absent still returns 200).
+hiddenTournamentsRouter.delete(
+  "/:tournamentId",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    await prisma.hiddenTournament.deleteMany({
+      where: { userId: req.userId!, tournamentId: req.params.tournamentId },
+    });
+    return ok(res, null, "Tournament restored to suggestions");
   }),
 );

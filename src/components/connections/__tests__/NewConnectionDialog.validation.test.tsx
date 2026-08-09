@@ -15,7 +15,7 @@ vi.mock("@/auth/AuthContext", () => ({
 const ROLE_LABEL: Record<UserRole, string> = {
   player: "Player",
   coach: "Coach",
-  observer: "Fan",
+  observer: "Parent",
   admin: "Admin",
 };
 

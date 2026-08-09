@@ -2,7 +2,9 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { StatusBadge, ReadOnlyBadge, ReadOnlyBanner } from "@/components/ui/shared";
+import { IncomingRequestsCard } from "@/components/dashboard/IncomingRequestsCard";
+import { statCardClass, statLinkClass } from "@/components/dashboard/statLinkStyles";
+import { StatusBadge, ReadOnlyBadge, ReadOnlyBanner, EmptyState, LoadingState, ErrorState } from "@/components/ui/shared";
 import {
   Users,
   Calendar,
@@ -14,12 +16,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
-import {
-  mockCalendarEvents,
-  mockPlayerTournaments,
-  mockFinanceSummary,
-  mockNotifications,
-} from "@/mock/data";
+import { useCalendarEvents, usePlayerTournaments, useNotifications } from "@/hooks/api/queries";
+import { isBefore } from "date-fns";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -44,8 +42,22 @@ export default function ObserverDashboard() {
   const pendingRequests = requests.filter(
     (r) => r.status === "pending" && r.fromUserId === user?.id
   );
-  const upcomingEvents = mockCalendarEvents.slice(0, 4);
-  const unreadNotifications = mockNotifications.filter((n) => !n.read);
+  const { data: calendarEvents = [], isLoading: loadingEvents, error: errorEvents } = useCalendarEvents();
+  const { data: playerTournaments = [], isLoading: loadingPT, error: errorPT } = usePlayerTournaments();
+  const { data: notifications = [], isLoading: loadingNotif, error: errorNotif } = useNotifications(user?.id ?? "");
+
+  const isLoading = loadingEvents || loadingPT || loadingNotif;
+  const hasError = errorEvents || errorPT || errorNotif;
+
+  const now = new Date();
+  const upcomingEvents = [...calendarEvents]
+    .filter((e) => !isBefore(new Date(e.startDate), now))
+    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+    .slice(0, 4);
+  const unreadNotifications = notifications.filter((n) => !n.read);
+
+  if (isLoading) return <LoadingState message="Loading dashboard…" />;
+  if (hasError) return <ErrorState message="Failed to load dashboard data" onRetry={() => window.location.reload()} />;
 
   return (
     <div className="space-y-6">
@@ -64,28 +76,48 @@ export default function ObserverDashboard() {
 
       <ReadOnlyBanner />
 
-      {/* Top stats */}
+      {/*
+        A player may send a request to a parent (see ALLOWED_CONNECTIONS in
+        src/mock/directory.ts), so this inbox is real for an observer too. It
+        renders nothing when empty. Approving a request addressed to you is an
+        account action, not an edit of a player's data — read-only still holds.
+      */}
+      <IncomingRequestsCard />
+
+      {/* Top stats — every figure links to the page that owns it. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Connected Players"
-          value={connectedPlayers.length}
-          icon={<Users className="h-4 w-4" />}
-        />
-        <StatCard
-          label="Pending Requests"
-          value={pendingRequests.length}
-          icon={<Users className="h-4 w-4" />}
-        />
-        <StatCard
-          label="Upcoming Events"
-          value={upcomingEvents.length}
-          icon={<Calendar className="h-4 w-4" />}
-        />
-        <StatCard
-          label="Unread Notifications"
-          value={unreadNotifications.length}
-          icon={<Bell className="h-4 w-4" />}
-        />
+        <Link to="/connections" className={statLinkClass}>
+          <StatCard
+            label="Connected Players"
+            value={connectedPlayers.length}
+            icon={<Users className="h-4 w-4" />}
+            className={statCardClass}
+          />
+        </Link>
+        <Link to="/connections" className={statLinkClass}>
+          <StatCard
+            label="Pending Requests"
+            value={pendingRequests.length}
+            icon={<Users className="h-4 w-4" />}
+            className={statCardClass}
+          />
+        </Link>
+        <Link to="/calendar" className={statLinkClass}>
+          <StatCard
+            label="Upcoming Events"
+            value={upcomingEvents.length}
+            icon={<Calendar className="h-4 w-4" />}
+            className={statCardClass}
+          />
+        </Link>
+        <Link to="/notifications" className={statLinkClass}>
+          <StatCard
+            label="Unread Notifications"
+            value={unreadNotifications.length}
+            icon={<Bell className="h-4 w-4" />}
+            className={statCardClass}
+          />
+        </Link>
       </div>
 
       {/* Connected Players Summary */}
@@ -141,6 +173,9 @@ export default function ObserverDashboard() {
           }
         >
           <div className="space-y-3">
+            {upcomingEvents.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">No upcoming events yet.</p>
+            )}
             {upcomingEvents.map((event) => (
               <div key={event.id} className="flex items-start gap-3">
                 <div className="mt-1.5 flex flex-col items-center">
@@ -174,7 +209,10 @@ export default function ObserverDashboard() {
           }
         >
           <div className="space-y-3">
-            {mockPlayerTournaments.map((pt) => (
+            {playerTournaments.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">No tournaments yet.</p>
+            )}
+            {playerTournaments.map((pt) => (
               <div key={pt.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/30 px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-foreground">{pt.tournament.name}</p>
@@ -205,27 +243,20 @@ export default function ObserverDashboard() {
             </Button>
           }
         >
-          <div className="space-y-3">
-            {[
-              { label: "Training", amount: mockFinanceSummary.totalTraining },
-              { label: "Travel", amount: mockFinanceSummary.totalTravel },
-              { label: "Tournaments", amount: mockFinanceSummary.totalTournament },
-              { label: "Equipment", amount: mockFinanceSummary.totalEquipment },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{item.label}</p>
-                <p className="text-sm font-semibold text-foreground">${item.amount.toLocaleString()}</p>
-              </div>
-            ))}
-            <div className="border-t border-border pt-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-foreground">Total</p>
-                <p className="text-sm font-bold text-foreground">
-                  ${(mockFinanceSummary.totalTraining + mockFinanceSummary.totalTravel + mockFinanceSummary.totalTournament + mockFinanceSummary.totalEquipment).toLocaleString()}
-                </p>
-              </div>
+          {connectedPlayers.length === 0 ? (
+            <EmptyState
+              icon={<Wallet className="h-6 w-6 text-muted-foreground" />}
+              title="No connected players"
+              description="Connect with a player to view their season cost breakdown."
+            />
+          ) : (
+            <div className="py-4 text-center">
+              <p className="text-sm text-muted-foreground">Select a connected player on the Finance page to view their cost breakdown.</p>
+              <Button size="sm" variant="outline" className="mt-3" asChild>
+                <Link to="/finance">Open Finance</Link>
+              </Button>
             </div>
-          </div>
+          )}
         </DashboardCard>
 
         <DashboardCard
@@ -246,7 +277,10 @@ export default function ObserverDashboard() {
           }
         >
           <div className="space-y-3">
-            {mockNotifications.slice(0, 3).map((notif) => (
+            {notifications.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">No notifications yet.</p>
+            )}
+            {notifications.slice(0, 3).map((notif) => (
               <div key={notif.id} className="flex items-start gap-3">
                 <div className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notif.read ? "bg-muted" : "bg-primary"}`} />
                 <div className="min-w-0 flex-1">

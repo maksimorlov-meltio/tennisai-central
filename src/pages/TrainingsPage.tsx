@@ -1,5 +1,6 @@
 // Training Management — Full Coach CRUD via React Query
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useConnections } from "@/store/ConnectionStore";
 import { EmptyState, LoadingState, ErrorState } from "@/components/ui/shared";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrainingReviewDialog } from "@/components/training/TrainingReviewDialog";
 import { PlayerFeedbackDialog } from "@/components/training/PlayerFeedbackDialog";
+import { DiscardChangesDialog } from "@/components/training/DiscardChangesDialog";
 import type { TrainingSession, TrainingType, ConnectedPlayer, PlayerSessionFeedback } from "@/types";
 import { useAuth } from "@/auth/AuthContext";
 import { useTrainings, useCreateTraining, useUpdateTraining, useDeleteTraining, useTeams, useAnalyzeTraining } from "@/hooks/api/queries";
@@ -82,7 +84,8 @@ function TrainingFormDialog({
   open, onOpenChange, initial, onSave, saving, preselectedPlayerIds,
 }: {
   open: boolean; onOpenChange: (o: boolean) => void;
-  initial?: TrainingSession; onSave: (data: TrainingFormData) => void; saving?: boolean;
+  /** Rejects when the save fails — the dialog then stays open with the input intact. */
+  initial?: TrainingSession; onSave: (data: TrainingFormData) => void | Promise<void>; saving?: boolean;
   preselectedPlayerIds?: string[];
 }) {
   const { connectedPlayers } = useConnections();
@@ -93,6 +96,10 @@ function TrainingFormDialog({
     if (preselectedPlayerIds?.length) base.playerIds = [...preselectedPlayerIds];
     return base;
   });
+  const pristine = useRef(JSON.stringify(form));
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const dirty = JSON.stringify(form) !== pristine.current;
 
   const update = <K extends keyof TrainingFormData>(k: K, v: TrainingFormData[K]) =>
     setForm((prev) => ({ ...prev, [k]: v }));
@@ -114,9 +121,32 @@ function TrainingFormDialog({
 
   const valid = form.title.trim() && form.startDate && form.endDate;
 
+  // Only close once the mutation has actually succeeded — a failed save must
+  // leave the coach's input exactly where it was.
+  const handleSave = async () => {
+    if (!valid || saving) return;
+    setSaveError(null);
+    try {
+      await onSave(form);
+      onOpenChange(false);
+    } catch (e) {
+      setSaveError((e as { message?: string })?.message ?? "Could not save the training. Your input is still here — try again.");
+    }
+  };
+
+  const requestClose = () => {
+    if (saving) return;
+    if (dirty) { setConfirmDiscard(true); return; }
+    onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+    <>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) requestClose(); else onOpenChange(true); }}>
+      <DialogContent
+        className="sm:max-w-lg max-h-[85vh] overflow-y-auto"
+        onInteractOutside={(e) => { if (dirty || saving) e.preventDefault(); }}
+      >
         <DialogHeader>
           <DialogTitle>{initial ? "Edit Training" : "Create Training"}</DialogTitle>
           <DialogDescription>
@@ -178,15 +208,28 @@ function TrainingFormDialog({
           </div>
           <div className="space-y-1.5"><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} placeholder="Visible to players" rows={2} /></div>
           <div className="space-y-1.5"><Label>Coach Notes <span className="text-muted-foreground">(private)</span></Label><Textarea value={form.coachNotes} onChange={(e) => update("coachNotes", e.target.value)} placeholder="Only visible to you" rows={2} /></div>
+          {saveError && (
+            <p className="flex items-start gap-1.5 border border-destructive/30 bg-destructive/5 p-2.5 text-xs text-destructive">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {saveError}
+            </p>
+          )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => { onSave(form); onOpenChange(false); }} disabled={!valid || saving}>
+          <Button variant="outline" onClick={requestClose} disabled={saving}>Cancel</Button>
+          <Button onClick={handleSave} disabled={!valid || saving}>
             {saving ? "Saving…" : initial ? "Save Changes" : "Create Training"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <DiscardChangesDialog
+      open={confirmDiscard}
+      onOpenChange={setConfirmDiscard}
+      what={initial ? "changes" : "new training"}
+      onConfirm={() => onOpenChange(false)}
+    />
+    </>
   );
 }
 
@@ -276,12 +319,12 @@ function TrainingDetailDrawer({
             </div>
           )}
 
-          {/* AI Analysis */}
+          {/* Session analysis */}
           {(training.analysis || (past && onAnalyze)) && (
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
-                  <Sparkles className="h-3 w-3" /> AI Performance Summary
+                  <Sparkles className="h-3 w-3" /> Session Summary
                 </div>
                 {onAnalyze && past && !analyzing && (
                   <Button
@@ -302,7 +345,7 @@ function TrainingDetailDrawer({
                   <Skeleton className="h-3 w-[78%]" />
                   <Skeleton className="h-3 w-[60%]" />
                   <p className="pt-1 text-[10px] text-muted-foreground flex items-center gap-1">
-                    <RefreshCw className="h-2.5 w-2.5 animate-spin" /> Contacting the AI backend…
+                    <RefreshCw className="h-2.5 w-2.5 animate-spin" /> Generating summary…
                   </p>
                 </div>
               ) : analyzeError ? (
@@ -336,7 +379,7 @@ function TrainingDetailDrawer({
                 </>
               ) : !analyzing && !analyzeError ? (
                 <p className="text-xs text-muted-foreground">
-                  Generate an AI-powered performance summary of this session from the backend.
+                  Generate a structured performance summary of this session.
                 </p>
               ) : null}
             </div>
@@ -445,15 +488,49 @@ export default function TrainingsPage() {
     }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
   }, [trainings, search, playerFilter, teamFilter, typeFilter, timeFilter, teamPlayerIds]);
 
+  // ── Deep link: /trainings?filter=past&review=<trainingId>
+  // Applied once per mount. The `review` param is dropped from the URL as soon
+  // as it is consumed so a refresh doesn't reopen the dialog; `filter` stays so
+  // the list the coach was sent to remains shareable.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkApplied = useRef(false);
+  const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (deepLinkApplied.current) return;
+    const filterParam = searchParams.get("filter");
+    const reviewParam = searchParams.get("review");
+    if (!filterParam && !reviewParam) return;
+    deepLinkApplied.current = true;
+
+    if (filterParam === "past" || filterParam === "upcoming" || filterParam === "all") setTimeFilter(filterParam);
+    if (reviewParam) {
+      setPendingReviewId(reviewParam);
+      const next = new URLSearchParams(searchParams);
+      next.delete("review");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Resolve the requested session once the list has loaded. An unknown id just
+  // leaves the filter applied — no dialog, no crash.
+  useEffect(() => {
+    if (!pendingReviewId || isLoading) return;
+    const match = trainings.find((t) => t.id === pendingReviewId);
+    setPendingReviewId(null);
+    if (match && isCoach) setReviewTarget(match);
+  }, [pendingReviewId, isLoading, trainings, isCoach]);
+
   const handleCreate = (playerIds?: string[]) => {
     setEditTarget(undefined);
     setPreselectedPlayerIds(playerIds ?? []);
     setFormOpen(true);
   };
 
-  const handleSave = (data: TrainingFormData) => {
+  // Throws on failure so TrainingFormDialog can stay open with the input intact.
+  const handleSave = async (data: TrainingFormData) => {
     if (editTarget) {
-      updateMut.mutate({
+      await updateMut.mutateAsync({
         id: editTarget.id,
         data: {
           title: data.title, trainingType: data.trainingType,
@@ -466,7 +543,7 @@ export default function TrainingsPage() {
         },
       });
     } else {
-      createMut.mutate({
+      await createMut.mutateAsync({
         title: data.title, trainingType: data.trainingType,
         coachId: user?.id ?? "", playerIds: data.playerIds,
         teamId: data.teamId || undefined,
@@ -523,7 +600,7 @@ export default function TrainingsPage() {
             const intensityCfg = INTENSITY_OPTIONS.find((o) => o.value === t.intensity);
             const past = isPast(parseISO(t.endDate));
             return (
-              <button key={t.id} onClick={() => openDetail(t)} className={`flex w-full items-start gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 ${past ? "opacity-60" : ""}`}>
+              <button key={t.id} onClick={() => openDetail(t)} className={`flex w-full items-start gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/20 hover:bg-accent/20 ${past ? "opacity-60" : ""}`}>
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Dumbbell className="h-5 w-5" /></div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -559,8 +636,8 @@ export default function TrainingsPage() {
                     {past && (
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setReviewTarget(t); }} title="Review session"><ClipboardCheck className="h-3.5 w-3.5" /></Button>
                     )}
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(t); }}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteTarget(t); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Edit ${t.title}`} onClick={(e) => { e.stopPropagation(); openEdit(t); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={`Delete ${t.title}`} onClick={(e) => { e.stopPropagation(); setDeleteTarget(t); }}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
                 )}
                 {!isCoach && past && (
@@ -577,7 +654,7 @@ export default function TrainingsPage() {
       {formOpen && <TrainingFormDialog key={editTarget?.id ?? "new"} open={formOpen} onOpenChange={setFormOpen} initial={editTarget} onSave={handleSave} saving={createMut.isPending || updateMut.isPending} preselectedPlayerIds={preselectedPlayerIds} />}
       <TrainingDetailDrawer training={detailTarget} open={detailOpen} onOpenChange={(o) => { setDetailOpen(o); if (!o) { setDetailTarget(null); analyzeMut.reset(); } }} onEdit={() => detailTarget && openEdit(detailTarget)} onDelete={() => detailTarget && setDeleteTarget(detailTarget)} onReview={isCoach ? () => { if (detailTarget) { setReviewTarget(detailTarget); } } : undefined} onPlayerFeedback={!isCoach ? () => { if (detailTarget) setFeedbackTarget(detailTarget); } : undefined} readOnly={readOnly} isPlayer={!isCoach} deleting={deleteMut.isPending} onAnalyze={detailTarget ? () => analyzeMut.mutate(detailTarget.id) : undefined} analyzing={analyzeMut.isPending} analyzeError={analyzeMut.isError ? ((analyzeMut.error as any)?.message ?? "Unable to reach the analysis service. Check your connection and try again.") : null} />
       {deleteTarget && <DeleteTrainingDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)} title={deleteTarget.title} onConfirm={() => { handleDelete(deleteTarget.id); setDeleteTarget(null); }} loading={deleteMut.isPending} />}
-      {reviewTarget && <TrainingReviewDialog open={!!reviewTarget} onOpenChange={(o) => { if (!o) setReviewTarget(null); }} training={reviewTarget} onSave={(review) => { updateMut.mutate({ id: reviewTarget.id, data: { review } }); setReviewTarget(null); }} saving={updateMut.isPending} />}
+      {reviewTarget && <TrainingReviewDialog open={!!reviewTarget} onOpenChange={(o) => { if (!o) setReviewTarget(null); }} training={reviewTarget} onSave={async (review) => { await updateMut.mutateAsync({ id: reviewTarget.id, data: { review } }); }} saving={updateMut.isPending} />}
       {feedbackTarget && <PlayerFeedbackDialog open={!!feedbackTarget} onOpenChange={(o) => { if (!o) setFeedbackTarget(null); }} training={feedbackTarget} onSave={(feedback) => { updateMut.mutate({ id: feedbackTarget.id, data: { playerSessionFeedback: feedback } }); setFeedbackTarget(null); }} saving={updateMut.isPending} />}
       <PlayerDetailDrawer player={detailPlayer} open={playerDetailOpen} onOpenChange={setPlayerDetailOpen} onCreateTraining={(pid) => handleCreate([pid])} />
     </div>

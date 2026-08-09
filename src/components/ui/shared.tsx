@@ -11,7 +11,7 @@ import { Eye, Lock, AlertTriangle, Loader2, Inbox, ShieldX } from "lucide-react"
 const ROLE_LABELS: Record<UserRole, string> = {
   player: "Player",
   coach: "Coach",
-  observer: "Fan",
+  observer: "Parent",
   admin: "Admin",
 };
 
@@ -133,7 +133,16 @@ export function LoadingState({ message, className }: { message?: string; classNa
 
 // ─── ErrorState ───
 
+/**
+ * Error state with a retry affordance.
+ *
+ * Pass `onRetry` — normally a React Query `refetch` — so recovering from one
+ * failed request costs one request. Only when no callback is given does the
+ * button fall back to a full page reload, which throws away the SPA and the
+ * whole query cache.
+ */
 export function ErrorState({ message, onRetry, className }: { message?: string; onRetry?: () => void; className?: string }) {
+  const retry = onRetry ?? (() => window.location.reload());
   return (
     <div className={cn("flex flex-col items-center gap-4 py-20 text-center", className)}>
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
@@ -143,11 +152,9 @@ export function ErrorState({ message, onRetry, className }: { message?: string; 
         <p className="font-medium text-foreground">Something went wrong</p>
         <p className="mt-1 text-sm text-muted-foreground">{message ?? "An unexpected error occurred. Please try again."}</p>
       </div>
-      {onRetry && (
-        <button onClick={onRetry} className="text-sm font-medium text-primary hover:underline">
-          Try again
-        </button>
-      )}
+      <button onClick={retry} className="text-sm font-medium text-primary hover:underline">
+        Try again
+      </button>
     </div>
   );
 }
