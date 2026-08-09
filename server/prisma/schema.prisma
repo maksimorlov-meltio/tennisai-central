@@ -21,6 +21,13 @@ model User {
   firstName     String
   lastName      String
   emailVerified Boolean  @default(false)
+  onboarding            Json? // role-based onboarding answers (see src/lib/onboarding)
+  onboardingCompletedAt DateTime? // set when the user finishes the intro questionnaire
+  termsAcceptedAt       DateTime? // set at signup when the user accepts the Terms of Service
+  ageConfirmedAt        DateTime? // set at signup when the user confirms the age requirement
+  // Bumped on every password change. A password-reset token issued BEFORE this
+  // timestamp is rejected, which makes reset links effectively single-use.
+  passwordChangedAt     DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -29,6 +36,7 @@ model User {
   trainingParticipations TrainingParticipant[]
   // back-relations (tournaments domain)
   playerTournaments      PlayerTournament[]
+  hiddenTournaments      HiddenTournament[]
   // back-relations (teams domain)
   coachedTeams    Team[]       @relation("TeamCoach")
   teamMemberships TeamMember[]
@@ -43,6 +51,30 @@ model User {
   equipmentItems         EquipmentItem[]
   notifications          Notification[]
   notificationPreference NotificationPreference?
+  pushSubscriptions      PushSubscription[]
+
+  // back-relations (analytics domain — Stage 1, additive)
+  profile                  PlayerProfile?     @relation("UserProfile")
+  coachNotesAuthored       PrivateCoachNote[] @relation("CoachNoteAuthor")
+  coachNotesAbout          PrivateCoachNote[] @relation("CoachNoteSubject")
+  ownedOpponents           Opponent[]         @relation("OpponentOwner")
+  matches                  Match[]            @relation("MatchPlayer")
+  scoutingReportsCreated   ScoutingReport[]   @relation("ScoutingCreatedBy")
+  gamePlansAsPlayer        GamePlan[]         @relation("GamePlanPlayer")
+  gamePlansCreated         GamePlan[]         @relation("GamePlanCreatedBy")
+  postMatchReportsCreated  PostMatchReport[]  @relation("PostMatchCreatedBy")
+  trainingPlansAsPlayer    TrainingPlan[]     @relation("TrainingPlanPlayer")
+  trainingPlansCreated     TrainingPlan[]     @relation("TrainingPlanCreatedBy")
+  aiGenerations            AiGeneration[]     @relation("AiGenUser")
+  subscription             Subscription?      @relation("SubscriptionOwner")
+  aiUsageCounters          AiUsageCounter[]   @relation("AiUsageUser")
+
+  // back-relations (roles & tenancy — Stage 2, additive)
+  academyMemberships       AcademyMembership[] @relation("AcademyMemberUser")
+  coachAssignmentsAsCoach  CoachAssignment[]   @relation("AssignmentCoach")
+  coachAssignmentsAsPlayer CoachAssignment[]   @relation("AssignmentPlayer")
+  guardianshipsAsGuardian  Guardianship[]      @relation("GuardianshipGuardian")
+  guardianshipsAsJunior    Guardianship[]      @relation("GuardianshipJunior")
 
   @@map("users")
 }
@@ -111,6 +143,8 @@ model Tournament {
   category       String?
   level          String?
   federation     String? // ITF | WTA | ATP | UTR | USTA
+  latitude       Float? // host-city latitude (decimal degrees) — powers the map + distance sort
+  longitude      Float? // host-city longitude (decimal degrees)
   startDate      DateTime
   endDate        DateTime
   description    String?
@@ -118,9 +152,27 @@ model Tournament {
   updatedAt      DateTime @updatedAt
 
   playerEntries PlayerTournament[]
+  hiddenBy      HiddenTournament[]
 
   @@index([startDate])
   @@map("tournaments")
+}
+
+// A per-user "eliminate from suggestions" list. One row = this user hid this
+// tournament. Owner-scoped in the routes; the row disappears (cascade) when
+// either the user or the tournament is deleted.
+model HiddenTournament {
+  id           String   @id @default(cuid())
+  userId       String
+  tournamentId String
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tournamentId])
+  @@index([userId])
+  @@map("hidden_tournaments")
 }
 
 model PlayerTournament {
@@ -304,6 +356,9 @@ model Notification {
   read      Boolean  @default(false)
   linkTo    String?
   createdAt DateTime @default(now())
+  // Set once this notification has been delivered by email, so a retry or a
+  // scheduled sweep can never send the same notification twice.
+  emailedAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -314,6 +369,11 @@ model Notification {
 model NotificationPreference {
   id                  String  @id @default(cuid())
   userId              String  @unique
+  // Channel-level switches. The per-category flags below decide WHAT is worth
+  // notifying about; these decide HOW it is delivered. Email/push are only ever
+  // sent when the channel is enabled AND the category flag is on.
+  emailEnabled        Boolean @default(true)
+  pushEnabled         Boolean @default(true)
   trainingReminders   Boolean @default(true)
   tournamentReminders Boolean @default(true)
   requestApprovals    Boolean @default(true)
@@ -324,4 +384,450 @@ model NotificationPreference {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
+}
+
+/// A browser Web-Push subscription. One user may have several (one per device).
+/// `endpoint` is the browser-issued URL; `p256dh`/`auth` are the client's public
+/// encryption keys. Sending requires server-side VAPID keys — when those env vars
+/// are unset, push self-disables and email/in-app delivery still work.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ANALYTICS DOMAIN (Stage 1) — additive. No existing table changes.
+// Core workflow: profile → opponent → match → scouting → game plan
+// → post-match → training plan. RAW COUNTS ONLY: percentages are
+// computed at read time, never stored. Every report row carries the
+// AI-report contract (status/model/promptVersion/sourceRecordIds/
+// confidence) so generated vs approved vs outdated is first-class.
+// ═══════════════════════════════════════════════════════════════
+
+enum ReportStatus {
+  generated
+  approved
+  rejected
+  outdated
+}
+
+enum PlanTier {
+  free
+  player_pro
+  coach_pro
+  academy
+}
+
+// --- Extended player profile (1:1 with a "player" User) ─────────
+// Style dimensions are 1..10, nullable until the coach/player sets them.
+// A descriptive style classification is DERIVED from these, never stored
+// as a single hard label. coachNotes live in PrivateCoachNote, NOT here,
+// so they can never be selected into a player/parent response.
+model PlayerProfile {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  dateOfBirth            String? // ISO "yyyy-MM-dd"; age is derived
+  playingLevel           String?
+  ranking                String?
+  dominantHand           String? // left | right
+  backhandType           String? // one_handed | two_handed
+  preferredSurface       String? // clay | hard | grass | indoor
+  currentCoachId         String? // loose pointer (no FK) to a coach User
+  preferredCourtPosition String?
+  technicalStrengths     String[]
+  technicalWeaknesses    String[]
+  physicalStrengths      String[]
+  physicalLimitations    String[]
+  serveTendencies        String?
+  returnTendencies       String?
+  mentalUnderPressure    String?
+  currentGoals           String?
+  injuryRestrictions     String?
+  // Playing-style dimensions (1..10)
+  styleAggression      Int? // defensive(1)..aggressive(10)
+  styleNetPlay         Int? // deep baseline(1)..frequent net(10)
+  styleRallyTolerance  Int? // short-point pref(1)..long-rally(10)
+  styleServeDependence Int? // low(1)..high(10)
+  styleRiskLevel       Int? // conservative(1)..high-risk(10)
+  styleReturnPosition  Int? // inside-baseline(1)..deep(10)
+  stylePressure        Int? // pressure performance 1..10
+  suitClay             Int? // surface suitability 1..10
+  suitHard             Int?
+  suitGrass            Int?
+  suitIndoor           Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("UserProfile", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("player_profiles")
+}
+
+// --- Private coach notes ────────────────────────────────────────
+// Separate table so a note is NEVER joinable into a player/parent read.
+// Server authorization must scope reads to the authoring coach only.
+model PrivateCoachNote {
+  id            String   @id @default(cuid())
+  authorCoachId String
+  subjectUserId String // the player the note is about
+  opponentId    String? // optionally a note about an opponent
+  body          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  author  User @relation("CoachNoteAuthor", fields: [authorCoachId], references: [id], onDelete: Cascade)
+  subject User @relation("CoachNoteSubject", fields: [subjectUserId], references: [id], onDelete: Cascade)
+
+  @@index([authorCoachId])
+  @@index([subjectUserId])
+  @@map("private_coach_notes")
+}
+
+// --- Reusable opponent scouting record ──────────────────────────
+model Opponent {
+  id                  String   @id @default(cuid())
+  ownerId             String // coach/player who owns this record
+  academyId           String? // loose pointer (tenancy added in Stage 2)
+  firstName           String
+  lastName            String
+  dominantHand        String?
+  backhandType        String?
+  preferredSurface    String?
+  strongestStroke     String?
+  weakestStroke       String?
+  servePatterns       String?
+  returnPosition      String?
+  returnTendencies    String?
+  forehandPreference  String?
+  backhandPreference  String?
+  netBehaviour        String?
+  pressurePerformance String?
+  styleAggression      Int?
+  styleNetPlay         Int?
+  styleRallyTolerance  Int?
+  styleServeDependence Int?
+  styleRiskLevel       Int?
+  styleReturnPosition  Int?
+  stylePressure        Int?
+  observations        Json? // explicitly-marked coach observations
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  owner           User             @relation("OpponentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  matches         Match[]
+  scoutingReports ScoutingReport[]
+  gamePlans       GamePlan[]
+
+  @@index([ownerId])
+  @@map("opponents")
+}
+
+// --- Match recording (raw counts only) ──────────────────────────
+model Match {
+  id            String   @id @default(cuid())
+  playerId      String
+  opponentId    String?
+  academyId     String?
+  date          DateTime
+  competition   String?
+  surface       String // clay | hard | grass | indoor
+  indoorOutdoor String // indoor | outdoor
+  format        String // best_of_3 | best_of_5 | pro_set | ...
+  result        String? // win | loss — NEVER used to infer performance quality
+  scoreSets     Json // [{ player: 6, opponent: 4, tiebreak?: "7-5" }]
+  conditions    String?
+  // ── raw counts (percentages computed on read) ──
+  firstServeAttempts   Int?
+  firstServesIn        Int?
+  firstServePointsWon  Int?
+  secondServePlayed    Int?
+  secondServePointsWon Int?
+  aces                 Int?
+  doubleFaults         Int?
+  returnPointsPlayed   Int?
+  returnPointsWon      Int?
+  winners              Int?
+  forcedErrors         Int?
+  unforcedErrors       Int?
+  breakPointsCreated   Int?
+  breakPointsConverted Int?
+  breakPointsFaced     Int?
+  breakPointsSaved     Int?
+  netApproaches        Int?
+  netPointsWon         Int?
+  rallyLengthBuckets   Json? // { "1-4": n, "5-8": n, "9+": n }
+  momentumChanges      Json? // [{ set, game, note }]
+  notesBySet           Json? // { "1": "...", "2": "..." }
+  createdBy            String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  player           User              @relation("MatchPlayer", fields: [playerId], references: [id], onDelete: Cascade)
+  opponent         Opponent?         @relation(fields: [opponentId], references: [id], onDelete: SetNull)
+  postMatchReports PostMatchReport[]
+
+  @@index([playerId])
+  @@index([opponentId])
+  @@index([date])
+  @@index([createdBy])
+  @@map("matches")
+}
+
+// --- Scouting report (opponent) ─────────────────────────────────
+model ScoutingReport {
+  id                String       @id @default(cuid())
+  opponentId        String
+  createdById       String
+  academyId         String?
+  content           Json // sections, each with evidence + confidence + dataSample
+  status            ReportStatus @default(generated)
+  model             String?
+  promptVersion     String?
+  sourceRecordIds   Json? // match ids the conclusions draw on
+  confidenceOverall Float?
+  approvedById      String?
+  approvedAt        DateTime?
+  generatedAt       DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  opponent  Opponent @relation(fields: [opponentId], references: [id], onDelete: Cascade)
+  createdBy User     @relation("ScoutingCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([opponentId])
+  @@index([createdById])
+  @@map("scouting_reports")
+}
+
+// --- Pre-match game plan ────────────────────────────────────────
+model GamePlan {
+  id              String       @id @default(cuid())
+  playerId        String
+  opponentId      String?
+  createdById     String
+  academyId       String?
+  content         Json // AI-suggested plan (priorities, serve/return/rally, planB, ...)
+  coachOverrides  Json? // coach-approved edits — distinct from AI suggestions
+  status          ReportStatus @default(generated)
+  model           String?
+  promptVersion   String?
+  sourceRecordIds Json?
+  approvedById    String?
+  approvedAt      DateTime?
+  generatedAt     DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  player    User      @relation("GamePlanPlayer", fields: [playerId], references: [id], onDelete: Cascade)
+  opponent  Opponent? @relation(fields: [opponentId], references: [id], onDelete: SetNull)
+  createdBy User      @relation("GamePlanCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([playerId])
+  @@index([opponentId])
+  @@index([createdById])
+  @@map("game_plans")
+}
+
+// --- Post-match analysis ────────────────────────────────────────
+model PostMatchReport {
+  id                String       @id @default(cuid())
+  matchId           String
+  createdById       String
+  content           Json // reasons, per-set, baseline comparison, 3 conclusions, next-week priorities — each with confidence + evidence
+  status            ReportStatus @default(generated)
+  model             String?
+  promptVersion     String?
+  sourceRecordIds   Json?
+  confidenceOverall Float?
+  approvedById      String?
+  approvedAt        DateTime?
+  generatedAt       DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  match     Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  createdBy User  @relation("PostMatchCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@index([createdById])
+  @@map("post_match_reports")
+}
+
+// --- Training plan + measurable drills ──────────────────────────
+model TrainingPlan {
+  id             String       @id @default(cuid())
+  playerId       String
+  createdById    String
+  sourceReportId String? // originating PostMatchReport (loose pointer)
+  title          String
+  weekOf         String?
+  status         ReportStatus @default(generated)
+  model          String?
+  promptVersion  String?
+  generatedAt    DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  player    User            @relation("TrainingPlanPlayer", fields: [playerId], references: [id], onDelete: Cascade)
+  createdBy User            @relation("TrainingPlanCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  drills    TrainingDrill[]
+
+  @@index([playerId])
+  @@index([createdById])
+  @@map("training_plans")
+}
+
+model TrainingDrill {
+  id               String   @id @default(cuid())
+  planId           String
+  objective        String
+  category         String // technical | tactical | physical | mental
+  instructions     String
+  durationMin      Int?
+  reps             String? // e.g. "20 points"
+  equipment        String?
+  intensity        String? // low | medium | high
+  successCriteria  String // measurable target
+  relatedInsight   String?
+  coachNotes       String?
+  completionStatus String   @default("pending") // pending | done | skipped
+  trainingId       String? // optional link to a scheduled Training (loose)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  plan TrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@map("training_drills")
+}
+
+// --- AI generation audit + dedup ────────────────────────────────
+// One row per generation attempt. inputHash powers "don't regenerate
+// an identical report"; status/error capture provider failures.
+model AiGeneration {
+  id            String   @id @default(cuid())
+  userId        String
+  reportType    String // scouting | game_plan | post_match | training_plan
+  reportId      String?
+  provider      String // deterministic | anthropic | openai | ...
+  model         String
+  promptVersion String
+  inputHash     String
+  status        String // success | invalid_output | provider_error
+  errorMessage  String?
+  latencyMs     Int?
+  createdAt     DateTime @default(now())
+
+  user User @relation("AiGenUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([inputHash])
+  @@map("ai_generations")
+}
+
+// --- Subscription + AI usage (limits centralized in code config) ─
+model Subscription {
+  id          String    @id @default(cuid())
+  ownerUserId String    @unique
+  academyId   String?
+  tier        PlanTier  @default(free)
+  status      String    @default("active") // active | past_due | canceled
+  periodStart DateTime  @default(now())
+  periodEnd   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  owner User @relation("SubscriptionOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model AiUsageCounter {
+  id               String   @id @default(cuid())
+  userId           String
+  periodKey        String // "yyyy-MM"
+  reportsGenerated Int      @default(0)
+  updatedAt        DateTime @updatedAt
+
+  user User @relation("AiUsageUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, periodKey])
+  @@map("ai_usage_counters")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ROLES & TENANCY (Stage 2) — additive. Maps the brief's four roles
+// onto the existing role strings: observer = Parent/guardian,
+// admin = Academy administrator. No role renamed. Server middleware
+// (authz.ts) enforces role + assignment + guardianship + tenancy.
+// ═══════════════════════════════════════════════════════════════
+
+model Academy {
+  id        String   @id @default(cuid())
+  name      String
+  branding  Json? // logo url / colors — Academy-tier white-labeling
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships AcademyMembership[]
+
+  @@map("academies")
+}
+
+model AcademyMembership {
+  id        String   @id @default(cuid())
+  academyId String
+  userId    String
+  role      String // role WITHIN the academy: admin | coach | player
+  createdAt DateTime @default(now())
+
+  academy Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  user    User    @relation("AcademyMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([academyId, userId])
+  @@index([userId])
+  @@map("academy_memberships")
+}
+
+// A coach may manage a player only through an active assignment.
+model CoachAssignment {
+  id        String   @id @default(cuid())
+  coachId   String
+  playerId  String
+  status    String   @default("active") // active | ended
+  createdAt DateTime @default(now())
+
+  coach  User @relation("AssignmentCoach", fields: [coachId], references: [id], onDelete: Cascade)
+  player User @relation("AssignmentPlayer", fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([coachId, playerId])
+  @@index([coachId])
+  @@index([playerId])
+  @@map("coach_assignments")
+}
+
+// A parent/guardian (observer role) may access a junior only through a
+// consented guardianship. parentalConsent gates all junior data access.
+model Guardianship {
+  id              String    @id @default(cuid())
+  guardianId      String
+  juniorPlayerId  String
+  parentalConsent Boolean   @default(false)
+  consentAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  guardian User @relation("GuardianshipGuardian", fields: [guardianId], references: [id], onDelete: Cascade)
+  junior   User @relation("GuardianshipJunior", fields: [juniorPlayerId], references: [id], onDelete: Cascade)
+
+  @@unique([guardianId, juniorPlayerId])
+  @@index([guardianId])
+  @@index([juniorPlayerId])
+  @@map("guardianships")
 }

@@ -27,7 +27,7 @@ export function Navbar() {
         {isLanding && (
           <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
             <a href="#how-it-works" className="hover:text-foreground">How it works</a>
-            <a href="#pricing" className="hover:text-foreground">Pricing</a>
+            <a href="#pricing" className="hover:text-foreground">Access</a>
           </nav>
         )}
 

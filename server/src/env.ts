@@ -24,6 +24,30 @@ const schema = z.object({
   GMAIL_USER: z.string().default(""),
   GMAIL_APP_PASSWORD: z.string().default(""),
   MAIL_FROM_NAME: z.string().default("TennisAI"),
+  // Local-test escape hatch: set to "false" ONLY for a local trial with no
+  // email provider, so accounts are usable without a verification round-trip.
+  // Secure default is ON — anything other than the literal "false" enables it.
+  REQUIRE_EMAIL_VERIFICATION: z
+    .string()
+    .default("true")
+    .transform((v) => v.toLowerCase() !== "false"),
+  // Optional live tournament-feed provider (see src/tournaments/feed/). Both must
+  // be set to activate the HTTP provider; otherwise the curated static snapshot is
+  // used. FEED_API_KEY is a server-side secret and is NEVER sent to the client.
+  // Undefined when unset — missing values do NOT stop the process.
+  FEED_API_URL: z.string().url().optional(),
+  FEED_API_KEY: z.string().min(1).optional(),
+  // Private-trial access gate. When set, signup requires a matching invite code.
+  // Unset = open registration (local dev / tests). Not a secret sent to the client.
+  SIGNUP_INVITE_CODE: z.string().min(1).optional(),
+  // Web-Push (VAPID) keys. Push self-disables when these are unset, so email and
+  // in-app notifications keep working. Generate with:
+  //   npx web-push generate-vapid-keys
+  // VAPID_PRIVATE_KEY is a server-side SECRET — only the public key may reach the
+  // browser. VAPID_SUBJECT is a contact URL/mailto the push service can use.
+  VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+  VAPID_SUBJECT: z.string().min(1).optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -36,17 +60,20 @@ if (!parsed.success) {
 
 const e = parsed.data;
 
-// In production, a strong, non-default JWT secret is mandatory — the default
-// is publicly known and would let anyone forge tokens for any user.
-if (isProd && (INSECURE_JWT_DEFAULTS.has(e.JWT_SECRET) || e.JWT_SECRET.length < 32)) {
+// A strong, non-default JWT secret is mandatory EVERYWHERE except explicit local
+// dev/test — the default is publicly known and would let anyone forge tokens for
+// any user. Only NODE_ENV exactly "development" or "test" may use a weak secret.
+const allowWeakSecret = e.NODE_ENV === "development" || e.NODE_ENV === "test";
+if (!allowWeakSecret && (INSECURE_JWT_DEFAULTS.has(e.JWT_SECRET) || e.JWT_SECRET.length < 32)) {
   console.error(
-    "❌ JWT_SECRET is missing, insecure, or too short for production.\n" +
-      "   Generate one with: node -e \"console.log(require('crypto').randomBytes(48).toString('base64url'))\"",
+    "❌ JWT_SECRET is missing, insecure, or too short (need ≥32 chars, non-default).\n" +
+      `   NODE_ENV=${e.NODE_ENV} requires a strong secret. Generate one with:\n` +
+      "   node -e \"console.log(require('crypto').randomBytes(48).toString('base64url'))\"",
   );
   process.exit(1);
 }
 
-if (!isProd && INSECURE_JWT_DEFAULTS.has(e.JWT_SECRET)) {
+if (allowWeakSecret && INSECURE_JWT_DEFAULTS.has(e.JWT_SECRET)) {
   console.warn("⚠️  Using a development JWT secret — never deploy this to production.");
 }
 
@@ -61,7 +88,25 @@ export const env = {
   gmailUser: e.GMAIL_USER,
   gmailAppPassword: e.GMAIL_APP_PASSWORD.replace(/\s+/g, ""),
   mailFromName: e.MAIL_FROM_NAME,
+  requireEmailVerification: e.REQUIRE_EMAIL_VERIFICATION,
+  // Optional live-feed config (undefined unless explicitly set). Server-side only.
+  feedApiUrl: e.FEED_API_URL,
+  feedApiKey: e.FEED_API_KEY,
+  // Optional private-trial invite code (undefined = open registration).
+  signupInviteCode: e.SIGNUP_INVITE_CODE,
+  // Optional Web-Push config (undefined = push disabled). Private key is server-side only.
+  vapidPublicKey: e.VAPID_PUBLIC_KEY,
+  vapidPrivateKey: e.VAPID_PRIVATE_KEY,
+  vapidSubject: e.VAPID_SUBJECT,
 };
+
+// Guard: disabling email verification in production is almost never intended.
+if (isProd && !env.requireEmailVerification) {
+  console.warn(
+    "⚠️  REQUIRE_EMAIL_VERIFICATION is OFF in production — accounts can log in " +
+      "without proving email ownership. Only do this intentionally.",
+  );
+}
 
 /** Real Gmail sending only happens when both credentials are present. */
 export const emailEnabled = Boolean(env.gmailUser && env.gmailAppPassword);

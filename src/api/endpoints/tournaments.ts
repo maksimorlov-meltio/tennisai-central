@@ -34,4 +34,9 @@ export const tournamentsApi = {
     if (!LIVE_API) { await delay(); return { data: mockStore.updatePlayerTournament(id, data), message: "Tournament status updated" }; }
     return apiClient.patch(`/player-tournaments/${id}`, data);
   },
+
+  async removePlayerTournament(id: string): Promise<ApiResponse<null>> {
+    if (!LIVE_API) { await delay(); return { data: null, message: "Removed from schedule (mock)" }; }
+    return apiClient.delete(`/player-tournaments/${id}`);
+  },
 };

@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Prisma, Training, TrainingParticipant } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
+import { requireRole, assertCanActOnPlayer } from "../authz";
 
 export const trainingsRouter = Router();
 
@@ -93,8 +94,13 @@ trainingsRouter.get(
 // POST /api/trainings — the current (coach) user owns the session.
 trainingsRouter.post(
   "/",
+  requireRole("coach"),
   asyncHandler(async (req: AuthedRequest, res) => {
     const data = createSchema.parse(req.body);
+    // Every participant must be someone the coach is allowed to act on.
+    for (const playerId of dedupe(data.playerIds)) {
+      await assertCanActOnPlayer(req.userId!, playerId);
+    }
     const created = await prisma.training.create({
       data: {
         title: data.title,
@@ -123,9 +129,16 @@ trainingsRouter.post(
 // PATCH /api/trainings/:id — owner (coach) only.
 trainingsRouter.patch(
   "/:id",
+  requireRole("coach"),
   asyncHandler(async (req: AuthedRequest, res) => {
     const data = updateSchema.parse(req.body);
     await assertOwner(req.params.id, req.userId!);
+    // If the participant set is being replaced, validate each new player.
+    if (data.playerIds) {
+      for (const playerId of dedupe(data.playerIds)) {
+        await assertCanActOnPlayer(req.userId!, playerId);
+      }
+    }
 
     const updated = await prisma.training.update({
       where: { id: req.params.id },

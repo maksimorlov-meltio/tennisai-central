@@ -4,9 +4,9 @@ import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { EmptyState, StatusBadge } from "@/components/ui/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Search, ArrowRight, UserPlus, BarChart3 } from "lucide-react";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Users, Search, UserPlus, BarChart3 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { PlayerStatsDrawer } from "@/components/players/PlayerStatsDrawer";
 import type { ConnectedPlayer } from "@/types";
 
@@ -14,6 +14,26 @@ export default function PlayersPage() {
   const { connectedPlayers } = useConnections();
   const [search, setSearch] = useState("");
   const [statsPlayer, setStatsPlayer] = useState<ConnectedPlayer | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Deep link: /players?player=<id> opens that player's stats drawer. The coach
+  // dashboard's "View" links point here.
+  const requestedPlayerId = searchParams.get("player");
+  useEffect(() => {
+    if (!requestedPlayerId) return;
+    const match = connectedPlayers.find((p) => p.id === requestedPlayerId);
+    if (match) setStatsPlayer(match);
+  }, [requestedPlayerId, connectedPlayers]);
+
+  /** Closing also drops the deep-link param, so a reload doesn't reopen it. */
+  const closeStats = () => {
+    setStatsPlayer(null);
+    if (searchParams.has("player")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("player");
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   const filtered = connectedPlayers.filter((p) =>
     !search || `${p.firstName} ${p.lastName}`.toLowerCase().includes(search.toLowerCase())
@@ -57,6 +77,10 @@ export default function PlayersPage() {
                   <p className="text-xs text-muted-foreground">Connected since {new Date(player.connectedSince).toLocaleDateString()}</p>
                 </div>
               </div>
+              {/*
+                One real action per card. The old ghost "View" button had no
+                handler and duplicated this one, so it is gone.
+              */}
               <div className="mt-3 flex items-center gap-2">
                 <StatusBadge status="active" />
                 <Button
@@ -65,10 +89,7 @@ export default function PlayersPage() {
                   className="ml-auto gap-1 text-xs"
                   onClick={() => setStatsPlayer(player)}
                 >
-                  <BarChart3 className="h-3 w-3" /> Stats
-                </Button>
-                <Button size="sm" variant="ghost" className="gap-1 text-xs">
-                  View <ArrowRight className="h-3 w-3" />
+                  <BarChart3 className="h-3 w-3" /> View stats
                 </Button>
               </div>
             </DashboardCard>
@@ -76,7 +97,7 @@ export default function PlayersPage() {
         </div>
       )}
 
-      <PlayerStatsDrawer player={statsPlayer} open={!!statsPlayer} onOpenChange={(o) => { if (!o) setStatsPlayer(null); }} />
+      <PlayerStatsDrawer player={statsPlayer} open={!!statsPlayer} onOpenChange={(o) => { if (!o) closeStats(); }} />
     </div>
   );
 }

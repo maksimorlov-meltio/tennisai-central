@@ -31,6 +31,9 @@ import {
   isSameMonth, isSameDay, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays,
   parseISO, isWithinInterval, isToday as isDateToday, isBefore, isAfter,
 } from "date-fns";
+import {
+  eventBaseColor, entityColor, EVENT_TYPE_COLOR, CIRCUIT_COLOR, STATE_VISUAL, STATE_LABEL, withAlpha,
+} from "@/lib/calendar/colors";
 
 const EVENT_CONFIG: Record<CalendarEventType, { label: string; icon: React.ReactNode; dot: string; bg: string }> = {
   training: { label: "Training", icon: <Dumbbell className="h-3.5 w-3.5" />, dot: "bg-foreground", bg: "bg-muted text-foreground dark:text-foreground border-border" },
@@ -40,26 +43,6 @@ const EVENT_CONFIG: Record<CalendarEventType, { label: string; icon: React.React
   recovery: { label: "Recovery", icon: <Heart className="h-3.5 w-3.5" />, dot: "bg-foreground", bg: "bg-muted text-foreground dark:text-foreground border-border" },
 };
 const EVENT_TYPES: CalendarEventType[] = ["training", "tournament", "match", "travel", "recovery"];
-
-// Player color palette for coach view color-coding
-const PLAYER_COLORS: { bg: string; dot: string }[] = [
-  { bg: "bg-muted text-foreground dark:text-foreground border-border", dot: "bg-foreground" },
-  { bg: "bg-primary/10 text-primary dark:text-primary border-primary/25", dot: "bg-primary" },
-  { bg: "bg-muted text-foreground dark:text-foreground border-border", dot: "bg-foreground" },
-  { bg: "bg-primary/10 text-primary dark:text-primary border-primary/25", dot: "bg-primary" },
-  { bg: "bg-muted text-foreground dark:text-foreground border-border", dot: "bg-foreground" },
-  { bg: "bg-muted text-foreground dark:text-foreground border-border", dot: "bg-foreground" },
-  { bg: "bg-muted text-foreground dark:text-foreground border-border", dot: "bg-foreground" },
-  { bg: "bg-muted text-foreground dark:text-foreground border-border", dot: "bg-foreground" },
-];
-
-const playerColorCache = new Map<string, { bg: string; dot: string }>();
-function getPlayerColor(playerId: string): { bg: string; dot: string } {
-  if (!playerColorCache.has(playerId)) {
-    playerColorCache.set(playerId, PLAYER_COLORS[playerColorCache.size % PLAYER_COLORS.length]);
-  }
-  return playerColorCache.get(playerId)!;
-}
 
 const STATE_CONFIG: Record<CalendarEventState, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   requested: { label: "Requested", variant: "outline" },
@@ -81,9 +64,14 @@ function EventChip({ event, onClick, showPlayer, compact, draggable, registered 
   const cfg = EVENT_CONFIG[event.type];
   const isRecurring = !!event.recurrence || !!event.recurrenceParentId;
   const isIntl = event.id.startsWith("intl-");
-  const intlBg = "bg-muted text-foreground dark:text-foreground border-border";
-  const playerColor = showPlayer && event.playerId ? getPlayerColor(event.playerId) : null;
-  const chipBg = isIntl ? intlBg : playerColor ? playerColor.bg : cfg.bg;
+  // Colour grading: fill/text by event type (or federation for tagged
+  // tournaments), a left accent + dot by player/team, and state via
+  // opacity / dashed outline / strike-through.
+  const base = eventBaseColor(event.type, event.title);
+  const entityId = event.playerId || event.teamId;
+  const entity = showPlayer && entityId ? entityColor(entityId) : null;
+  const sv = event.state ? STATE_VISUAL[event.state] : null;
+  const accent = entity ?? base;
   return (
     <button
       draggable={draggable}
@@ -96,12 +84,21 @@ function EventChip({ event, onClick, showPlayer, compact, draggable, registered 
         e.dataTransfer.effectAllowed = "move";
       }}
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className={`flex w-full items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-left text-[11px] font-medium leading-tight transition-all hover:shadow-sm hover:opacity-90 ${chipBg} ${compact ? "py-px" : ""} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      style={{
+        backgroundColor: withAlpha(base, "1f"),
+        borderColor: withAlpha(base, "59"),
+        borderLeftColor: accent,
+        borderLeftWidth: 3,
+        color: base,
+        opacity: sv?.opacity,
+      }}
+      className={`flex w-full items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-left text-[11px] font-medium leading-tight transition-colors hover:bg-accent/40 ${sv?.dashed ? "border-dashed" : ""} ${compact ? "py-px" : ""} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
-      {isIntl ? <Globe className="h-3.5 w-3.5" /> : cfg.icon}
-      <span className="truncate">{showPlayer && event.playerName ? <>{event.playerName.split(" ")[0]}: {event.title}</> : event.title}</span>
+      {entity && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: entity }} aria-hidden />}
+      {isIntl ? <Globe className="h-3.5 w-3.5 shrink-0" /> : cfg.icon}
+      <span className={`truncate ${sv?.strike ? "line-through" : ""}`}>{showPlayer && event.playerName ? <>{event.playerName.split(" ")[0]}: {event.title}</> : event.title}</span>
       {isRecurring && <Repeat className="h-2.5 w-2.5 shrink-0 opacity-60" />}
-      {registered && <CheckCircle2 className="h-3 w-3 shrink-0 text-foreground dark:text-foreground" />}
+      {registered && <CheckCircle2 className="h-3 w-3 shrink-0" />}
     </button>
   );
 }
@@ -133,7 +130,7 @@ function EventDetailDrawer({ event, open, onOpenChange, onEdit, onDelete, onDele
         <SheetContent className="sm:max-w-md">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
-              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${cfg.bg}`}>{cfg.icon}{cfg.label}</span>
+              <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium" style={{ backgroundColor: withAlpha(eventBaseColor(event.type, event.title), "1f"), borderColor: withAlpha(eventBaseColor(event.type, event.title), "59"), color: eventBaseColor(event.type, event.title) }}>{cfg.icon}{cfg.label}</span>
               <StateBadge state={event.state} />
               {isRecurring && <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0"><Repeat className="h-3 w-3" />Recurring</Badge>}
               {alreadyRegistered && <span className="inline-flex items-center gap-0.5 rounded-full bg-muted border border-border px-1.5 py-0.5 text-[10px] font-medium text-foreground dark:text-foreground"><CheckCircle2 className="h-3 w-3" />Registered</span>}
@@ -461,19 +458,19 @@ function DayView({ currentDate, events, onSelectEvent, showPlayerLabel, register
               <div className="flex shrink-0 flex-col items-center pt-0.5">
                 <span className="text-sm font-semibold text-foreground">{format(start, "h:mm")}</span>
                 <span className="text-[10px] text-muted-foreground">{format(start, "a")}</span>
-                <div className={`mt-1.5 h-8 w-0.5 rounded-full ${showPlayerLabel && event.playerId ? getPlayerColor(event.playerId).dot : cfg.dot}`} />
+                <div className="mt-1.5 h-8 w-0.5 rounded-full" style={{ backgroundColor: showPlayerLabel && event.playerId ? entityColor(event.playerId) : eventBaseColor(event.type, event.title) }} />
                 <span className="mt-1.5 text-[10px] text-muted-foreground">{format(end, "h:mm a")}</span>
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${cfg.bg}`}>{cfg.icon}{cfg.label}</span>
+                  <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: withAlpha(eventBaseColor(event.type, event.title), "1f"), borderColor: withAlpha(eventBaseColor(event.type, event.title), "59"), color: eventBaseColor(event.type, event.title) }}>{cfg.icon}{cfg.label}</span>
                    <StateBadge state={event.state} />
                    {registeredIntlIds?.has(event.id) && <span className="inline-flex items-center gap-0.5 rounded-full bg-muted border border-border px-1.5 py-0.5 text-[10px] font-medium text-foreground dark:text-foreground"><CheckCircle2 className="h-3 w-3" />Registered</span>}
                 </div>
                 <h4 className="mt-1 text-sm font-semibold text-foreground">{event.title}</h4>
                 {showPlayerLabel && event.playerName && event.playerId && (
                   <p className="mt-0.5 text-xs flex items-center gap-1">
-                    <span className={`inline-block h-2 w-2 rounded-full ${getPlayerColor(event.playerId).dot}`} />
+                    <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: entityColor(event.playerId) }} />
                     <span className="text-muted-foreground">{event.playerName}</span>
                   </p>
                 )}
@@ -492,9 +489,14 @@ function DayView({ currentDate, events, onSelectEvent, showPlayerLabel, register
 
 function FilterChip({ type, active, onToggle }: { type: CalendarEventType; active: boolean; onToggle: () => void }) {
   const cfg = EVENT_CONFIG[type];
+  const color = EVENT_TYPE_COLOR[type];
   return (
-    <button onClick={onToggle} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${active ? cfg.bg : "border-border bg-muted/50 text-muted-foreground opacity-50 hover:opacity-75"}`}>
-      <span className={`h-2 w-2 rounded-full ${cfg.dot}`} />{cfg.label}
+    <button
+      onClick={onToggle}
+      style={active ? { backgroundColor: withAlpha(color, "1f"), borderColor: withAlpha(color, "59"), color } : undefined}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${active ? "" : "border-border bg-muted/50 text-muted-foreground opacity-50 hover:opacity-75"}`}
+    >
+      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />{cfg.label}
     </button>
   );
 }
@@ -618,7 +620,7 @@ function MiniCalendarSidebar({ currentDate, events, onSelectDate, onMonthChange 
                   onClick={() => { onSelectDate(start); onMonthChange(start); }}
                   className="flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition-colors hover:bg-accent/30"
                 >
-                  <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${cfg.dot}`} />
+                  <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: eventBaseColor(event.type, event.title) }} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium text-foreground">{event.title}</p>
                     <p className="text-[10px] text-muted-foreground">{format(start, "EEE, MMM d · h:mm a")}</p>
@@ -630,24 +632,51 @@ function MiniCalendarSidebar({ currentDate, events, onSelectDate, onMonthChange 
         </div>
       )}
 
-      {/* Event type legend */}
-      <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Legend</h3>
-        <div className="space-y-1.5">
-          {EVENT_TYPES.map((type) => {
-            const cfg = EVENT_CONFIG[type];
-            const count = events.filter((e) => e.type === type).length;
-            return (
-              <div key={type} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-2 text-foreground">
-                  <span className={`h-2 w-2 rounded-full ${cfg.dot}`} />
-                  {cfg.label}
-                </span>
-                <span className="font-medium text-muted-foreground">{count}</span>
-              </div>
-            );
-          })}
+      {/* Colour legend */}
+      <div className="space-y-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+        <div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Event types</h3>
+          <div className="space-y-1.5">
+            {EVENT_TYPES.map((type) => {
+              const count = events.filter((e) => e.type === type).length;
+              return (
+                <div key={type} className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-2 text-foreground">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLOR[type] }} />
+                    {EVENT_CONFIG[type].label}
+                  </span>
+                  <span className="font-medium text-muted-foreground">{count}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
+        <div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Federations</h3>
+          <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+            {/* Lists CIRCUITS, matching the filter chips: keying this off
+                FEDERATION_COLOR omitted "ITF Junior" even though it is
+                filterable and labels its own chips. */}
+            {ALL_CIRCUITS.map((f) => (
+              <span key={f} className="flex items-center gap-1.5 text-xs text-foreground">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: CIRCUIT_COLOR[f] }} />
+                {f}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</h3>
+          <div className="space-y-1 text-[11px] text-muted-foreground">
+            <p><span className="text-foreground">Confirmed</span> — solid</p>
+            <p><span className="text-foreground">Tentative / Requested</span> — dashed outline</p>
+            <p><span className="text-foreground">Completed</span> — dimmed</p>
+            <p><span className="text-foreground">Cancelled</span> — dashed &amp; struck through</p>
+          </div>
+        </div>
+        <p className="border-t border-border pt-2 text-[11px] text-muted-foreground">
+          Tournaments are coloured by federation; the left bar &amp; dot show the player/team.
+        </p>
       </div>
     </div>
   );
@@ -796,10 +825,10 @@ export default function CalendarPage() {
     const myEvents = events.filter((e) => {
       if (!activeFilters.has(e.type)) return false;
 
-      if (isPlayer) return !e.playerId || e.playerId === user?.id || e.playerId === "p1";
+      if (isPlayer) return !e.playerId || e.playerId === user?.id;
 
       if (isCoach) {
-        const isOwnEvent = !e.playerId && (e.createdBy === user?.id || e.createdBy === "c1");
+        const isOwnEvent = !e.playerId && e.createdBy === user?.id;
         const isConnectedPlayerEvent = e.playerId ? connectedIds.has(e.playerId) : false;
         if (!(isOwnEvent || isConnectedPlayerEvent)) return false;
         if (playerScope === "mine") return !e.playerId;
@@ -1027,6 +1056,7 @@ export default function CalendarPage() {
               label={f}
               active={activeFederations.has(f)}
               onClick={() => toggleFederation(f)}
+              icon={<span className="h-2 w-2 rounded-full" style={{ backgroundColor: CIRCUIT_COLOR[f] }} />}
             />
           ))}
           <Button
@@ -1053,6 +1083,7 @@ export default function CalendarPage() {
               key={p.id}
               label={`${p.firstName} ${p.lastName}`}
               active={playerScope === p.id}
+              icon={<span className="h-2 w-2 rounded-full" style={{ backgroundColor: entityColor(p.id) }} />}
               onClick={() => {
                 setPlayerScope(p.id);
                 if (playerScope === p.id) handleViewPlayerDetail(p);
@@ -1075,9 +1106,9 @@ export default function CalendarPage() {
             </TabsList>
           </Tabs>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" className="h-8 w-8" aria-label={`Previous ${view}`} onClick={() => navigate(-1)}><ChevronLeft className="h-4 w-4" /></Button>
             <span className="min-w-[200px] text-center text-sm font-semibold text-foreground">{heading}</span>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate(1)}><ChevronRight className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" className="h-8 w-8" aria-label={`Next ${view}`} onClick={() => navigate(1)}><ChevronRight className="h-4 w-4" /></Button>
           </div>
           <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setCurrentDate(new Date())}>Today</Button>
         </div>
@@ -1086,10 +1117,9 @@ export default function CalendarPage() {
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-[11px] font-medium text-muted-foreground">Players:</span>
             {connectedPlayers.map((p) => {
-              const pc = getPlayerColor(p.id);
               return (
                 <span key={p.id} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground">
-                  <span className={`h-2.5 w-2.5 rounded-full ${pc.dot}`} />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entityColor(p.id) }} />
                   {p.firstName} {p.lastName}
                 </span>
               );

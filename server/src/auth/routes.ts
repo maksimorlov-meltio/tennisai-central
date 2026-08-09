@@ -5,19 +5,35 @@ import { z } from "zod";
 import type { User } from "@prisma/client";
 import { prisma } from "../db";
 import { env } from "../env";
-import { signToken, signPurposeToken, verifyPurposeToken } from "./jwt";
-import { sendWelcomeEmail, sendVerificationEmail } from "../email/mailer";
+import { signToken, signPurposeToken, verifyPurposeToken, signResetToken, verifyResetToken } from "./jwt";
+import { sendWelcomeEmail, sendVerificationEmail, sendPasswordResetEmail } from "../email/mailer";
 import { publicIdFor } from "../lib/publicId";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
+import { PUBLIC_SIGNUP_ROLES } from "../authz";
 
 const VERIFY_PURPOSE = "verify_email";
 const VERIFY_TTL = "1d";
 
 /** Build the front-end verification link a user clicks from their email. */
-function verifyUrlFor(userId: string): string {
+/** Exported so the profile router can re-send verification on an email change. */
+export function verifyUrlFor(userId: string): string {
   const token = signPurposeToken(userId, VERIFY_PURPOSE, VERIFY_TTL);
   return `${env.appUrl}/verify-email?token=${encodeURIComponent(token)}`;
 }
+
+/** Build the front-end password-reset link a user clicks from their email. */
+function resetUrlFor(userId: string): string {
+  return `${env.appUrl}/reset-password?token=${encodeURIComponent(signResetToken(userId))}`;
+}
+
+/**
+ * The ONLY response /forgot-password ever gives — identical for a registered and
+ * an unregistered address, so the endpoint cannot be used to enumerate accounts.
+ */
+const RESET_REQUESTED_MESSAGE = "If that email is registered, a reset link is on its way.";
+
+/** One uniform failure for every bad-token case (unknown, expired, already used). */
+const RESET_INVALID_MESSAGE = "This password reset link is invalid or has expired. Please request a new one.";
 
 export const authRouter = Router();
 
@@ -28,7 +44,20 @@ const signupSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  role: z.enum(["player", "coach", "observer", "admin"]),
+  // SECURITY: public signup may NOT self-assign "admin" (academy administrator).
+  // Admin accounts are provisioned by invite/seed only. See PUBLIC_SIGNUP_ROLES.
+  role: z.enum(PUBLIC_SIGNUP_ROLES),
+  // ADULTS-ONLY trial: both consents are mandatory and must be exactly `true`.
+  // (The 16+ minimum-age wording is presented on the client.) A missing or
+  // false value fails validation → 400.
+  ageConfirmed: z
+    .boolean()
+    .refine((v) => v === true, { message: "You must confirm you meet the minimum age to sign up." }),
+  termsAccepted: z
+    .boolean()
+    .refine((v) => v === true, { message: "You must accept the Terms of Service and Privacy Policy." }),
+  // Private-trial access gate — only checked when SIGNUP_INVITE_CODE is configured.
+  inviteCode: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -47,12 +76,25 @@ authRouter.post(
   "/signup",
   asyncHandler(async (req, res) => {
     const data = signupSchema.parse(req.body);
+
+    // Private-trial access gate: when an invite code is configured, registration
+    // requires it. Unset (local dev / tests) leaves signup open. A wrong/missing
+    // code is rejected before any account work happens.
+    if (env.signupInviteCode && data.inviteCode?.trim() !== env.signupInviteCode) {
+      throw new HttpError(403, "This is a private trial — a valid invite code is required to sign up.");
+    }
+
     const email = data.email.trim().toLowerCase();
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) throw new HttpError(409, "Email already registered");
 
+    // When email verification is disabled (local no-email test), accounts are
+    // created pre-verified so they are immediately usable. Secure default: false.
+    const autoVerified = !env.requireEmailVerification;
+
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_COST);
+    const now = new Date();
     const user = await prisma.user.create({
       data: {
         email,
@@ -61,17 +103,25 @@ authRouter.post(
         role: data.role,
         firstName: data.firstName,
         lastName: data.lastName,
+        emailVerified: autoVerified,
+        // Record the consents captured at signup (adults-only trial + ToS).
+        termsAcceptedAt: now,
+        ageConfirmedAt: now,
       },
     });
 
-    // Send the verification link. Fire-and-forget: a failed/queued email must
-    // never block account creation. The welcome email follows once verified.
-    void sendVerificationEmail(email, user.firstName, verifyUrlFor(user.id));
+    // Send the verification link only when verification is required. Fire-and-forget:
+    // a failed/queued email must never block account creation.
+    if (!autoVerified) {
+      void sendVerificationEmail(email, user.firstName, verifyUrlFor(user.id));
+    }
 
     return ok(
       res,
       { user: publicUser(user) },
-      "Account created! Check your email for a verification link to activate your account.",
+      autoVerified
+        ? "Account created! You can log in now."
+        : "Account created! Check your email for a verification link to activate your account.",
       201,
     );
   }),
@@ -91,8 +141,9 @@ authRouter.post(
       throw new HttpError(401, "Invalid email or password");
     }
 
-    // Require a verified email before issuing a session.
-    if (!user.emailVerified) {
+    // Require a verified email before issuing a session (unless verification is
+    // disabled for a local no-email test — see REQUIRE_EMAIL_VERIFICATION).
+    if (env.requireEmailVerification && !user.emailVerified) {
       throw new HttpError(403, "Please verify your email first — check your inbox for the verification link.");
     }
 
@@ -150,5 +201,71 @@ authRouter.post(
       }
     }
     return ok(res, null, "If an unverified account exists for that email, a new verification link is on its way.");
+  }),
+);
+
+// POST /api/auth/forgot-password — request a reset link.
+//
+// SECURITY (no user enumeration): the response is byte-identical whether or not
+// the address belongs to an account — even when the body fails validation. The
+// only observable difference is whether an email gets sent. Same idiom as
+// /resend-verification above.
+authRouter.post(
+  "/forgot-password",
+  asyncHandler(async (req, res) => {
+    const parsed = z.object({ email: z.string().email() }).safeParse(req.body);
+    if (parsed.success) {
+      const email = parsed.data.email.trim().toLowerCase();
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (user) {
+        // Fire-and-forget: a slow or failing mail provider must not change the
+        // response (nor its timing profile enough to leak account existence).
+        void sendPasswordResetEmail(email, user.firstName, resetUrlFor(user.id));
+      }
+    }
+    // The token is NEVER returned to the caller — it only travels by email.
+    return ok(res, null, RESET_REQUESTED_MESSAGE);
+  }),
+);
+
+// POST /api/auth/reset-password — consume a reset link and set a new password.
+authRouter.post(
+  "/reset-password",
+  asyncHandler(async (req, res) => {
+    const parsed = z
+      .object({
+        token: z.string().min(1, RESET_INVALID_MESSAGE),
+        password: z.string().min(8, "Password must be at least 8 characters"),
+      })
+      .safeParse(req.body);
+    // Surface the field message (never the submitted value) so the reset form can
+    // show something useful.
+    if (!parsed.success) {
+      throw new HttpError(400, parsed.error.issues[0]?.message ?? "Invalid request data");
+    }
+
+    const claims = verifyResetToken(parsed.data.token);
+    if (!claims) throw new HttpError(400, RESET_INVALID_MESSAGE);
+
+    const user = await prisma.user.findUnique({ where: { id: claims.userId } });
+    if (!user) throw new HttpError(400, RESET_INVALID_MESSAGE);
+
+    // SINGLE USE: any token minted before the last password change is dead, so a
+    // link cannot be replayed (and older outstanding links are invalidated too).
+    // Both sides are compared in whole seconds because a JWT `iat` is truncated
+    // to seconds — comparing against millisecond precision would reject a token
+    // issued in the same second as a previous change.
+    if (user.passwordChangedAt) {
+      const changedAtSeconds = Math.floor(user.passwordChangedAt.getTime() / 1000);
+      if (claims.issuedAtSeconds < changedAtSeconds) throw new HttpError(400, RESET_INVALID_MESSAGE);
+    }
+
+    const passwordHash = await bcrypt.hash(parsed.data.password, BCRYPT_COST);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, passwordChangedAt: new Date() },
+    });
+
+    return ok(res, null, "Your password has been updated. You can sign in with it now.");
   }),
 );

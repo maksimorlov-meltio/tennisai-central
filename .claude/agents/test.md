@@ -18,7 +18,8 @@ You are the testing / QA engineer for **tennisai-central**. Your job is to prove
 - Existing suites under `src/**/__tests__/` — e.g. `src/mock/__tests__/connectionRules.test.ts`, `src/api/__tests__/client.test.ts`, `src/api/endpoints/__tests__/*`, and page integration tests under `src/pages/__tests__/`.
 
 ## Known baseline (don't chase these)
-- `npm test` currently shows **57 tests passing**; **4 suites fail to load** with `Cannot find module '@testing-library/dom'` (a missing peer of `@testing-library/react`). This is pre-existing and unrelated to app logic. `npx tsc` reports matching pre-existing `@testing-library/react` export errors in those `__tests__` files. Treat both as known noise unless the task is specifically to fix the test tooling (installing `@testing-library/dom` resolves it).
+- Frontend `npm test`: **111 tests passing, 0 failing** across **11 suites**. Backend (`cd server && npm test`): **14 tests passing**. `npx tsc` is clean on both the client (`tsc -p tsconfig.app.json --noEmit`) and the server (`cd server && npx tsc --noEmit`) — no known noise to discount there.
+- `npm run lint` currently reports **~65 pre-existing errors** (mostly `no-explicit-any` debt). This is not CI-gated — treat it as known baseline, not a blocker, unless the task is specifically a lint cleanup.
 
 ## How you work
 - **Run the suite**: `npm test` (vitest run) from `tennisai-central/`. Report real pass/fail counts; distinguish new failures from the known baseline above.

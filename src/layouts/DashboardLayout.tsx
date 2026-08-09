@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { RoleBadge, ReadOnlyBadge } from "@/components/ui/shared";
 import {
@@ -11,23 +12,25 @@ import {
   Wallet,
   Package,
   Bell,
-  Settings,
   Brain,
   LogOut,
   Shield,
   Dumbbell,
+  Sparkles,
   User,
   Link2,
   AlertTriangle,
   BarChart3,
+  ClipboardList,
+  ListChecks,
   Menu,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { UserRole } from "@/types";
-import { useState, useMemo } from "react";
-import { useTrainings } from "@/hooks/api/queries";
+import { useState, useMemo, useEffect } from "react";
+import { useNotifications, useTrainings } from "@/hooks/api/queries";
 import { isBefore } from "date-fns";
 import { t, formatBadgeCount } from "@/lib/i18n";
 
@@ -49,6 +52,7 @@ const navItems: NavItem[] = [
   // Player nav
   { to: "/calendar", labelKey: "dashboard.nav.calendar", icon: <Calendar className="h-4 w-4" />, roles: ["player", "coach", "observer"] },
   { to: "/tournaments", labelKey: "dashboard.nav.tournaments", icon: <Trophy className="h-4 w-4" />, roles: ["player", "coach", "observer", "admin"] },
+  { to: "/matches", labelKey: "dashboard.nav.matches", icon: <ClipboardList className="h-4 w-4" />, roles: ["player"] },
   { to: "/stats", labelKey: "dashboard.nav.stats", icon: <BarChart3 className="h-4 w-4" />, roles: ["player"] },
   { to: "/equipment", labelKey: "dashboard.nav.equipment", icon: <Package className="h-4 w-4" />, roles: ["player"] },
   { to: "/finance", labelKey: "dashboard.nav.finance", icon: <Wallet className="h-4 w-4" />, roles: ["player", "observer"] },
@@ -57,10 +61,14 @@ const navItems: NavItem[] = [
   { to: "/players", labelKey: "dashboard.nav.players", icon: <Users className="h-4 w-4" />, roles: ["coach"] },
   { to: "/teams", labelKey: "dashboard.nav.teams", icon: <Shield className="h-4 w-4" />, roles: ["coach"] },
   { to: "/trainings", labelKey: "dashboard.nav.trainings", icon: <Dumbbell className="h-4 w-4" />, roles: ["coach", "player"] },
-  { to: "/training-requests", labelKey: "dashboard.nav.trainingRequests", icon: <UserPlus className="h-4 w-4" />, roles: ["coach"] },
+  { to: "/training-plans", labelKey: "dashboard.nav.trainingPlans", icon: <ListChecks className="h-4 w-4" />, roles: ["coach", "player"] },
+  { to: "/session-builder", labelKey: "dashboard.nav.sessionBuilder", icon: <Sparkles className="h-4 w-4" />, roles: ["coach"] },
+  // The player side of training requests exists too — without the role here it
+  // was reachable only by typing the URL.
+  { to: "/training-requests", labelKey: "dashboard.nav.trainingRequests", icon: <UserPlus className="h-4 w-4" />, roles: ["coach", "player"] },
 
-  // Shared
-  { to: "/connections", labelKey: "dashboard.nav.connections", icon: <Link2 className="h-4 w-4" />, roles: ["player", "observer"] },
+  // Shared — a coach lives in Connections (that's how players get attached).
+  { to: "/connections", labelKey: "dashboard.nav.connections", icon: <Link2 className="h-4 w-4" />, roles: ["player", "coach", "observer"] },
   { to: "/ai-insights", labelKey: "dashboard.nav.aiInsights", icon: <Brain className="h-4 w-4" />, roles: ["player", "coach"] },
   { to: "/notifications", labelKey: "dashboard.nav.notifications", icon: <Bell className="h-4 w-4" />, roles: ["player", "coach", "observer", "admin"] },
 
@@ -69,14 +77,21 @@ const navItems: NavItem[] = [
   { to: "/admin/relationships", labelKey: "dashboard.nav.adminRelationships", icon: <Link2 className="h-4 w-4" />, roles: ["admin"] },
   { to: "/admin/alerts", labelKey: "dashboard.nav.adminAlerts", icon: <AlertTriangle className="h-4 w-4" />, roles: ["admin"] },
 
-  // Settings for all
-  { to: "/settings", labelKey: "dashboard.nav.settings", icon: <Settings className="h-4 w-4" />, roles: ["player", "coach", "observer", "admin"] },
+  // No Settings entry: the page is a stub for every role. The settings that do
+  // exist live where they are used — account details in Profile, alert
+  // preferences in Notifications, theme in the switch below.
 ];
 
 export function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+
+  // Auto-open the first-run onboarding questionnaire for accounts that haven't done it.
+  useEffect(() => {
+    if (user && !user.onboardingCompletedAt) setOnboardingOpen(true);
+  }, [user]);
   const role = user?.role ?? "player";
   const isObserver = role === "observer";
 
@@ -86,6 +101,14 @@ export function DashboardLayout() {
     const now = new Date();
     return trainings.filter((t) => isBefore(new Date(t.endDate), now) && !t.review).length;
   }, [trainings, role]);
+
+  // Same badge treatment as unreviewed trainings, so an unread alert is
+  // visible from anywhere in the app.
+  const { data: notifications = [] } = useNotifications(user?.id ?? "");
+  const unreadNotificationCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications]
+  );
 
   const visibleItems = navItems.filter((item) => item.roles.includes(role));
 
@@ -121,10 +144,18 @@ export function DashboardLayout() {
             <span className="flex-1">{t(item.labelKey)}</span>
             {item.to === "/trainings" && unreviewedCount > 0 && (
               <span
-                className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground"
+                className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground"
                 aria-label={t("nav.trainings.unreviewedAria", { count: unreviewedCount })}
               >
                 {t("nav.trainings.unreviewedBadge", { count: formatBadgeCount(unreviewedCount) })}
+              </span>
+            )}
+            {item.to === "/notifications" && unreadNotificationCount > 0 && (
+              <span
+                className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground"
+                aria-label={t("nav.notifications.unreadAria", { count: unreadNotificationCount })}
+              >
+                {t("nav.notifications.unreadBadge", { count: formatBadgeCount(unreadNotificationCount) })}
               </span>
             )}
           </NavLink>
@@ -150,6 +181,9 @@ export function DashboardLayout() {
 
   return (
     <div className="flex min-h-screen bg-background">
+      {/* First-run, role-based onboarding questionnaire (empty new accounts). */}
+      {user && <OnboardingDialog user={user} open={onboardingOpen} onOpenChange={setOnboardingOpen} />}
+
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card md:flex">
         {sidebarContent}

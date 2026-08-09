@@ -141,7 +141,7 @@ function getUpgradeSuggestions(items: EquipmentItem[]): { category: EquipmentCat
 
 export default function EquipmentPage() {
   const { user } = useAuth();
-  const playerId = user?.id ?? "p1";
+  const playerId = user?.id ?? "";
   const { data: items = [], isLoading, error } = useEquipment(playerId);
   const createMut = useCreateEquipment();
   const deleteMut = useDeleteEquipment();
@@ -184,6 +184,7 @@ export default function EquipmentPage() {
     setAddOpen(true);
   };
 
+  if (!user) return <LoadingState message="Loading…" />;
   if (isLoading) return <LoadingState message="Loading equipment…" />;
   if (error) return <ErrorState message="Failed to load equipment" onRetry={() => window.location.reload()} />;
 
@@ -285,7 +286,7 @@ export default function EquipmentPage() {
                                 {item.notes && <span className="text-muted-foreground/60">— {item.notes}</span>}
                               </div>
                             </div>
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 shrink-0" onClick={() => deleteMut.mutate({ id: item.id, playerId })}>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 shrink-0" aria-label={`Delete ${item.name}`} onClick={() => deleteMut.mutate({ id: item.id, playerId })}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>

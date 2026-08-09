@@ -57,12 +57,18 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        "emerald-deep": "hsl(var(--emerald-deep))",
-        "emerald-mid": "hsl(var(--emerald-mid))",
-        gold: "hsl(var(--gold))",
-        cream: "hsl(var(--cream))",
       },
+      // The whole radius scale maps to the --radius token (0 in the current
+      // theme). xl/2xl/3xl are remapped too — without them Tailwind's literal
+      // 12/16/24px values leak through wherever a component uses `rounded-xl`,
+      // which is how the app ended up with rounded cards next to square ones.
+      // `rounded-full` / `rounded-none` are intentionally not overridden, so
+      // avatars, pills and badges keep their shape.
       borderRadius: {
+        DEFAULT: "var(--radius)",
+        "3xl": "var(--radius)",
+        "2xl": "var(--radius)",
+        xl: "var(--radius)",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",

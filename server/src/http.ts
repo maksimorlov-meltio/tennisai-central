@@ -57,6 +57,9 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   }
 
   // Unexpected — log the real error server-side, never leak internals to the client.
+  // Raw detail is exposed ONLY in local development; test and production get a
+  // generic message so stack/DB internals never reach a real client.
   console.error("[error]", err);
-  return res.status(500).json({ message: env.isProd ? "Internal server error" : String(err) });
+  const message = env.nodeEnv === "development" ? String(err) : "Internal server error";
+  return res.status(500).json({ message });
 }

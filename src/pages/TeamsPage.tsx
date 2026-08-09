@@ -26,7 +26,7 @@ function TeamCard({ team, onSelect, onRename, onDelete }: {
   team: Team; onSelect: () => void; onRename: () => void; onDelete: () => void;
 }) {
   return (
-    <div className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
+    <div className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/20 hover:bg-accent/20">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><Users className="h-5 w-5" /></div>
