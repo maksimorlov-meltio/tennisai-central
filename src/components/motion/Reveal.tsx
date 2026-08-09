@@ -26,6 +26,10 @@ export function Reveal({
   return (
     <Tag
       ref={ref as never}
+      // Marks this as reveal-managed so print styles can force it visible —
+      // a section that hasn't been scrolled to yet would otherwise come out
+      // blank on paper or in "Save as PDF".
+      data-reveal=""
       style={{ transitionDelay: `${delay}ms` }}
       className={cn(
         "transition-[opacity,transform] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",

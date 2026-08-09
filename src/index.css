@@ -183,6 +183,17 @@
       scroll-behavior: auto !important;
     }
   }
+
+  /* Scroll-revealed content starts at opacity 0 and is only shown once it
+     enters the viewport. On paper there is no viewport and no scrolling, so
+     any section the reader hadn't reached would print as a blank block —
+     force everything visible instead. */
+  @media print {
+    [data-reveal] {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  }
 }
 
 @layer utilities {
