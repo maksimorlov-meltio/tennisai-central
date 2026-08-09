@@ -3,7 +3,30 @@
 Player/coach tennis platform: a React + Vite frontend and an Express + Prisma
 API, backed by **PostgreSQL**.
 
-## Quick start
+## Quick start (Windows, one click)
+
+Double-click **`Start-TennisAI.bat`** in the project root. It starts Postgres, the
+API and the website, waits for each to be genuinely ready, and opens
+<http://localhost:5180>. **`Stop-TennisAI.bat`** shuts it all down again.
+
+**Accounts you create through the sign-up page are permanent.** They live in a
+Postgres data directory outside the repo — `D:\SQL\data\tennisai` by default —
+so you can stop, restart, or reboot and log straight back in. Nothing is stored
+in a temp folder.
+
+| | |
+|---|---|
+| Sign up | <http://localhost:5180/signup> — creates a real, saved account |
+| Database files | `D:\SQL\data\tennisai` (override: `TENNISAI_PGDATA`) |
+| Postgres binaries | `D:\SQL\bin` (override: `TENNISAI_PGBIN`) |
+| Logs | `.local-logs/` (postgres, api, web, migrate) |
+
+The launcher applies pending migrations on every boot but deliberately does
+**not** re-seed: seeding upserts the demo accounts and would overwrite changes
+you made yourself (a password, for instance). Restore demo data on purpose with
+`cd server && npm run prisma:seed`.
+
+## Quick start (manual / non-Windows)
 
 This is a **two-server app** — both need to be running, in separate terminals:
 
