@@ -14,6 +14,17 @@ const INSECURE_JWT_DEFAULTS = new Set([
 
 const isProd = process.env.NODE_ENV === "production";
 
+/**
+ * Treats a blank value as "not set".
+ *
+ * .env.example ships these keys as `AI_PROVIDER=""` so they are discoverable.
+ * Without this, copying the example to .env would hand zod an empty string,
+ * fail the enum, and refuse to boot — a copied example must never brick the
+ * server.
+ */
+const blankAsUnset = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), schema);
+
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
@@ -45,6 +56,14 @@ const schema = z.object({
   VAPID_PUBLIC_KEY: z.string().min(1).optional(),
   VAPID_PRIVATE_KEY: z.string().min(1).optional(),
   VAPID_SUBJECT: z.string().min(1).optional(),
+  // Optional LLM provider, used only by the training-advice feature (src/ai/).
+  // BOTH AI_PROVIDER and AI_API_KEY must be set to switch it on; anything less
+  // counts as OFF and the endpoint reports itself unavailable rather than
+  // inventing advice. AI_API_KEY is a server-side SECRET — it is never
+  // returned by any endpoint and never reaches the browser.
+  AI_PROVIDER: blankAsUnset(z.enum(["anthropic", "openai"]).optional()),
+  AI_API_KEY: blankAsUnset(z.string().min(1).optional()),
+  AI_MODEL: blankAsUnset(z.string().min(1).optional()),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -93,6 +112,10 @@ export const env = {
   vapidPublicKey: e.VAPID_PUBLIC_KEY,
   vapidPrivateKey: e.VAPID_PRIVATE_KEY,
   vapidSubject: e.VAPID_SUBJECT,
+  // Optional LLM config (undefined = training advice disabled). Server-side only.
+  aiProvider: e.AI_PROVIDER,
+  aiApiKey: e.AI_API_KEY,
+  aiModel: e.AI_MODEL,
 };
 
 // Guard: disabling email verification in production is almost never intended.

@@ -68,6 +68,8 @@ const DELEGATES = [
   "coachAssignment",
   "guardianship",
   "academyMembership",
+  "aiGeneration",
+  "aiUsageCounter",
 ] as const;
 
 export type MockDelegate = Record<(typeof DELEGATE_METHODS)[number], MockFn>;

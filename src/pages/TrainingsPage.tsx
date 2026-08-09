@@ -23,6 +23,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TrainingReviewDialog } from "@/components/training/TrainingReviewDialog";
 import { PlayerFeedbackDialog } from "@/components/training/PlayerFeedbackDialog";
 import { DiscardChangesDialog } from "@/components/training/DiscardChangesDialog";
+import { TrainingAdvicePanel } from "@/components/training/TrainingAdvicePanel";
+import type { AdviceSession } from "@/api/endpoints/aiAdvice";
 import type { TrainingSession, TrainingType, ConnectedPlayer, PlayerSessionFeedback } from "@/types";
 import { useAuth } from "@/auth/AuthContext";
 import { useTrainings, useCreateTraining, useUpdateTraining, useDeleteTraining, useTeams, useAnalyzeTraining } from "@/hooks/api/queries";
@@ -119,6 +121,33 @@ function TrainingFormDialog({
     if (team) { update("teamId", teamId); update("playerIds", team.players.map((p) => p.id)); }
   };
 
+  /**
+   * Fills the form from a suggestion. Deliberately additive and overwritable:
+   * the coach's own start time is kept (only the end is derived from the
+   * suggested duration) and drills are appended to any notes already typed, so
+   * accepting a suggestion can never quietly discard their work.
+   */
+  const applyAdvice = (s: AdviceSession) => {
+    setForm((prev) => {
+      const next: TrainingFormData = {
+        ...prev,
+        title: s.title,
+        goal: s.goal,
+        trainingType: s.trainingType,
+        intensity: s.intensity,
+      };
+      const start = prev.startDate ? new Date(prev.startDate) : null;
+      if (start && !Number.isNaN(start.getTime())) {
+        next.endDate = format(new Date(start.getTime() + s.durationMinutes * 60_000), "yyyy-MM-dd'T'HH:mm");
+      }
+      if (s.drills.length) {
+        const block = s.drills.map((d) => `• ${d}`).join("\n");
+        next.notes = prev.notes ? `${prev.notes}\n${block}` : block;
+      }
+      return next;
+    });
+  };
+
   const valid = form.title.trim() && form.startDate && form.endDate;
 
   // Only close once the mutation has actually succeeded — a failed save must
@@ -206,6 +235,11 @@ function TrainingFormDialog({
               </div>
             )}
           </div>
+          <TrainingAdvicePanel
+            playerIds={form.playerIds}
+            teamId={form.teamId}
+            onApply={applyAdvice}
+          />
           <div className="space-y-1.5"><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} placeholder="Visible to players" rows={2} /></div>
           <div className="space-y-1.5"><Label>Coach Notes <span className="text-muted-foreground">(private)</span></Label><Textarea value={form.coachNotes} onChange={(e) => update("coachNotes", e.target.value)} placeholder="Only visible to you" rows={2} /></div>
           {saveError && (
