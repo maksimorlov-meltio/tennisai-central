@@ -73,6 +73,26 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      /**
+       * Named motion tokens — deliberately NOT arbitrary values.
+       *
+       * `tailwindcss-animate` re-registers the `duration-*`, `delay-*` and
+       * `ease-*` utilities, and its registration rejects arbitrary candidates:
+       * with the plugin loaded, `duration-[600ms]` and
+       * `ease-[cubic-bezier(...)]` generate NO css rule at all — not even the
+       * core transition one. The class lands in the DOM, matches nothing, and
+       * the element silently falls back to the 150ms default from
+       * `transition-*`. Nothing warns: tsc, eslint and the build are all happy.
+       * Theme-scale names are matched by both plugins, so they always emit.
+       */
+      transitionDuration: {
+        120: "120ms",
+        600: "600ms",
+      },
+      transitionTimingFunction: {
+        /** Matte, editorial ease-out: decisive start, no bounce at the end. */
+        editorial: "cubic-bezier(0.22, 1, 0.36, 1)",
+      },
       keyframes: {
         "accordion-down": {
           from: {
@@ -109,7 +129,10 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "rise-in": "rise-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both",
-        "fade-in-soft": "fade-in-soft 0.5s ease-out both",
+        // Short on purpose. At 0.5s the page sat fully invisible for the first
+        // frames of every navigation, which reads as the app being slow rather
+        // than as polish. 0.14s is enough to soften the swap and no more.
+        "fade-in-soft": "fade-in-soft 0.14s ease-out both",
         shimmer: "shimmer 1.6s infinite",
       },
     },

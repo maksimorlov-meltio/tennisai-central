@@ -23,7 +23,7 @@ export function PlanProgressBar({
               // Grows to the new width when a drill is ticked off, so finishing
               // one visibly moves the bar instead of teleporting it.
               <div
-                className="h-full bg-primary transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+                className="h-full bg-primary transition-[width] duration-500 ease-editorial motion-reduce:transition-none"
                 style={{ width: `${(progress.done / progress.total) * 100}%` }}
               />
             )}

@@ -49,10 +49,10 @@ const Index = () => {
               className="group inline-flex items-center gap-2 text-sm font-semibold text-foreground"
             >
               {/* Underline sweeps out from the left on hover. */}
-              <span className="relative after:absolute after:-bottom-0.5 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-foreground after:transition-transform after:duration-300 after:ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:after:scale-x-100 motion-reduce:after:transition-none">
+              <span className="relative after:absolute after:-bottom-0.5 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-foreground after:transition-transform after:duration-300 after:ease-editorial group-hover:after:scale-x-100 motion-reduce:after:transition-none">
                 See how it works
               </span>
-              <ArrowRight className="h-4 w-4 text-primary transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-x-1 motion-reduce:transition-none" />
+              <ArrowRight className="h-4 w-4 text-primary transition-transform duration-300 ease-editorial group-hover:translate-x-1 motion-reduce:transition-none" />
             </a>
           </div>
         </div>
