@@ -21,7 +21,11 @@ interface MiniMonthCalendarProps {
 }
 
 /**
- * Compact month picker built for the app sidebar (≈232px of usable width).
+ * Compact month picker for the Calendar page's 260px side column.
+ *
+ * It briefly lived in the app sidebar, but with a full nav above it there was
+ * only ~79px of column left at a 720px-tall window, which cropped it to a
+ * scrolling sliver. On the page it gets its full height back.
  *
  * Hovering a day that has events opens a popup listing them, and it closes as
  * soon as the pointer leaves — days with nothing scheduled get no popup at all,
@@ -72,7 +76,7 @@ export function MiniMonthCalendar({ currentDate, events, onSelectDate, onMonthCh
   };
 
   return (
-    <div className="space-y-3 px-3 pb-3 pt-1">
+    <div className="space-y-3 rounded-xl border border-border bg-card p-3 shadow-sm">
       {/* ── Month grid ── */}
       <div>
         <div className="mb-1.5 flex items-center justify-between">

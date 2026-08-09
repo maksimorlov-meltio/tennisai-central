@@ -1,6 +1,5 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
-import { SidebarSlotProvider, SidebarSlotTarget } from "./SidebarSlot";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -163,7 +162,10 @@ export function DashboardLayout() {
           </Button>
         )}
       </div>
-      <nav className="flex flex-col gap-1 p-4">
+      {/* Scrolls rather than clipping: the sidebar column is h-screen, and on a
+          short window 12+ items would otherwise be cut off with no way to
+          reach them. min-h-0 lets a flex child actually shrink to allow it. */}
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-4">
         {visibleItems.map((item) => (
           <NavLink
             key={item.to}
@@ -200,11 +202,6 @@ export function DashboardLayout() {
           </NavLink>
         ))}
       </nav>
-
-      {/* Page-provided sidebar content (e.g. the Calendar page's mini calendar).
-          Scrolls on its own so a tall widget can never push the account footer
-          off-screen; collapses to nothing on pages that don't fill it. */}
-      {withSlot && <SidebarSlotTarget className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden" />}
 
       {/* Account menu — the avatar row IS the button. Profile used to be a nav
           item; it now lives behind this, next to the identity it belongs to. */}
@@ -252,17 +249,12 @@ export function DashboardLayout() {
   );
 
   return (
-    <SidebarSlotProvider>
     <div className="flex min-h-screen bg-background">
       {/* First-run, role-based onboarding questionnaire (empty new accounts). */}
       {user && <OnboardingDialog user={user} open={onboardingOpen} onOpenChange={setOnboardingOpen} />}
 
-      {/* Desktop sidebar */}
-      {/* h-screen + overflow-hidden bounds the column so the slot's own
-          `flex-1 overflow-y-auto` has a height to scroll within. */}
-      {/* Collapsed → not rendered at all, so the page gets the full width (and
-          the mini-calendar portal has no target, which is correct: there is
-          nowhere to show it). */}
+      {/* Desktop sidebar.
+          Collapsed → not rendered at all, so the page gets the full width. */}
       {!navCollapsed && (
         <aside className="hidden h-screen w-64 shrink-0 flex-col overflow-hidden border-r border-border bg-card md:flex">
           {renderSidebar({ withSlot: true })}
@@ -310,6 +302,5 @@ export function DashboardLayout() {
         </div>
       </main>
     </div>
-    </SidebarSlotProvider>
   );
 }

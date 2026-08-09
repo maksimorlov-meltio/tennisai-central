@@ -20,13 +20,12 @@ import { toast } from "sonner";
 import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Dumbbell, Trophy, Swords,
   Plane, Heart, MapPin, Clock, Plus, Pencil, Trash2, User, Users, Filter, StickyNote,
-  LayoutGrid, List, Columns, Repeat, Globe, CheckCircle2,
+  LayoutGrid, List, Columns, PanelLeftClose, PanelLeftOpen, Repeat, Globe, CheckCircle2,
   RefreshCw,
 } from "lucide-react";
-import { SidebarSlotPortal } from "@/layouts/SidebarSlot";
 import { MiniMonthCalendar } from "@/components/calendar/MiniMonthCalendar";
 import { MultiFilterMenu, SingleFilterMenu, ReassignDropStrip } from "@/components/calendar/CalendarFilterMenus";
-import { CalendarLegend } from "@/components/calendar/CalendarLegend";
+import { CalendarLegendPanel } from "@/components/calendar/CalendarLegend";
 import type { CalendarEvent, CalendarEventType, CalendarEventState, ConnectedPlayer, RecurrenceFrequency, RecurrenceEndType, Tournament, TournamentFederation } from "@/types";
 import { useCalendarEvents, useCreateCalendarEvent, useUpdateCalendarEvent, useDeleteCalendarEvent, useTeams, useTournaments, useAddPlayerTournament, usePlayerTournaments } from "@/hooks/api/queries";
 import { queryKeys } from "@/hooks/api/queries";
@@ -79,6 +78,11 @@ function EventChip({ event, onClick, showPlayer, compact, draggable, registered 
   const entity = showPlayer && entityId ? entityColor(entityId) : null;
   const sv = event.state ? STATE_VISUAL[event.state] : null;
   const accent = entity ?? base;
+  // In a month cell (~97px wide with the mini calendar open) the "[ITF] " /
+  // "[ATP] " prefix consumed the whole chip, leaving "[I…". Drop it in compact
+  // mode: the chip's colour already encodes the federation (see the legend),
+  // and the full untouched title is still on the `title` tooltip below.
+  const displayTitle = compact ? event.title.replace(/^\[[^\]]{1,12}\]\s*/, "") : event.title;
   return (
     <button
       draggable={draggable}
@@ -105,8 +109,11 @@ function EventChip({ event, onClick, showPlayer, compact, draggable, registered 
       className={`flex w-full items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-left text-[11px] font-medium leading-tight transition-colors hover:bg-accent/40 ${sv?.dashed ? "border-dashed" : ""} ${compact ? "py-px" : ""} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
       {entity && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: entity }} aria-hidden />}
-      {isIntl ? <Globe className="h-3.5 w-3.5 shrink-0" /> : cfg.icon}
-      <span className={`truncate ${sv?.strike ? "line-through" : ""}`}>{showPlayer && event.playerName ? <>{event.playerName.split(" ")[0]}: {event.title}</> : event.title}</span>
+      {/* Month cells are ~78-97px wide; the leading icon costs ~20px of that and
+          says nothing the chip's own colour doesn't already (see the legend).
+          Week/day chips are roomy, so they keep it. */}
+      {!compact && (isIntl ? <Globe className="h-3.5 w-3.5 shrink-0" /> : cfg.icon)}
+      <span className={`truncate ${sv?.strike ? "line-through" : ""}`}>{showPlayer && event.playerName ? <>{event.playerName.split(" ")[0]}: {displayTitle}</> : displayTitle}</span>
       {isRecurring && <Repeat className="h-2.5 w-2.5 shrink-0 opacity-60" />}
       {registered && <CheckCircle2 className="h-3 w-3 shrink-0" />}
     </button>
@@ -556,6 +563,8 @@ export default function CalendarPage() {
   // True only between an event chip's dragstart and dragend, which is when the
   // reassign drop targets are worth showing.
   const [isDraggingEvent, setIsDraggingEvent] = useState(false);
+  // The mini-calendar column; collapsing it hands its 260px + gap to the grid.
+  const [miniOpen, setMiniOpen] = useState(true);
   const [calendarSource, setCalendarSource] = useState<"all" | "mine" | "international">("all");
   // Circuit filter for international tournaments (ITF split into pro + junior).
   // Defaults to all on.
@@ -944,11 +953,6 @@ export default function CalendarPage() {
               <RefreshCw className={`h-3.5 w-3.5 ${isRefetchingTournaments ? "animate-spin" : ""}`} />
             </Button>
           )}
-
-          <CalendarLegend
-            typeItems={EVENT_TYPES.map((t) => ({ label: EVENT_CONFIG[t].label, color: EVENT_TYPE_COLOR[t], count: eventCounts[t] ?? 0 }))}
-            circuitItems={ALL_CIRCUITS.map((f) => ({ label: f, color: CIRCUIT_COLOR[f] }))}
-          />
         </div>
       </div>
 
@@ -977,33 +981,63 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* The mini calendar now lives in the app sidebar (see SidebarSlot), which
-          hands its 260px + gap back to the grid below. */}
-      <SidebarSlotPortal>
-        <MiniMonthCalendar
-          currentDate={currentDate}
-          events={scopedEvents}
-          onSelectDate={(day) => { setCurrentDate(day); setView("day"); }}
-          onMonthChange={setCurrentDate}
-        />
-      </SidebarSlotPortal>
-
-      {/* Calendar body — full width. dragstart/dragend bubble from the event
-          chips, so the drop strip can be revealed without threading callbacks
-          through all three view components. */}
+      {/* Calendar body: mini-calendar column + grid.
+          dragstart/dragend bubble from the event chips, so the reassign drop
+          strip can be revealed without threading callbacks through all three
+          view components. */}
       <div
-        className="min-w-0"
+        className="flex gap-5"
         onDragStart={(e) => {
           if ((e.target as HTMLElement)?.getAttribute?.("draggable") === "true") setIsDraggingEvent(true);
         }}
         onDragEnd={() => setIsDraggingEvent(false)}
         onDrop={() => setIsDraggingEvent(false)}
       >
-        {scopedEvents.length === 0 && view !== "day" && <EmptyState icon={<CalendarIcon className="h-6 w-6 text-muted-foreground" />} title="No events found" description="No events match your current filters." />}
+        {/* Side column. Collapses to a single button so the grid can still take
+            the full width on demand — the reason this was worth keeping on the
+            page rather than moving into the app sidebar, where a full nav left
+            it only ~79px of height. */}
+        <div className="hidden lg:flex lg:shrink-0">
+          {miniOpen ? (
+            <div className="relative w-[260px] space-y-4">
+              <button
+                onClick={() => setMiniOpen(false)}
+                className="absolute -right-3 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground"
+                title="Hide the mini calendar"
+                aria-label="Hide the mini calendar"
+              >
+                <PanelLeftClose className="h-3.5 w-3.5" />
+              </button>
+              <MiniMonthCalendar
+                currentDate={currentDate}
+                events={scopedEvents}
+                onSelectDate={(day) => { setCurrentDate(day); setView("day"); }}
+                onMonthChange={setCurrentDate}
+              />
+              <CalendarLegendPanel
+                typeItems={EVENT_TYPES.map((t) => ({ label: EVENT_CONFIG[t].label, color: EVENT_TYPE_COLOR[t], count: eventCounts[t] ?? 0 }))}
+                circuitItems={ALL_CIRCUITS.map((f) => ({ label: f, color: CIRCUIT_COLOR[f] }))}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setMiniOpen(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground"
+              title="Show the mini calendar"
+              aria-label="Show the mini calendar"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+          )}
+        </div>
 
-        {view === "month" && scopedEvents.length > 0 && <MonthlyView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} onDayClick={handleDayClick} showPlayerLabel={showPlayerLabels} onDropEvent={canEdit ? handleDropEvent : undefined} canDrag={canEdit} registeredIntlIds={registeredIntlIds} />}
-        {view === "week" && scopedEvents.length > 0 && <WeeklyView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} onDayClick={handleDayClick} showPlayerLabel={showPlayerLabels} onDropEvent={canEdit ? handleDropEvent : undefined} canDrag={canEdit} registeredIntlIds={registeredIntlIds} />}
-        {view === "day" && <DayView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} showPlayerLabel={showPlayerLabels} registeredIntlIds={registeredIntlIds} />}
+        <div className="min-w-0 flex-1">
+          {scopedEvents.length === 0 && view !== "day" && <EmptyState icon={<CalendarIcon className="h-6 w-6 text-muted-foreground" />} title="No events found" description="No events match your current filters." />}
+
+          {view === "month" && scopedEvents.length > 0 && <MonthlyView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} onDayClick={handleDayClick} showPlayerLabel={showPlayerLabels} onDropEvent={canEdit ? handleDropEvent : undefined} canDrag={canEdit} registeredIntlIds={registeredIntlIds} />}
+          {view === "week" && scopedEvents.length > 0 && <WeeklyView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} onDayClick={handleDayClick} showPlayerLabel={showPlayerLabels} onDropEvent={canEdit ? handleDropEvent : undefined} canDrag={canEdit} registeredIntlIds={registeredIntlIds} />}
+          {view === "day" && <DayView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} showPlayerLabel={showPlayerLabels} registeredIntlIds={registeredIntlIds} />}
+        </div>
       </div>
 
       {/* Drawers & dialogs */}
