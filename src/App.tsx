@@ -12,6 +12,7 @@ import { DevHmrBanner } from "@/components/DevHmrBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { BodyPointerEventsGuard } from "@/components/BodyPointerEventsGuard";
 import { LoadingState } from "@/components/ui/shared";
+import { PageSkeleton } from "@/components/ui/PageSkeleton";
 
 // ── Eager: what a cold visitor almost always needs for first paint ──────────
 // The landing page, the login screen and their two thin layouts stay in the
@@ -69,11 +70,11 @@ const TrainingPlansPage = lazy(() => import("./pages/trainingPlans/TrainingPlans
 
 /**
  * Per-route suspense boundary. Placed *inside* the layout route element so a
- * pending page chunk shows a spinner in the content area while the sidebar /
- * top bar stay mounted, instead of blanking the whole shell.
+ * pending page chunk shows its placeholder in the content area while the
+ * sidebar / top bar stay mounted, instead of blanking the whole shell.
  */
 function Page({ children }: { children: React.ReactNode }) {
-  return <Suspense fallback={<LoadingState className="py-24" />}>{children}</Suspense>;
+  return <Suspense fallback={<PageSkeleton />}>{children}</Suspense>;
 }
 
 const queryClient = new QueryClient({

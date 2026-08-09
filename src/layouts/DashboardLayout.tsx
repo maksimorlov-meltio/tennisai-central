@@ -1,4 +1,5 @@
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useAuth } from "@/auth/AuthContext";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -96,6 +97,7 @@ const navItems: NavItem[] = [
 export function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   // Collapsing the nav hands the whole width to the current page. Remembered
   // across reloads so a user who works collapsed isn't re-expanded every visit.
@@ -140,10 +142,12 @@ export function DashboardLayout() {
     navigate("/login");
   };
 
-  // `withSlot` is true for the desktop sidebar only. The mobile drawer renders
-  // this same markup, and a second slot target would fight the first over the
-  // portal's single node.
-  const renderSidebar = ({ withSlot = false }: { withSlot?: boolean } = {}) => (
+  // `withSlot` is true for the desktop sidebar only (it owns the collapse
+  // button). `slotId` scopes the active-pill layoutId per instance: the desktop
+  // sidebar and the mobile drawer render this same markup, and sharing one
+  // layoutId would make framer-motion treat the two pills as one element and
+  // animate it flying across the screen between them.
+  const renderSidebar = ({ withSlot = false, slotId = "desktop" }: { withSlot?: boolean; slotId?: string } = {}) => (
     <>
       <div className="flex h-14 items-center gap-2 border-b border-border pl-6 pr-2">
         <span className="text-lg font-bold tracking-tight text-foreground">TennisAI</span>
@@ -170,34 +174,61 @@ export function DashboardLayout() {
           <NavLink
             key={item.to}
             to={item.to}
-            end={item.to === "/dashboard"}
+            // NOT `end` for /dashboard: that path immediately redirects to a
+            // role dashboard (/dashboard/coach etc.), so an exact match meant
+            // NO nav item was ever highlighted on the page users actually land
+            // on. Prefix matching keeps Dashboard lit for /dashboard/*.
+            end={false}
             onClick={() => setMobileMenuOpen(false)}
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-primary text-primary-foreground"
+                  ? "text-primary-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )
             }
           >
-            {item.icon}
-            <span className="flex-1">{t(item.labelKey)}</span>
-            {item.to === "/trainings" && unreviewedCount > 0 && (
-              <span
-                className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground"
-                aria-label={t("nav.trainings.unreviewedAria", { count: unreviewedCount })}
-              >
-                {t("nav.trainings.unreviewedBadge", { count: formatBadgeCount(unreviewedCount) })}
-              </span>
-            )}
-            {item.to === "/notifications" && unreadNotificationCount > 0 && (
-              <span
-                className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground"
-                aria-label={t("nav.notifications.unreadAria", { count: unreadNotificationCount })}
-              >
+            {({ isActive }) => (
+              <>
+                {/* The highlight is ONE shared element that slides between items
+                    (layoutId) instead of a background blinking off one row and
+                    on at another. Sits behind the label via -z-10; the link's
+                    own background is removed so they can't double up. */}
+                {isActive && (
+                  <motion.span
+                    layoutId={`nav-active-${slotId}`}
+                    className="absolute inset-0 -z-10 rounded-md bg-primary"
+                    transition={{ type: "spring", stiffness: 520, damping: 42 }}
+                  />
+                )}
+                {item.icon}
+                <span className="flex-1">{t(item.labelKey)}</span>
+                {item.to === "/trainings" && unreviewedCount > 0 && (
+                  <span
+                    className={cn(
+                      "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                      // On the active row the pill behind it is already primary,
+                      // so a primary badge would vanish into it.
+                      isActive ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground",
+                    )}
+                    aria-label={t("nav.trainings.unreviewedAria", { count: unreviewedCount })}
+                  >
+                    {t("nav.trainings.unreviewedBadge", { count: formatBadgeCount(unreviewedCount) })}
+                  </span>
+                )}
+                {item.to === "/notifications" && unreadNotificationCount > 0 && (
+                  <span
+                    className={cn(
+                      "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                      isActive ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground",
+                    )}
+                    aria-label={t("nav.notifications.unreadAria", { count: unreadNotificationCount })}
+                  >
                 {t("nav.notifications.unreadBadge", { count: formatBadgeCount(unreadNotificationCount) })}
-              </span>
+                  </span>
+                )}
+              </>
             )}
           </NavLink>
         ))}
@@ -269,7 +300,7 @@ export function DashboardLayout() {
             <Button variant="ghost" size="icon" className="absolute right-2 top-3 z-10" onClick={() => setMobileMenuOpen(false)}>
               <X className="h-5 w-5" />
             </Button>
-            {renderSidebar()}
+            {renderSidebar({ slotId: "mobile" })}
           </aside>
         </div>
       )}
@@ -298,7 +329,12 @@ export function DashboardLayout() {
               {t("dashboard.nav.menu")}
             </Button>
           )}
-          <Outlet />
+          {/* Keyed on the path so React remounts this wrapper per route and the
+              fade replays. Opacity only — no movement, so it can't fight the
+              browser's scroll restoration or nudge content under the cursor. */}
+          <div key={location.pathname} className="animate-fade-in-soft">
+            <Outlet />
+          </div>
         </div>
       </main>
     </div>

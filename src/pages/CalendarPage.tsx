@@ -106,7 +106,10 @@ function EventChip({ event, onClick, showPlayer, compact, draggable, registered 
         color: base,
         opacity: sv?.opacity,
       }}
-      className={`flex w-full items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-left text-[11px] font-medium leading-tight transition-colors hover:bg-accent/40 ${sv?.dashed ? "border-dashed" : ""} ${compact ? "py-px" : ""} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      // `active:` gives a dragged chip a slight lift the moment it's grabbed —
+      // the drag image is a browser-rendered snapshot, so this is the only
+      // feedback that the chip itself is the thing being moved.
+      className={`flex w-full items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-left text-[11px] font-medium leading-tight transition-[colors,transform,box-shadow] duration-150 hover:bg-accent/40 ${sv?.dashed ? "border-dashed" : ""} ${compact ? "py-px" : ""} ${draggable ? "cursor-grab active:scale-[1.03] active:cursor-grabbing active:shadow-md motion-reduce:active:scale-100" : ""}`}
     >
       {entity && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: entity }} aria-hidden />}
       {/* Month cells are ~78-97px wide; the leading icon costs ~20px of that and

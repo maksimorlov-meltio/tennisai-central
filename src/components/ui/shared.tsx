@@ -5,6 +5,7 @@
 import { cn } from "@/lib/utils";
 import type { UserRole, RelationshipStatus } from "@/types";
 import { Eye, Lock, AlertTriangle, Loader2, Inbox, ShieldX } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ─── RoleBadge ───
 
@@ -122,11 +123,47 @@ export function EmptyState({ icon, title, description, children, className }: {
 
 // ─── LoadingState ───
 
-export function LoadingState({ message, className }: { message?: string; className?: string }) {
+/**
+ * Loading placeholder.
+ *
+ * Defaults to skeleton bars rather than a centred spinner: a spinner tells you
+ * nothing except "wait", while placeholders show the shape of what's coming and
+ * stop the layout jumping when it arrives. `variant="spinner"` is kept for the
+ * few places that sit inside a control too small for bars (e.g. a button).
+ */
+export function LoadingState({
+  message,
+  className,
+  variant = "skeleton",
+  rows = 3,
+}: {
+  message?: string;
+  className?: string;
+  variant?: "skeleton" | "spinner";
+  rows?: number;
+}) {
+  if (variant === "spinner") {
+    return (
+      <div className={cn("flex flex-col items-center gap-3 py-20", className)} aria-busy="true">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        {message && <p className="text-sm text-muted-foreground">{message}</p>}
+      </div>
+    );
+  }
+
   return (
-    <div className={cn("flex flex-col items-center gap-3 py-20", className)}>
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      {message && <p className="text-sm text-muted-foreground">{message}</p>}
+    <div className={cn("space-y-3 py-6", className)} aria-busy="true" aria-live="polite">
+      {/* The message stays announced even though it isn't drawn — the bars carry
+          the meaning visually. */}
+      <span className="sr-only">{message ?? "Loading…"}</span>
+      {Array.from({ length: rows }).map((_, i) => (
+        <Skeleton
+          key={i}
+          className="h-11"
+          // Slight width taper so it reads as content, not a stack of identical bars.
+          style={{ width: `${100 - i * 7}%` }}
+        />
+      ))}
     </div>
   );
 }
