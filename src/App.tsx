@@ -55,7 +55,6 @@ const ConnectionsPage = lazy(() => import("./pages/ConnectionsPage"));
 const TeamsPage = lazy(() => import("./pages/TeamsPage"));
 const FinancePage = lazy(() => import("./pages/FinancePage"));
 const EquipmentPage = lazy(() => import("./pages/EquipmentPage"));
-const AIInsightsPage = lazy(() => import("./pages/AIInsightsPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const NotificationSettingsPage = lazy(() => import("./pages/NotificationSettingsPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
@@ -167,7 +166,6 @@ const App = () => (
                 <Route path="/training-requests" element={<RouteGuard allowedRoles={["player", "coach"]} showDenied><Page><TrainingRequestsPage /></Page></RouteGuard>} />
 
                 {/* Coach + Player */}
-                <Route path="/ai-insights" element={<RouteGuard allowedRoles={["player", "coach"]} showDenied><Page><AIInsightsPage /></Page></RouteGuard>} />
 
                 {/* Admin */}
                 <Route path="/admin" element={<RouteGuard allowedRoles={["admin"]} showDenied><Page><AdminPage /></Page></RouteGuard>} />

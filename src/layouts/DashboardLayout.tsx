@@ -16,7 +16,6 @@ import {
   Wallet,
   Package,
   Bell,
-  Brain,
   LogOut,
   Shield,
   Dumbbell,
@@ -80,7 +79,6 @@ const navItems: NavItem[] = [
 
   // Shared — a coach lives in Connections (that's how players get attached).
   { to: "/connections", labelKey: "dashboard.nav.connections", icon: <Link2 className="h-4 w-4" />, roles: ["player", "coach", "observer"] },
-  { to: "/ai-insights", labelKey: "dashboard.nav.aiInsights", icon: <Brain className="h-4 w-4" />, roles: ["player", "coach"] },
   { to: "/notifications", labelKey: "dashboard.nav.notifications", icon: <Bell className="h-4 w-4" />, roles: ["player", "coach", "observer", "admin"] },
 
   // Admin nav

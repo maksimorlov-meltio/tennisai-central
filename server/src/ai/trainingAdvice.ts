@@ -245,12 +245,13 @@ export function buildUserPrompt(evidence: AdviceEvidence): string {
 // ─── Output handling ─────────────────────────────────────────────
 
 /**
- * Parses the model's reply.
+ * Parses a model reply against a schema.
  *
- * Tolerates a ```json fence because models add one even when told not to, but
- * tolerates nothing about the SHAPE — that is what the schema is for.
+ * Tolerates a ```json fence and a leading sentence, because models add them
+ * even when told not to, but tolerates nothing about the SHAPE — that is what
+ * the schema is for. Shared by every AI feature so they all fail the same way.
  */
-export function parseAdvice(raw: string): TrainingAdvice {
+export function parseModelJson<S extends z.ZodTypeAny>(raw: string, schema: S): z.infer<S> {
   let text = raw.trim();
   const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
   if (fence) text = fence[1].trim();
@@ -270,12 +271,17 @@ export function parseAdvice(raw: string): TrainingAdvice {
     throw new Error("Response was not valid JSON.");
   }
 
-  const parsed = adviceSchema.safeParse(json);
+  const parsed = schema.safeParse(json);
   if (!parsed.success) {
     const first = parsed.error.issues[0];
     throw new Error(`Response did not match the expected shape: ${first.path.join(".")} — ${first.message}`);
   }
   return parsed.data;
+}
+
+/** Training advice specifically. */
+export function parseAdvice(raw: string): TrainingAdvice {
+  return parseModelJson(raw, adviceSchema);
 }
 
 /**
