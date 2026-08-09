@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils";
 const NAV_COLLAPSED_KEY = "tennisai:navCollapsed";
 import { Button } from "@/components/ui/button";
 import type { UserRole } from "@/types";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNotifications, useTrainings } from "@/hooks/api/queries";
 import { isBefore } from "date-fns";
 import { t, formatBadgeCount } from "@/lib/i18n";
@@ -101,13 +101,29 @@ export function DashboardLayout() {
   const [navCollapsed, setNavCollapsed] = useState(
     () => typeof localStorage !== "undefined" && localStorage.getItem(NAV_COLLAPSED_KEY) === "true",
   );
-  const toggleNav = () => {
-    setNavCollapsed((prev) => {
-      const next = !prev;
-      try { localStorage.setItem(NAV_COLLAPSED_KEY, String(next)); } catch { /* private mode — collapse still works, just isn't remembered */ }
-      return next;
-    });
+  const applyNavCollapsed = (next: boolean) => {
+    setNavCollapsed(next);
+    try { localStorage.setItem(NAV_COLLAPSED_KEY, String(next)); } catch { /* private mode — collapse still works, just isn't remembered */ }
   };
+  const toggleNav = () => applyNavCollapsed(!navCollapsed);
+
+  // The nav hides itself once a destination is chosen, so the page gets the
+  // full width without anyone having to ask for it.
+  const expandButtonRef = useRef<HTMLButtonElement>(null);
+  const returnFocusToMenu = useRef(false);
+  const collapseAfterNavigation = () => {
+    if (navCollapsed) return;
+    // The sidebar unmounts entirely, so whatever had focus is about to vanish.
+    // Without this, a keyboard user is dumped on <body> with no way back.
+    returnFocusToMenu.current = true;
+    applyNavCollapsed(true);
+  };
+  useEffect(() => {
+    if (navCollapsed && returnFocusToMenu.current) {
+      returnFocusToMenu.current = false;
+      expandButtonRef.current?.focus();
+    }
+  }, [navCollapsed]);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
 
   // Auto-open the first-run onboarding questionnaire for accounts that haven't done it.
@@ -173,7 +189,13 @@ export function DashboardLayout() {
             // NO nav item was ever highlighted on the page users actually land
             // on. Prefix matching keeps Dashboard lit for /dashboard/*.
             end={false}
-            onClick={() => setMobileMenuOpen(false)}
+            // `withSlot` marks the desktop sidebar. The mobile drawer closes
+            // itself instead — collapsing there too would leave the desktop
+            // nav hidden the next time the window is wide.
+            onClick={() => {
+              setMobileMenuOpen(false);
+              if (withSlot) collapseAfterNavigation();
+            }}
             className={({ isActive }) =>
               cn(
                 // The highlight is each link's OWN background, cross-fading in
@@ -248,12 +270,14 @@ export function DashboardLayout() {
                 {user?.email}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {/* These are destinations too, so they hide the nav like any
+                  other one. */}
               {role !== "admin" && (
-                <DropdownMenuItem onSelect={() => { setMobileMenuOpen(false); navigate("/profile"); }} className="gap-2">
+                <DropdownMenuItem onSelect={() => { setMobileMenuOpen(false); navigate("/profile"); if (withSlot) collapseAfterNavigation(); }} className="gap-2">
                   <User className="h-4 w-4" /> {t("dashboard.nav.profile")}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onSelect={() => { setMobileMenuOpen(false); navigate("/notifications/settings"); }} className="gap-2">
+              <DropdownMenuItem onSelect={() => { setMobileMenuOpen(false); navigate("/notifications/settings"); if (withSlot) collapseAfterNavigation(); }} className="gap-2">
                 <Bell className="h-4 w-4" /> {t("dashboard.account.notificationSettings")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -304,10 +328,13 @@ export function DashboardLayout() {
           <ThemeToggle />
         </div>
         <div className="p-6">
-          {/* The only way back once the nav is hidden. Inline (not floating) so
-              it can never sit on top of page content. */}
+          {/* The only way back once the nav is hidden — and since the nav now
+              hides itself on every navigation, this is a main route rather than
+              an escape hatch. Inline (not floating) so it can never sit on top
+              of page content, and focus lands here when the nav auto-hides. */}
           {navCollapsed && (
             <Button
+              ref={expandButtonRef}
               variant="outline"
               size="sm"
               onClick={toggleNav}
