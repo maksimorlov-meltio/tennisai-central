@@ -848,13 +848,12 @@ export default function CalendarPage() {
       {isObserver && <ReadOnlyBanner />}
 
       {/* ── Single toolbar row ──────────────────────────────────────────────
-          View tabs + date navigation on the left, every filter as a dropdown
-          on the right. This replaced four stacked chip rows (source,
-          federation, coach scope, event types) that between them pushed the
-          grid ~100px down the page. */}
-      {/* One left-aligned run: view tabs, date nav, then the filters. They were
-          briefly pushed to the far right of the row; grouping everything on the
-          left keeps the controls together and reading order natural. */}
+          One left-aligned run: view tabs, date nav, then every filter as a
+          dropdown. This replaced four stacked chip rows (source, federation,
+          coach scope, event types) that between them pushed the grid ~100px
+          down the page. The filters were briefly right-aligned; keeping the
+          whole run on the left holds the controls together and matches
+          reading order. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Tabs value={view} onValueChange={(v) => setView(v as ViewMode)}>
