@@ -1,5 +1,10 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { SidebarSlotProvider, SidebarSlotTarget } from "./SidebarSlot";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { RoleBadge, ReadOnlyBadge } from "@/components/ui/shared";
@@ -25,8 +30,14 @@ import {
   ListChecks,
   Menu,
   X,
+  ChevronsUpDown,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/** Remembers the collapsed nav across reloads. */
+const NAV_COLLAPSED_KEY = "tennisai:navCollapsed";
 import { Button } from "@/components/ui/button";
 import type { UserRole } from "@/types";
 import { useState, useMemo, useEffect } from "react";
@@ -47,7 +58,8 @@ interface NavItem {
 const navItems: NavItem[] = [
   // All roles
   { to: "/dashboard", labelKey: "dashboard.nav.dashboard", icon: <LayoutDashboard className="h-4 w-4" />, roles: ["player", "coach", "observer", "admin"] },
-  { to: "/profile", labelKey: "dashboard.nav.profile", icon: <User className="h-4 w-4" />, roles: ["player", "coach", "observer"] },
+  // No /profile entry: the account menu at the bottom of the sidebar owns it,
+  // where the avatar already implies "this is you".
 
   // Player nav
   { to: "/calendar", labelKey: "dashboard.nav.calendar", icon: <Calendar className="h-4 w-4" />, roles: ["player", "coach", "observer"] },
@@ -86,6 +98,18 @@ export function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Collapsing the nav hands the whole width to the current page. Remembered
+  // across reloads so a user who works collapsed isn't re-expanded every visit.
+  const [navCollapsed, setNavCollapsed] = useState(
+    () => typeof localStorage !== "undefined" && localStorage.getItem(NAV_COLLAPSED_KEY) === "true",
+  );
+  const toggleNav = () => {
+    setNavCollapsed((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(NAV_COLLAPSED_KEY, String(next)); } catch { /* private mode — collapse still works, just isn't remembered */ }
+      return next;
+    });
+  };
   const [onboardingOpen, setOnboardingOpen] = useState(false);
 
   // Auto-open the first-run onboarding questionnaire for accounts that haven't done it.
@@ -117,12 +141,27 @@ export function DashboardLayout() {
     navigate("/login");
   };
 
-  const sidebarContent = (
+  // `withSlot` is true for the desktop sidebar only. The mobile drawer renders
+  // this same markup, and a second slot target would fight the first over the
+  // portal's single node.
+  const renderSidebar = ({ withSlot = false }: { withSlot?: boolean } = {}) => (
     <>
-      <div className="flex h-14 items-center gap-2 border-b border-border px-6">
+      <div className="flex h-14 items-center gap-2 border-b border-border pl-6 pr-2">
         <span className="text-lg font-bold tracking-tight text-foreground">TennisAI</span>
         <RoleBadge role={role} />
-        {isObserver && <ReadOnlyBadge className="ml-auto" />}
+        {isObserver && <ReadOnlyBadge />}
+        {withSlot && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleNav}
+            title={t("dashboard.nav.collapse")}
+            aria-label={t("dashboard.nav.collapse")}
+            className="ml-auto h-7 w-7 text-muted-foreground hover:text-foreground"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </Button>
+        )}
       </div>
       <nav className="flex flex-col gap-1 p-4">
         {visibleItems.map((item) => (
@@ -161,33 +200,74 @@ export function DashboardLayout() {
           </NavLink>
         ))}
       </nav>
-      <div className="mt-auto border-t border-border p-4">
-        <div className="mb-3 flex items-center gap-3 px-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-            {user?.firstName?.[0]}{user?.lastName?.[0]}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">{user?.firstName} {user?.lastName}</p>
-            <p className="truncate text-xs capitalize text-muted-foreground">{t(`dashboard.role.${role}`)}</p>
-          </div>
+
+      {/* Page-provided sidebar content (e.g. the Calendar page's mini calendar).
+          Scrolls on its own so a tall widget can never push the account footer
+          off-screen; collapses to nothing on pages that don't fill it. */}
+      {withSlot && <SidebarSlotTarget className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden" />}
+
+      {/* Account menu — the avatar row IS the button. Profile used to be a nav
+          item; it now lives behind this, next to the identity it belongs to. */}
+      <div className="mt-auto border-t border-border p-3">
+        <div className="flex items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent data-[state=open]:bg-accent"
+                aria-label={t("dashboard.account.menuAria")}
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                  {user?.firstName?.[0]}{user?.lastName?.[0]}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-foreground">{user?.firstName} {user?.lastName}</span>
+                  <span className="block truncate text-xs capitalize text-muted-foreground">{t(`dashboard.role.${role}`)}</span>
+                </span>
+                <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="top" className="w-[13rem]">
+              <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+                {user?.email}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {role !== "admin" && (
+                <DropdownMenuItem onSelect={() => { setMobileMenuOpen(false); navigate("/profile"); }} className="gap-2">
+                  <User className="h-4 w-4" /> {t("dashboard.nav.profile")}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onSelect={() => { setMobileMenuOpen(false); navigate("/notifications/settings"); }} className="gap-2">
+                <Bell className="h-4 w-4" /> {t("dashboard.account.notificationSettings")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={handleLogout} className="gap-2">
+                <LogOut className="h-4 w-4" /> {t("dashboard.actions.logout")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <ThemeToggle />
         </div>
-        <Button variant="ghost" className="w-full justify-start gap-3" onClick={handleLogout}>
-          <LogOut className="h-4 w-4" /> {t("dashboard.actions.logout")}
-        </Button>
       </div>
     </>
   );
 
   return (
+    <SidebarSlotProvider>
     <div className="flex min-h-screen bg-background">
       {/* First-run, role-based onboarding questionnaire (empty new accounts). */}
       {user && <OnboardingDialog user={user} open={onboardingOpen} onOpenChange={setOnboardingOpen} />}
 
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card md:flex">
-        {sidebarContent}
-      </aside>
+      {/* h-screen + overflow-hidden bounds the column so the slot's own
+          `flex-1 overflow-y-auto` has a height to scroll within. */}
+      {/* Collapsed → not rendered at all, so the page gets the full width (and
+          the mini-calendar portal has no target, which is correct: there is
+          nowhere to show it). */}
+      {!navCollapsed && (
+        <aside className="hidden h-screen w-64 shrink-0 flex-col overflow-hidden border-r border-border bg-card md:flex">
+          {renderSidebar({ withSlot: true })}
+        </aside>
+      )}
 
       {/* Mobile overlay */}
       {mobileMenuOpen && (
@@ -197,13 +277,13 @@ export function DashboardLayout() {
             <Button variant="ghost" size="icon" className="absolute right-2 top-3 z-10" onClick={() => setMobileMenuOpen(false)}>
               <X className="h-5 w-5" />
             </Button>
-            {sidebarContent}
+            {renderSidebar()}
           </aside>
         </div>
       )}
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="min-w-0 flex-1 overflow-y-auto">
         <div className="flex h-14 items-center justify-between border-b border-border px-4 md:hidden">
           <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(true)}>
             <Menu className="h-5 w-5" />
@@ -212,9 +292,24 @@ export function DashboardLayout() {
           <ThemeToggle />
         </div>
         <div className="p-6">
+          {/* The only way back once the nav is hidden. Inline (not floating) so
+              it can never sit on top of page content. */}
+          {navCollapsed && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleNav}
+              className="mb-4 hidden gap-2 md:inline-flex"
+              aria-label={t("dashboard.nav.expand")}
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+              {t("dashboard.nav.menu")}
+            </Button>
+          )}
           <Outlet />
         </div>
       </main>
     </div>
+    </SidebarSlotProvider>
   );
 }
