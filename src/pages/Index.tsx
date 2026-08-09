@@ -99,7 +99,9 @@ const Index = () => {
         <div className="container max-w-6xl py-20 md:py-24">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Access</p>
           <div className="mt-10 max-w-2xl">
-            <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">Currently an invite-only trial.</h2>
+            {/* Not "invite-only" any more — signup takes no invite code, so
+                claiming otherwise would be false. */}
+            <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">Currently a free early trial.</h2>
             <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
               Tennis AI is being trialled with a small group of coaches, players and parents.
               There's no paid plan yet — sign up and we'll get you connected.

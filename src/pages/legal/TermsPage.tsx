@@ -23,7 +23,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-bold text-foreground">The trial</h2>
             <p className="mt-2">
-              Tennis AI is currently an invite-only trial for a small group of coaches, players and parents.
+              Tennis AI is currently an early trial for a small group of coaches, players and parents.
               There is no paid plan yet. Features may change, and the trial may be paused or ended at any
               time as we build the product.
             </p>
