@@ -362,27 +362,10 @@ export interface NotificationSettings {
   systemNotifications: boolean;
 }
 
-// --- AI Insights ---
-
-export interface AIInsightInput {
-  tournamentId?: string;
-  weather?: string;
-  altitude?: number;
-  surface?: string;
-  racket?: string;
-  stringType?: string;
-  ballBrand?: string;
-  playerStyle?: string;
-  recentTrainingLoad?: string;
-}
-
-export interface AIInsightResult {
-  matchConditionsSummary: string;
-  expectedRisks: string[];
-  preparationRecommendations: string[];
-  equipmentRecommendations: string[];
-  generatedAt: string;
-}
+// Match-prep types used to live here, backing a client-side mock that invented
+// its analysis. They are gone: the real thing is served per tournament from
+// server/src/conditions + server/src/ai/matchPrep, typed in
+// src/api/endpoints/conditions.ts.
 
 // --- API Response Wrappers ---
 

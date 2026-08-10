@@ -24,6 +24,8 @@ import { profileRouter } from "./profile/routes";
 import { trainingPlansRouter } from "./trainingPlans/routes";
 import { matchesRouter } from "./matches/routes";
 import { opponentsRouter } from "./opponents/routes";
+import { aiRouter } from "./ai/routes";
+import { conditionsRouter } from "./conditions/routes";
 import { errorHandler } from "./http";
 
 const app = express();
@@ -88,6 +90,10 @@ app.use("/api/me", profileRouter);
 app.use("/api", financeRouter);
 app.use("/api", equipmentRouter);
 app.use("/api", notificationsRouter);
+app.use("/api/ai", aiRouter);
+// Mounted alongside tournamentsRouter — adds the per-tournament conditions and
+// ball endpoints without enlarging the catalog router.
+app.use("/api/tournaments", conditionsRouter);
 
 // Fallback JSON 404 so the frontend always gets a parseable error body.
 app.use((_req, res) => res.status(404).json({ message: "Not found" }));

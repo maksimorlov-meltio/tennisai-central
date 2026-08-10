@@ -299,23 +299,27 @@ export default function PlayerDashboard() {
 
       {/* AI Insights + Notifications row */}
       <div className="grid gap-6 lg:grid-cols-2">
+        {/* Match prep now lives on the tournament itself, where the surface,
+            ball and weather actually are — rather than asking the player to
+            retype all of it into a separate page. */}
         <DashboardCard
-          title="AI Insights"
-          description="Best-practice match-prep suggestions"
+          title="Match Conditions"
+          description="Surface, ball and weather, per tournament"
           icon={<Brain className="h-4 w-4" />}
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/ai-insights">Open <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/tournaments">Open <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
-            <p className="text-sm font-medium text-foreground">No match prep yet</p>
+            <p className="text-sm font-medium text-foreground">Check how a tournament will play</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Generate match-preparation insights based on your surface, conditions and recent training.
+              Open any tournament to see its surface, official ball, expected temperature and
+              humidity, and what that does to the ball.
             </p>
             <Button size="sm" variant="outline" className="mt-3" asChild>
-              <Link to="/ai-insights">Generate insights</Link>
+              <Link to="/tournaments">Browse tournaments</Link>
             </Button>
           </div>
         </DashboardCard>

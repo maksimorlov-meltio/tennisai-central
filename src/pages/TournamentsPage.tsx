@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { TeamFilterSelect } from "@/components/TeamFilterSelect";
 import { PlayerFilterSelect } from "@/components/PlayerFilterSelect";
 import { PlayerDetailDrawer } from "@/components/PlayerDetailDrawer";
+import { TournamentConditionsDialog } from "@/components/tournaments/TournamentConditionsDialog";
 // Loaded on demand: Leaflet + its CSS are ~160 KB and only the Map tab needs
 // them, so they must not ship with the rest of this page.
 const TournamentMap = lazy(() =>
@@ -102,6 +103,11 @@ export default function TournamentsPage() {
 
   const connectedIds = new Set(connectedPlayers.map((p) => p.id));
   const showPlayerTournaments = isCoach || isObserver;
+
+  // Clicking a tournament opens what it will be like to play there. From a
+  // schedule row the player is known, so the analysis can be about them; from
+  // the browse grid it falls back to the current user.
+  const [conditionsFor, setConditionsFor] = useState<{ id: string; playerId?: string } | null>(null);
 
   const surfaces = useMemo(() => [...new Set(tournaments.map((t) => t.surface))], [tournaments]);
   const countries = useMemo(() => [...new Set(tournaments.map((t) => t.country))].sort(), [tournaments]);
@@ -302,7 +308,21 @@ export default function TournamentsPage() {
                 <tbody className="divide-y divide-border">
                   {filteredPlayerTournaments.map((pt) => (
                     <tr key={pt.id} className="transition-colors hover:bg-secondary/20">
-                      <td className="px-4 py-3"><div><p className="font-medium text-foreground">{pt.tournament.name}</p>{pt.tournament.category && <p className="text-xs text-muted-foreground">{pt.tournament.category}</p>}</div></td>
+                      <td className="px-4 py-3">
+                        <div>
+                          {/* Opens the conditions for THIS player's entry, so the
+                              analysis is about the person actually playing it. */}
+                          <button
+                            type="button"
+                            onClick={() => setConditionsFor({ id: pt.tournamentId, playerId: pt.playerId })}
+                            className="text-left font-medium text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label={`Playing conditions for ${pt.tournament.name}`}
+                          >
+                            {pt.tournament.name}
+                          </button>
+                          {pt.tournament.category && <p className="text-xs text-muted-foreground">{pt.tournament.category}</p>}
+                        </div>
+                      </td>
                       {!isPlayer && <td className="px-4 py-3">
                         <button
                           className="flex items-center gap-2 hover:opacity-80"
@@ -361,7 +381,20 @@ export default function TournamentsPage() {
               <Card key={t.id} className="flex flex-col justify-between">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base leading-snug">{t.name}</CardTitle>
+                    {/* The name is the way in: click a tournament to see the
+                        surface, ball, weather and how it will play. A button
+                        rather than a clickable card, so the hide/remove
+                        controls beside it stay independently reachable. */}
+                    <CardTitle className="text-base leading-snug">
+                      <button
+                        type="button"
+                        onClick={() => setConditionsFor({ id: t.id })}
+                        className="text-left underline-offset-4 transition-colors hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label={`Playing conditions for ${t.name}`}
+                      >
+                        {t.name}
+                      </button>
+                    </CardTitle>
                     <div className="flex shrink-0 items-center gap-1">
                       <Badge variant="outline" className={surfaceColor[t.surface] ?? ""}>{t.surface}</Badge>
                       <Button
@@ -584,6 +617,12 @@ export default function TournamentsPage() {
 
       <PlayerDetailDrawer player={detailPlayer} open={playerDetailOpen} onOpenChange={setPlayerDetailOpen} readOnly={isObserver} />
 
+      <TournamentConditionsDialog
+        tournamentId={conditionsFor?.id ?? null}
+        playerId={conditionsFor?.playerId}
+        open={conditionsFor !== null}
+        onOpenChange={(o) => { if (!o) setConditionsFor(null); }}
+      />
       {removeTarget && (
         <RemoveFromScheduleDialog
           open={!!removeTarget}

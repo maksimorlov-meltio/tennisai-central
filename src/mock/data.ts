@@ -15,7 +15,6 @@ import type {
   EquipmentItem,
   Notification,
   NotificationSettings,
-  AIInsightResult,
 } from "@/types";
 
 export const mockConnectedPlayers: ConnectedPlayer[] = [
@@ -160,23 +159,3 @@ export const mockNotificationSettings: NotificationSettings = {
   systemNotifications: true,
 };
 
-export const mockAIInsightResult: AIInsightResult = {
-  matchConditionsSummary: "Clay court at 650m altitude with warm sunny conditions. Ball will bounce higher and spin will be amplified. Expect longer rallies.",
-  expectedRisks: [
-    "Dehydration risk due to high temperature",
-    "Increased fatigue from altitude",
-    "Clay dust may affect breathing",
-  ],
-  preparationRecommendations: [
-    "Increase hydration 48 hours before match",
-    "Practice high-bounce drills on clay",
-    "Add 2 extra recovery sessions this week",
-    "Adjust serve toss for outdoor wind conditions",
-  ],
-  equipmentRecommendations: [
-    "Use polyester strings at 2 lbs lower tension for clay",
-    "Switch to clay court shoes with herringbone sole",
-    "Consider lighter racket for altitude play",
-  ],
-  generatedAt: "2026-03-07T15:00:00Z",
-};

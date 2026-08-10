@@ -145,11 +145,40 @@ export async function readablePlayerIds(userId: string): Promise<string[]> {
   const role = await getRole(userId);
   if (role === "player") return [userId];
   if (role === "coach") {
-    const links = await prisma.coachAssignment.findMany({
-      where: { coachId: userId, status: "active" },
-      select: { playerId: true },
-    });
-    return [userId, ...links.map((l) => l.playerId)];
+    // Both routes to entitlement, matching assertCanActOnPlayer. Assignments
+    // alone were not enough: a coach can already ACT on a connected player, so
+    // returning a narrower set here made them able to write to a player they
+    // could not list — which is how the coach's tournament view came to be
+    // permanently empty.
+    const [assignments, connections] = await Promise.all([
+      prisma.coachAssignment.findMany({
+        where: { coachId: userId, status: "active" },
+        select: { playerId: true },
+      }),
+      prisma.connectionRequest.findMany({
+        where: {
+          status: "active",
+          OR: [{ fromUserId: userId }, { toUserId: userId }],
+        },
+        select: { fromUserId: true, toUserId: true },
+      }),
+    ]);
+
+    const candidates = new Set<string>(assignments.map((a) => a.playerId));
+    for (const c of connections) {
+      candidates.add(c.fromUserId === userId ? c.toUserId : c.fromUserId);
+    }
+    candidates.delete(userId);
+
+    // A connection can be to an observer or another coach; only players count.
+    const players = candidates.size
+      ? await prisma.user.findMany({
+          where: { id: { in: [...candidates] }, role: "player" },
+          select: { id: true },
+        })
+      : [];
+
+    return [userId, ...players.map((p) => p.id)];
   }
   if (role === "observer") {
     const links = await prisma.guardianship.findMany({
