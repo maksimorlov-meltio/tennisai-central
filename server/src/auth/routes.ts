@@ -81,6 +81,21 @@ authRouter.post(
     // restricting again, gate it here, before any account work happens.
     const email = data.email.trim().toLowerCase();
 
+    // Closed-beta cap. Checked before any account work, so a full beta costs a
+    // count and nothing else. Only self-registerable roles are counted, so an
+    // admin created out of band never consumes a seat.
+    // Race note: count-then-create, so simultaneous requests at the boundary
+    // could overshoot by one or two. At beta scale that is cheaper to accept
+    // than serialising every signup behind a transaction.
+    if (env.maxSignups !== undefined) {
+      const taken = await prisma.user.count({
+        where: { role: { in: [...PUBLIC_SIGNUP_ROLES] } },
+      });
+      if (taken >= env.maxSignups) {
+        throw new HttpError(403, "Beta is full — no more signups available.");
+      }
+    }
+
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) throw new HttpError(409, "Email already registered");
 
