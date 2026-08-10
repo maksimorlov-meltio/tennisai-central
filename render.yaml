@@ -3,6 +3,11 @@
 # Deploy: push to GitHub, then New > Blueprint in the Render dashboard and point
 # it at this repo. Set the `sync: false` values in the dashboard afterwards.
 #
+# THIS FILE MUST LIVE AT THE REPOSITORY ROOT. Render only looks for render.yaml
+# there; from server/ it is never found and the Blueprint flow reports that the
+# repo has no blueprint. The service itself still builds from server/ — see
+# `rootDir` below.
+#
 # NO DATABASE IS DEFINED HERE, deliberately. Render's free Postgres is deleted
 # after ~30 days, which would take a live beta's data with it. Provision a
 # persistent database yourself (Neon or Supabase free tier, or paid Render) and
