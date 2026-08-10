@@ -8,8 +8,7 @@
       "unreadBadge": "{count}",
       "unreadAria": "{count, plural, one {# unread notification} other {# unread notifications}}"
     }
-  }
-  ,
+  },
   "dashboard": {
     "nav": {
       "dashboard": "Dashboard",
@@ -31,7 +30,10 @@
       "notifications": "Notifications",
       "adminUsers": "Users",
       "adminRelationships": "Relationships",
-      "adminAlerts": "System Alerts"
+      "adminAlerts": "System Alerts",
+      "collapse": "Hide menu",
+      "expand": "Show menu",
+      "menu": "Menu"
     },
     "actions": {
       "logout": "Log out"
@@ -41,6 +43,10 @@
       "coach": "coach",
       "observer": "Parent",
       "admin": "admin"
+    },
+    "account": {
+      "menuAria": "Account menu",
+      "notificationSettings": "Notification settings"
     }
   }
 }

@@ -23,6 +23,9 @@ import {
   LayoutGrid, List, Columns, PanelLeftClose, PanelLeftOpen, Repeat, Globe, CheckCircle2,
   RefreshCw,
 } from "lucide-react";
+import { MiniMonthCalendar } from "@/components/calendar/MiniMonthCalendar";
+import { MultiFilterMenu, SingleFilterMenu, ReassignDropStrip } from "@/components/calendar/CalendarFilterMenus";
+import { CalendarLegendPanel } from "@/components/calendar/CalendarLegend";
 import type { CalendarEvent, CalendarEventType, CalendarEventState, ConnectedPlayer, RecurrenceFrequency, RecurrenceEndType, Tournament, TournamentFederation } from "@/types";
 import { useCalendarEvents, useCreateCalendarEvent, useUpdateCalendarEvent, useDeleteCalendarEvent, useTeams, useTournaments, useAddPlayerTournament, usePlayerTournaments } from "@/hooks/api/queries";
 import { queryKeys } from "@/hooks/api/queries";
@@ -34,6 +37,9 @@ import {
 import {
   eventBaseColor, entityColor, EVENT_TYPE_COLOR, CIRCUIT_COLOR, STATE_VISUAL, STATE_LABEL, withAlpha,
 } from "@/lib/calendar/colors";
+
+/** Events shown in a month cell before collapsing to "+N more". */
+const MONTH_CELL_EVENT_LIMIT = 4;
 
 const EVENT_CONFIG: Record<CalendarEventType, { label: string; icon: React.ReactNode; dot: string; bg: string }> = {
   training: { label: "Training", icon: <Dumbbell className="h-3.5 w-3.5" />, dot: "bg-foreground", bg: "bg-muted text-foreground dark:text-foreground border-border" },
@@ -72,6 +78,11 @@ function EventChip({ event, onClick, showPlayer, compact, draggable, registered 
   const entity = showPlayer && entityId ? entityColor(entityId) : null;
   const sv = event.state ? STATE_VISUAL[event.state] : null;
   const accent = entity ?? base;
+  // In a month cell (~97px wide with the mini calendar open) the "[ITF] " /
+  // "[ATP] " prefix consumed the whole chip, leaving "[I…". Drop it in compact
+  // mode: the chip's colour already encodes the federation (see the legend),
+  // and the full untouched title is still on the `title` tooltip below.
+  const displayTitle = compact ? event.title.replace(/^\[[^\]]{1,12}\]\s*/, "") : event.title;
   return (
     <button
       draggable={draggable}
@@ -84,6 +95,9 @@ function EventChip({ event, onClick, showPlayer, compact, draggable, registered 
         e.dataTransfer.effectAllowed = "move";
       }}
       onClick={(e) => { e.stopPropagation(); onClick(); }}
+      // Month cells truncate long titles even at full width, so expose the full
+      // one on hover rather than leaving the user with "ITF W35 Her…".
+      title={event.title}
       style={{
         backgroundColor: withAlpha(base, "1f"),
         borderColor: withAlpha(base, "59"),
@@ -95,8 +109,11 @@ function EventChip({ event, onClick, showPlayer, compact, draggable, registered 
       className={`flex w-full items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-left text-[11px] font-medium leading-tight transition-colors hover:bg-accent/40 ${sv?.dashed ? "border-dashed" : ""} ${compact ? "py-px" : ""} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
       {entity && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: entity }} aria-hidden />}
-      {isIntl ? <Globe className="h-3.5 w-3.5 shrink-0" /> : cfg.icon}
-      <span className={`truncate ${sv?.strike ? "line-through" : ""}`}>{showPlayer && event.playerName ? <>{event.playerName.split(" ")[0]}: {event.title}</> : event.title}</span>
+      {/* Month cells are ~78-97px wide; the leading icon costs ~20px of that and
+          says nothing the chip's own colour doesn't already (see the legend).
+          Week/day chips are roomy, so they keep it. */}
+      {!compact && (isIntl ? <Globe className="h-3.5 w-3.5 shrink-0" /> : cfg.icon)}
+      <span className={`truncate ${sv?.strike ? "line-through" : ""}`}>{showPlayer && event.playerName ? <>{event.playerName.split(" ")[0]}: {displayTitle}</> : displayTitle}</span>
       {isRecurring && <Repeat className="h-2.5 w-2.5 shrink-0 opacity-60" />}
       {registered && <CheckCircle2 className="h-3 w-3 shrink-0" />}
     </button>
@@ -360,12 +377,14 @@ function MonthlyView({ currentDate, events, onSelectEvent, onDayClick, showPlaye
                 const oldEnd = e.dataTransfer.getData("application/calendar-event-end");
                 if (eventId && onDropEvent) onDropEvent(eventId, oldStart, oldEnd, day);
               }}
-              className={`min-h-[110px] border-b border-r border-border p-1.5 transition-colors ${!isCurrentMonth ? "bg-muted/20" : "bg-card"} ${idx % 7 === 6 ? "border-r-0" : ""} ${onDayClick ? "cursor-pointer hover:bg-accent/10" : ""} ${isToday ? "bg-primary/5 dark:bg-primary/10" : ""} ${isDragOver ? "ring-2 ring-inset ring-primary/50 bg-primary/10" : ""}`}
+              // Taller cells now that the grid has the full content width: four
+              // events fit before the overflow line instead of three.
+              className={`min-h-[140px] border-b border-r border-border p-1.5 transition-colors ${!isCurrentMonth ? "bg-muted/20" : "bg-card"} ${idx % 7 === 6 ? "border-r-0" : ""} ${onDayClick ? "cursor-pointer hover:bg-accent/10" : ""} ${isToday ? "bg-primary/5 dark:bg-primary/10" : ""} ${isDragOver ? "ring-2 ring-inset ring-primary/50 bg-primary/10" : ""}`}
             >
               <div className={`mb-1 flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-colors ${isToday ? "bg-primary text-primary-foreground shadow-sm" : isCurrentMonth ? "text-foreground" : "text-muted-foreground/40"}`}>{format(day, "d")}</div>
               <div className="flex flex-col gap-0.5">
-                {dayEvents.slice(0, 3).map((e) => (<EventChip key={e.id} event={e} onClick={() => onSelectEvent(e)} showPlayer={showPlayerLabel} compact draggable={canDrag} registered={registeredIntlIds?.has(e.id)} />))}
-                {dayEvents.length > 3 && <span className="pl-1 text-[10px] font-medium text-muted-foreground">+{dayEvents.length - 3} more</span>}
+                {dayEvents.slice(0, MONTH_CELL_EVENT_LIMIT).map((e) => (<EventChip key={e.id} event={e} onClick={() => onSelectEvent(e)} showPlayer={showPlayerLabel} compact draggable={canDrag} registered={registeredIntlIds?.has(e.id)} />))}
+                {dayEvents.length > MONTH_CELL_EVENT_LIMIT && <span className="pl-1 text-[10px] font-medium text-muted-foreground">+{dayEvents.length - MONTH_CELL_EVENT_LIMIT} more</span>}
               </div>
             </div>
           );
@@ -485,203 +504,6 @@ function DayView({ currentDate, events, onSelectEvent, showPlayerLabel, register
   );
 }
 
-// ─── Filter Components ───
-
-function FilterChip({ type, active, onToggle }: { type: CalendarEventType; active: boolean; onToggle: () => void }) {
-  const cfg = EVENT_CONFIG[type];
-  const color = EVENT_TYPE_COLOR[type];
-  return (
-    <button
-      onClick={onToggle}
-      style={active ? { backgroundColor: withAlpha(color, "1f"), borderColor: withAlpha(color, "59"), color } : undefined}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${active ? "" : "border-border bg-muted/50 text-muted-foreground opacity-50 hover:opacity-75"}`}
-    >
-      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />{cfg.label}
-    </button>
-  );
-}
-
-function PlayerFilterChip({ label, active, onClick, icon, onDropAssign }: { label: string; active: boolean; onClick: () => void; icon?: React.ReactNode; onDropAssign?: (eventId: string) => void }) {
-  const [isDragOver, setIsDragOver] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onDragOver={onDropAssign ? (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setIsDragOver(true); } : undefined}
-      onDragLeave={onDropAssign ? () => setIsDragOver(false) : undefined}
-      onDrop={onDropAssign ? (e) => { e.preventDefault(); setIsDragOver(false); const id = e.dataTransfer.getData("application/calendar-event-id"); if (id) onDropAssign(id); } : undefined}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${active ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-muted/50 text-muted-foreground hover:bg-muted"} ${isDragOver ? "ring-2 ring-primary scale-105 bg-primary/15" : ""}`}
-    >{icon}{label}</button>
-  );
-}
-
-// ─── Mini Calendar Sidebar ───
-
-function MiniCalendarSidebar({ currentDate, events, onSelectDate, onMonthChange }: {
-  currentDate: Date; events: CalendarEvent[]; onSelectDate: (day: Date) => void; onMonthChange: (date: Date) => void;
-}) {
-  const [miniMonth, setMiniMonth] = useState(currentDate);
-
-  // Track which days have events
-  const eventDays = useMemo(() => {
-    const days = new Map<string, number>();
-    events.forEach((e) => {
-      const start = parseISO(e.startDate);
-      const end = parseISO(e.endDate);
-      const interval = eachDayOfInterval({ start: new Date(start.toDateString()), end: new Date(end.toDateString()) });
-      interval.forEach((d) => {
-        const key = format(d, "yyyy-MM-dd");
-        days.set(key, (days.get(key) ?? 0) + 1);
-      });
-    });
-    return days;
-  }, [events]);
-
-  // Upcoming events (next 7 from currentDate)
-  const upcoming = useMemo(() => {
-    const now = currentDate;
-    return events
-      .filter((e) => !isBefore(parseISO(e.startDate), now))
-      .sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime())
-      .slice(0, 5);
-  }, [events, currentDate]);
-
-  const handleMiniNav = (dir: 1 | -1) => {
-    setMiniMonth((prev) => dir === 1 ? addMonths(prev, 1) : subMonths(prev, 1));
-  };
-
-  const miniStart = startOfMonth(miniMonth);
-  const miniEnd = endOfMonth(miniMonth);
-  const miniCalStart = startOfWeek(miniStart, { weekStartsOn: 1 });
-  const miniCalEnd = endOfWeek(miniEnd, { weekStartsOn: 1 });
-  const miniDays = eachDayOfInterval({ start: miniCalStart, end: miniCalEnd });
-
-  return (
-    <div className="w-[260px] shrink-0 space-y-4">
-      {/* Mini month grid */}
-      <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-        <div className="mb-3 flex items-center justify-between">
-          <button onClick={() => handleMiniNav(-1)} className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <span className="text-sm font-semibold text-foreground">{format(miniMonth, "MMM yyyy")}</span>
-          <button onClick={() => handleMiniNav(1)} className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="grid grid-cols-7 gap-0.5">
-          {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-            <div key={i} className="flex h-7 items-center justify-center text-[10px] font-semibold uppercase text-muted-foreground">{d}</div>
-          ))}
-          {miniDays.map((day, idx) => {
-            const key = format(day, "yyyy-MM-dd");
-            const count = eventDays.get(key) ?? 0;
-            const isCurrentMonth = isSameMonth(day, miniMonth);
-            const isSelected = isSameDay(day, currentDate);
-            const isToday = isDateToday(day);
-
-            return (
-              <button
-                key={idx}
-                onClick={() => { onSelectDate(day); onMonthChange(day); }}
-                className={`relative flex h-7 w-full items-center justify-center rounded-md text-xs font-medium transition-all
-                  ${!isCurrentMonth ? "text-muted-foreground/30" : "text-foreground"}
-                  ${isSelected ? "bg-primary text-primary-foreground shadow-sm" : ""}
-                  ${isToday && !isSelected ? "ring-1 ring-primary/50" : ""}
-                  ${!isSelected ? "hover:bg-accent/50" : ""}
-                `}
-              >
-                {format(day, "d")}
-                {count > 0 && isCurrentMonth && !isSelected && (
-                  <span className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 rounded-full ${count >= 3 ? "h-1.5 w-1.5 bg-primary" : "h-1 w-1 bg-primary/60"}`} />
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <button
-          onClick={() => { const today = new Date(); setMiniMonth(today); onSelectDate(today); onMonthChange(today); }}
-          className="mt-2 w-full rounded-md py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
-        >
-          Today
-        </button>
-      </div>
-
-      {/* Upcoming events */}
-      {upcoming.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-          <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Upcoming</h3>
-          <div className="space-y-2">
-            {upcoming.map((event) => {
-              const cfg = EVENT_CONFIG[event.type];
-              const start = parseISO(event.startDate);
-              return (
-                <button
-                  key={event.id}
-                  onClick={() => { onSelectDate(start); onMonthChange(start); }}
-                  className="flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition-colors hover:bg-accent/30"
-                >
-                  <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: eventBaseColor(event.type, event.title) }} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium text-foreground">{event.title}</p>
-                    <p className="text-[10px] text-muted-foreground">{format(start, "EEE, MMM d · h:mm a")}</p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Colour legend */}
-      <div className="space-y-3 rounded-xl border border-border bg-card p-3 shadow-sm">
-        <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Event types</h3>
-          <div className="space-y-1.5">
-            {EVENT_TYPES.map((type) => {
-              const count = events.filter((e) => e.type === type).length;
-              return (
-                <div key={type} className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-2 text-foreground">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLOR[type] }} />
-                    {EVENT_CONFIG[type].label}
-                  </span>
-                  <span className="font-medium text-muted-foreground">{count}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Federations</h3>
-          <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-            {/* Lists CIRCUITS, matching the filter chips: keying this off
-                FEDERATION_COLOR omitted "ITF Junior" even though it is
-                filterable and labels its own chips. */}
-            {ALL_CIRCUITS.map((f) => (
-              <span key={f} className="flex items-center gap-1.5 text-xs text-foreground">
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: CIRCUIT_COLOR[f] }} />
-                {f}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</h3>
-          <div className="space-y-1 text-[11px] text-muted-foreground">
-            <p><span className="text-foreground">Confirmed</span> — solid</p>
-            <p><span className="text-foreground">Tentative / Requested</span> — dashed outline</p>
-            <p><span className="text-foreground">Completed</span> — dimmed</p>
-            <p><span className="text-foreground">Cancelled</span> — dashed &amp; struck through</p>
-          </div>
-        </div>
-        <p className="border-t border-border pt-2 text-[11px] text-muted-foreground">
-          Tournaments are coloured by federation; the left bar &amp; dot show the player/team.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Page ───
 
 type ViewMode = "month" | "week" | "day";
@@ -738,7 +560,11 @@ export default function CalendarPage() {
   const [teamScope, setTeamScope] = useState<string>("__all__");
   const [playerDetailOpen, setPlayerDetailOpen] = useState(false);
   const [detailPlayer, setDetailPlayer] = useState<ConnectedPlayer | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // True only between an event chip's dragstart and dragend, which is when the
+  // reassign drop targets are worth showing.
+  const [isDraggingEvent, setIsDraggingEvent] = useState(false);
+  // The mini-calendar column; collapsing it hands its 260px + gap to the grid.
+  const [miniOpen, setMiniOpen] = useState(true);
   const [calendarSource, setCalendarSource] = useState<"all" | "mine" | "international">("all");
   // Circuit filter for international tournaments (ITF split into pro + junior).
   // Defaults to all on.
@@ -1030,136 +856,181 @@ export default function CalendarPage() {
 
       {isObserver && <ReadOnlyBanner />}
 
-      {/* Calendar source filter */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-xs font-medium text-muted-foreground">Source:</span>
-        <PlayerFilterChip label="All" active={calendarSource === "all"} onClick={() => setCalendarSource("all")} />
-        <PlayerFilterChip label="My Calendar" active={calendarSource === "mine"} onClick={() => setCalendarSource("mine")} icon={<CalendarIcon className="h-3 w-3" />} />
-        <PlayerFilterChip label="International Tournaments" active={calendarSource === "international"} onClick={() => setCalendarSource("international")} icon={<Globe className="h-3 w-3" />} />
-      </div>
-
-      {/* Federation filter — applies to international tournaments. Visible
-          for every role whenever international events can appear. */}
-      {(calendarSource === "international" || calendarSource === "all") && (
+      {/* ── Single toolbar row ──────────────────────────────────────────────
+          One left-aligned run: view tabs, date nav, then every filter as a
+          dropdown. This replaced four stacked chip rows (source, federation,
+          coach scope, event types) that between them pushed the grid ~100px
+          down the page. The filters were briefly right-aligned; keeping the
+          whole run on the left holds the controls together and matches
+          reading order. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Trophy className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground">Federation:</span>
-          <PlayerFilterChip
-            label="All"
-            active={activeFederations.size === ALL_CIRCUITS.length}
-            onClick={() => setActiveFederations(new Set(ALL_CIRCUITS))}
-          />
-          {ALL_CIRCUITS.map((f) => (
-            <PlayerFilterChip
-              key={f}
-              label={f}
-              active={activeFederations.has(f)}
-              onClick={() => toggleFederation(f)}
-              icon={<span className="h-2 w-2 rounded-full" style={{ backgroundColor: CIRCUIT_COLOR[f] }} />}
-            />
-          ))}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleRefreshTournaments}
-            disabled={isRefetchingTournaments}
-            className="ml-auto gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRefetchingTournaments ? "animate-spin" : ""}`} />
-            {isRefetchingTournaments ? "Refreshing…" : "Refresh tournaments"}
-          </Button>
-        </div>
-      )}
-
-      {/* Coach scoping filters */}
-      {isCoach && connectedPlayers.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Filter className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-xs font-medium text-muted-foreground">Scope:</span>
-          <PlayerFilterChip label="All Players" active={playerScope === "all"} onClick={() => setPlayerScope("all")} icon={<Users className="h-3 w-3" />} />
-          <PlayerFilterChip label="My Schedule" active={playerScope === "mine"} onClick={() => setPlayerScope("mine")} icon={<User className="h-3 w-3" />} onDropAssign={(eventId) => handleReassignToPlayer(eventId, null)} />
-          {visiblePlayers.map((p) => (
-            <PlayerFilterChip
-              key={p.id}
-              label={`${p.firstName} ${p.lastName}`}
-              active={playerScope === p.id}
-              icon={<span className="h-2 w-2 rounded-full" style={{ backgroundColor: entityColor(p.id) }} />}
-              onClick={() => {
-                setPlayerScope(p.id);
-                if (playerScope === p.id) handleViewPlayerDetail(p);
-              }}
-              onDropAssign={(eventId) => handleReassignToPlayer(eventId, p.id)}
-            />
-          ))}
-          <TeamFilterSelect teams={teams} value={teamScope} onValueChange={(v) => { setTeamScope(v); setPlayerScope("all"); }} className="h-8 w-[150px] text-xs" />
-        </div>
-      )}
-
-      {/* Toolbar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
           <Tabs value={view} onValueChange={(v) => setView(v as ViewMode)}>
-            <TabsList>
+            <TabsList className="h-8">
               {(["month", "week", "day"] as ViewMode[]).map((v) => (
-                <TabsTrigger key={v} value={v} className="gap-1.5 capitalize">{VIEW_ICONS[v]}{v}</TabsTrigger>
+                <TabsTrigger key={v} value={v} className="h-6 gap-1.5 px-2.5 text-xs capitalize">{VIEW_ICONS[v]}{v}</TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
           <div className="flex items-center gap-1">
             <Button variant="outline" size="icon" className="h-8 w-8" aria-label={`Previous ${view}`} onClick={() => navigate(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-            <span className="min-w-[200px] text-center text-sm font-semibold text-foreground">{heading}</span>
+            <span className="min-w-[150px] text-center text-sm font-semibold text-foreground">{heading}</span>
             <Button variant="outline" size="icon" className="h-8 w-8" aria-label={`Next ${view}`} onClick={() => navigate(1)}><ChevronRight className="h-4 w-4" /></Button>
           </div>
-          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setCurrentDate(new Date())}>Today</Button>
+          <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground" onClick={() => setCurrentDate(new Date())}>Today</Button>
         </div>
-        <div className="flex flex-wrap gap-2">{EVENT_TYPES.map((type) => (<FilterChip key={type} type={type} active={activeFilters.has(type)} onToggle={() => toggleFilter(type)} />))}</div>
-        {showPlayerLabels && connectedPlayers.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[11px] font-medium text-muted-foreground">Players:</span>
-            {connectedPlayers.map((p) => {
-              return (
-                <span key={p.id} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entityColor(p.id) }} />
-                  {p.firstName} {p.lastName}
-                </span>
-              );
-            })}
-          </div>
-        )}
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <SingleFilterMenu
+            label="Source"
+            icon={<Globe className="h-3.5 w-3.5" />}
+            value={calendarSource}
+            defaultValue="all"
+            onChange={(v) => setCalendarSource(v as typeof calendarSource)}
+            options={[
+              { value: "all", label: "All sources", icon: <Globe className="h-3.5 w-3.5" /> },
+              { value: "mine", label: "My calendar", icon: <CalendarIcon className="h-3.5 w-3.5" /> },
+              { value: "international", label: "International", icon: <Trophy className="h-3.5 w-3.5" /> },
+            ]}
+          />
+
+          {/* Federation only matters when international events can appear. */}
+          {(calendarSource === "international" || calendarSource === "all") && (
+            <MultiFilterMenu
+              label="Federation"
+              icon={<Trophy className="h-3.5 w-3.5" />}
+              options={ALL_CIRCUITS.map((f) => ({ value: f, label: f, color: CIRCUIT_COLOR[f] }))}
+              selected={activeFederations as Set<string>}
+              onToggle={(v) => toggleFederation(v as TournamentCircuit)}
+              onSelectAll={() => setActiveFederations(new Set(ALL_CIRCUITS))}
+              onSelectNone={() => setActiveFederations(new Set())}
+            />
+          )}
+
+          <MultiFilterMenu
+            label="Types"
+            icon={<Filter className="h-3.5 w-3.5" />}
+            options={EVENT_TYPES.map((t) => ({ value: t, label: EVENT_CONFIG[t].label, color: EVENT_TYPE_COLOR[t] }))}
+            selected={activeFilters as Set<string>}
+            onToggle={(v) => toggleFilter(v as CalendarEventType)}
+            onSelectAll={() => setActiveFilters(new Set(EVENT_TYPES))}
+            onSelectNone={() => setActiveFilters(new Set())}
+          />
+
+          {isCoach && connectedPlayers.length > 0 && (
+            <>
+              <SingleFilterMenu
+                label="Scope"
+                icon={<Users className="h-3.5 w-3.5" />}
+                value={playerScope}
+                defaultValue="all"
+                onChange={setPlayerScope}
+                groups={visiblePlayers.length > 0 ? { [visiblePlayers[0].id]: "Players" } : undefined}
+                options={[
+                  { value: "all", label: "All players", icon: <Users className="h-3.5 w-3.5" /> },
+                  { value: "mine", label: "My schedule", icon: <User className="h-3.5 w-3.5" /> },
+                  ...visiblePlayers.map((p) => ({
+                    value: p.id,
+                    label: `${p.firstName} ${p.lastName}`,
+                    color: entityColor(p.id),
+                  })),
+                ]}
+              />
+              <TeamFilterSelect teams={teams} value={teamScope} onValueChange={(v) => { setTeamScope(v); setPlayerScope("all"); }} className="h-8 w-[130px] text-xs" />
+            </>
+          )}
+
+          {(calendarSource === "international" || calendarSource === "all") && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleRefreshTournaments}
+              disabled={isRefetchingTournaments}
+              title="Refresh tournaments"
+              aria-label="Refresh tournaments"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefetchingTournaments ? "animate-spin" : ""}`} />
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Calendar body with mini sidebar */}
-      <div className="flex gap-5">
-        {/* Sidebar toggle + sidebar */}
+      {/* Reassign drop targets — only while an event is mid-drag. Replaces the
+          permanent player chips, which doubled as drop targets before scope
+          became a dropdown. */}
+      {isDraggingEvent && isCoach && visiblePlayers.length > 0 && (
+        <ReassignDropStrip
+          targets={[
+            { id: null, label: "My schedule" },
+            ...visiblePlayers.map((p) => ({ id: p.id, label: `${p.firstName} ${p.lastName}`, color: entityColor(p.id) })),
+          ]}
+          onAssign={handleReassignToPlayer}
+        />
+      )}
+
+      {showPlayerLabels && connectedPlayers.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-[11px] font-medium text-muted-foreground">Players:</span>
+          {connectedPlayers.map((p) => (
+            <span key={p.id} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entityColor(p.id) }} />
+              {p.firstName} {p.lastName}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Calendar body: mini-calendar column + grid.
+          dragstart/dragend bubble from the event chips, so the reassign drop
+          strip can be revealed without threading callbacks through all three
+          view components. */}
+      <div
+        className="flex gap-5"
+        onDragStart={(e) => {
+          if ((e.target as HTMLElement)?.getAttribute?.("draggable") === "true") setIsDraggingEvent(true);
+        }}
+        onDragEnd={() => setIsDraggingEvent(false)}
+        onDrop={() => setIsDraggingEvent(false)}
+      >
+        {/* Side column. Collapses to a single button so the grid can still take
+            the full width on demand — the reason this was worth keeping on the
+            page rather than moving into the app sidebar, where a full nav left
+            it only ~79px of height. */}
         <div className="hidden lg:flex lg:shrink-0">
-          {sidebarOpen ? (
-            <div className="relative w-[260px]">
+          {miniOpen ? (
+            <div className="relative w-[260px] space-y-4">
               <button
-                onClick={() => setSidebarOpen(false)}
+                onClick={() => setMiniOpen(false)}
                 className="absolute -right-3 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground"
-                title="Collapse sidebar"
+                title="Hide the mini calendar"
+                aria-label="Hide the mini calendar"
               >
                 <PanelLeftClose className="h-3.5 w-3.5" />
               </button>
-              <MiniCalendarSidebar
+              <MiniMonthCalendar
                 currentDate={currentDate}
                 events={scopedEvents}
                 onSelectDate={(day) => { setCurrentDate(day); setView("day"); }}
                 onMonthChange={setCurrentDate}
               />
+              <CalendarLegendPanel
+                typeItems={EVENT_TYPES.map((t) => ({ label: EVENT_CONFIG[t].label, color: EVENT_TYPE_COLOR[t], count: eventCounts[t] ?? 0 }))}
+                circuitItems={ALL_CIRCUITS.map((f) => ({ label: f, color: CIRCUIT_COLOR[f] }))}
+              />
             </div>
           ) : (
             <button
-              onClick={() => setSidebarOpen(true)}
+              onClick={() => setMiniOpen(true)}
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground"
-              title="Show mini calendar"
+              title="Show the mini calendar"
+              aria-label="Show the mini calendar"
             >
               <PanelLeftOpen className="h-4 w-4" />
             </button>
           )}
         </div>
 
-        {/* Main calendar */}
         <div className="min-w-0 flex-1">
           {scopedEvents.length === 0 && view !== "day" && <EmptyState icon={<CalendarIcon className="h-6 w-6 text-muted-foreground" />} title="No events found" description="No events match your current filters." />}
 

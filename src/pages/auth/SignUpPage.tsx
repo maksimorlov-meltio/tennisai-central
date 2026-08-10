@@ -18,7 +18,7 @@ export default function SignUpPage() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const [role, setRole] = useState<UserRole | null>(null);
-  const [form, setForm] = useState({ email: "", password: "", confirmPassword: "", firstName: "", lastName: "", inviteCode: "" });
+  const [form, setForm] = useState({ email: "", password: "", confirmPassword: "", firstName: "", lastName: "" });
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState("");
@@ -31,9 +31,6 @@ export default function SignUpPage() {
     e.preventDefault();
     setError("");
     if (!role) return setError("Please select a role");
-    // Private-trial gate. The server enforces the real check (SIGNUP_INVITE_CODE);
-    // this only stops an obviously blank submission.
-    if (!form.inviteCode.trim()) return setError("An invite code is required — this is a private trial");
     if (form.password.length < 8) return setError("Password must be at least 8 characters");
     if (form.password !== form.confirmPassword) return setError("Passwords do not match");
     if (!ageConfirmed) return setError("You must confirm you are 16 or older");
@@ -102,18 +99,6 @@ export default function SignUpPage() {
           <Label htmlFor="lastName">Last name</Label>
           <Input id="lastName" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} required />
         </div>
-      </div>
-      <div className="space-y-1">
-        <Label htmlFor="inviteCode">Invite code</Label>
-        <Input
-          id="inviteCode"
-          value={form.inviteCode}
-          onChange={(e) => update("inviteCode", e.target.value)}
-          placeholder="Enter your invite code"
-          autoComplete="off"
-          required
-        />
-        <p className="text-xs text-muted-foreground">This is a private trial — enter the invite code you were given.</p>
       </div>
       <div className="space-y-1">
         <Label htmlFor="email">Email</Label>
