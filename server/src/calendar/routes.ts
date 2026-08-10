@@ -5,6 +5,7 @@ import { prisma } from "../db";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
 import { assertCanActOnPlayer } from "../authz";
 import { expandRecurrence, type PresentedEvent } from "./recurrence";
+import { createNotification } from "../notifications/routes";
 
 export const calendarRouter = Router();
 calendarRouter.use(requireAuth);
@@ -151,6 +152,92 @@ function projectTraining(t: TrainingForCalendar, viewerId: string): PresentedEve
   }));
 }
 
+// ── Telling the other side ──────────────────────────────────────────────────
+// An event only matters to the person it lands on. Two directions:
+//   • a coach putting something on a player's schedule  → tell that player;
+//   • a player putting something on their own schedule  → tell the people
+//     connected to them, so a coach or parent sees it without hunting.
+// The `calendar_event_*` types were already mapped to a preference category in
+// notifications/deliver.ts; nothing had ever emitted them.
+
+/** Everyone with an ACTIVE connection to this user. */
+async function connectedTo(userId: string): Promise<string[]> {
+  const rows = await prisma.connectionRequest.findMany({
+    where: { status: "active", OR: [{ fromUserId: userId }, { toUserId: userId }] },
+    select: { fromUserId: true, toUserId: true },
+  });
+  const ids = new Set<string>();
+  for (const r of rows) {
+    if (r.fromUserId !== userId) ids.add(r.fromUserId);
+    if (r.toUserId !== userId) ids.add(r.toUserId);
+  }
+  return [...ids];
+}
+
+/**
+ * Fire-and-forget, and it must stay that way safely.
+ *
+ * The route calls this with `void`, so anything that rejects in here becomes an
+ * unhandled rejection — which takes the process down on modern Node. Unlike
+ * `createNotification`, which swallows its own failures, this function also
+ * queries for the actor's name and their connections, and either can throw.
+ * So the whole body is wrapped: a notification that cannot be worked out must
+ * never turn a successful calendar write into a crash. Same rule the
+ * connections module documents on its own notifier.
+ */
+async function announceEvent(
+  event: Pick<CalendarEvent, "title" | "type" | "startDate" | "playerId">,
+  actorId: string,
+  type: "calendar_event_created" | "calendar_event_updated" | "calendar_event_deleted",
+  verb: string,
+): Promise<void> {
+  try {
+    await announce(event, actorId, type, verb);
+  } catch (err) {
+    console.error(
+      `[calendar] notification (${type}) failed:`,
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
+
+async function announce(
+  event: Pick<CalendarEvent, "title" | "type" | "startDate" | "playerId">,
+  actorId: string,
+  type: string,
+  verb: string,
+) {
+  const when = event.startDate.toLocaleString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+  const actor = await prisma.user.findUnique({
+    where: { id: actorId },
+    select: { firstName: true, lastName: true },
+  });
+  const name = actor ? `${actor.firstName ?? ""} ${actor.lastName ?? ""}`.trim() : "";
+  const who = name || "Someone";
+
+  // Someone acted on another person's schedule — that person is the audience.
+  const audience =
+    event.playerId && event.playerId !== actorId ? [event.playerId] : await connectedTo(actorId);
+
+  for (const userId of audience) {
+    if (userId === actorId) continue;
+    void createNotification({
+      userId,
+      type,
+      title: `${event.type[0].toUpperCase()}${event.type.slice(1)} ${verb}`,
+      message: `${who} ${verb} "${event.title}" on ${when}.`,
+      linkTo: "/calendar",
+    });
+  }
+}
+
 // GET /api/calendar/events — expanded (recurring events become occurrences),
 // plus every training the caller coaches or takes part in.
 calendarRouter.get(
@@ -209,6 +296,7 @@ calendarRouter.post(
         createdBy: req.userId!,
       },
     });
+    void announceEvent(created, req.userId!, "calendar_event_created", "added");
     return ok(res, present(created), "Event created", 201);
   }),
 );
@@ -225,6 +313,7 @@ calendarRouter.patch(
       await assertCanActOnPlayer(req.userId!, d.playerId);
     }
     const updated = await prisma.calendarEvent.update({ where: { id: parentId }, data: toData(d) });
+    void announceEvent(updated, req.userId!, "calendar_event_updated", "changed");
     return ok(res, present(updated), "Event updated");
   }),
 );
@@ -235,7 +324,10 @@ calendarRouter.delete(
   asyncHandler(async (req: AuthedRequest, res) => {
     const parentId = req.params.id.split("_occ_")[0];
     await assertVisible(parentId, req.userId!);
+    // Read before the delete — afterwards there is nothing left to describe.
+    const doomed = await prisma.calendarEvent.findUnique({ where: { id: parentId } });
     await prisma.calendarEvent.delete({ where: { id: parentId } });
+    if (doomed) void announceEvent(doomed, req.userId!, "calendar_event_deleted", "cancelled");
     return ok(res, null, "Event deleted");
   }),
 );

@@ -4,6 +4,7 @@ import type { Prisma, Training, TrainingParticipant } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
 import { requireRole, assertCanActOnPlayer } from "../authz";
+import { createNotification } from "../notifications/routes";
 
 export const trainingsRouter = Router();
 
@@ -122,6 +123,14 @@ trainingsRouter.post(
       },
       include: { participants: true },
     });
+
+    const who = await coachName(req.userId!);
+    notifyPlayers(created.participants.map((p) => p.playerId), req.userId!, {
+      type: "training_created",
+      title: "New training scheduled",
+      message: `${who} scheduled "${created.title}" for ${whenLabel(created.startDate)}${created.location ? ` at ${created.location}` : ""}.`,
+    });
+
     return ok(res, present(created), "Training created", 201);
   }),
 );
@@ -139,6 +148,16 @@ trainingsRouter.patch(
         await assertCanActOnPlayer(req.userId!, playerId);
       }
     }
+
+    // Captured before the write: a PATCH can replace the whole participant
+    // set, and someone taken off a session needs telling as much as someone
+    // added to it. After the update their row is gone and it is too late to ask.
+    const before = (
+      await prisma.trainingParticipant.findMany({
+        where: { trainingId: req.params.id },
+        select: { playerId: true },
+      })
+    ).map((p) => p.playerId);
 
     const updated = await prisma.training.update({
       where: { id: req.params.id },
@@ -164,6 +183,27 @@ trainingsRouter.patch(
       },
       include: { participants: true },
     });
+
+    const after = updated.participants.map((p) => p.playerId);
+    const who = await coachName(req.userId!);
+    const when = `${whenLabel(updated.startDate)}${updated.location ? ` at ${updated.location}` : ""}`;
+
+    notifyPlayers(after.filter((id) => !before.includes(id)), req.userId!, {
+      type: "training_created",
+      title: "You were added to a training",
+      message: `${who} added you to "${updated.title}" on ${when}.`,
+    });
+    notifyPlayers(before.filter((id) => !after.includes(id)), req.userId!, {
+      type: "training_deleted",
+      title: "You were removed from a training",
+      message: `${who} removed you from "${updated.title}" on ${when}.`,
+    });
+    notifyPlayers(after.filter((id) => before.includes(id)), req.userId!, {
+      type: "training_updated",
+      title: "Training updated",
+      message: `${who} changed "${updated.title}" — now ${when}.`,
+    });
+
     return ok(res, present(updated), "Training updated");
   }),
 );
@@ -172,8 +212,25 @@ trainingsRouter.patch(
 trainingsRouter.delete(
   "/:id",
   asyncHandler(async (req: AuthedRequest, res) => {
-    await assertOwner(req.params.id, req.userId!);
+    // One read, not two: ownership and the details needed to tell the players
+    // it is off come from the same row, and the cascade takes the participants
+    // with it, so this has to happen before the delete either way.
+    const doomed = await prisma.training.findUnique({
+      where: { id: req.params.id },
+      include: { participants: { select: { playerId: true } } },
+    });
+    if (!doomed) throw new HttpError(404, "Training not found");
+    if (doomed.coachId !== req.userId) throw new HttpError(403, "You do not own this training");
+
     await prisma.training.delete({ where: { id: req.params.id } });
+
+    const who = await coachName(req.userId!);
+    notifyPlayers(doomed.participants.map((p) => p.playerId), req.userId!, {
+      type: "training_deleted",
+      title: "Training cancelled",
+      message: `${who} cancelled "${doomed.title}" on ${whenLabel(doomed.startDate)}.`,
+    });
+
     return ok(res, null, "Training deleted");
   }),
 );
@@ -210,6 +267,55 @@ async function assertOwner(id: string, userId: string) {
 
 function dedupe(ids: string[]): string[] {
   return Array.from(new Set(ids));
+}
+
+// ── Telling people ──────────────────────────────────────────────────────────
+// A session a player is expected to turn up to is worth a notification; before
+// this, only training *requests* ever produced one, so a coach could schedule,
+// move or cancel a session and the player would learn about it by chance.
+//
+// `training_created` / `_updated` / `_deleted` were already mapped to the
+// trainingReminders preference in notifications/deliver.ts — the categories
+// existed, nothing emitted them.
+
+/** "Tue 2 Jun, 14:00" — times are stored and shown in UTC elsewhere. */
+function whenLabel(d: Date): string {
+  return d.toLocaleString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
+async function coachName(coachId: string): Promise<string> {
+  const u = await prisma.user.findUnique({
+    where: { id: coachId },
+    select: { firstName: true, lastName: true },
+  });
+  // A name field can be empty; "undefined undefined scheduled…" is worse than
+  // saying nothing about who.
+  const name = u ? `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() : "";
+  return name || "Your coach";
+}
+
+/**
+ * Fire-and-forget, one per player. `createNotification` swallows its own
+ * failures, so a mail or push outage can never fail the scheduling request
+ * that triggered it. The actor is filtered out — nobody needs telling about
+ * something they just did themselves.
+ */
+function notifyPlayers(
+  playerIds: string[],
+  actorId: string,
+  input: { type: string; title: string; message: string },
+) {
+  for (const userId of dedupe(playerIds)) {
+    if (userId === actorId) continue;
+    void createNotification({ ...input, userId, linkTo: "/calendar" });
+  }
 }
 
 /** Deterministic, human-readable performance summary (placeholder for a real model). */
