@@ -164,6 +164,36 @@
     font-weight: 800;
     letter-spacing: -0.02em;
   }
+
+  /* ── Reduced motion ────────────────────────────────────────────────────
+     A global off-switch for everyone who asked their OS for less motion —
+     people with vestibular disorders can be made genuinely unwell by
+     parallax and large movement. Kept to ~0 rather than `none` so that
+     transitionend/animationend listeners still fire and nothing that waits
+     on them (Radix unmounts its popovers this way) gets stuck open.
+     Opacity-only fades are left alone: they don't cause motion sickness and
+     removing them makes the UI feel broken rather than calm. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Scroll-revealed content starts at opacity 0 and is only shown once it
+     enters the viewport. On paper there is no viewport and no scrolling, so
+     any section the reader hadn't reached would print as a blank block —
+     force everything visible instead. */
+  @media print {
+    [data-reveal] {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  }
 }
 
 @layer utilities {

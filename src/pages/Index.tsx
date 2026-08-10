@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { Reveal } from "@/components/motion/Reveal";
 
 // ── Content ───────────────────────────────────────────────
 const capabilities = [
@@ -27,15 +28,19 @@ const Index = () => {
       {/* ── Hero ──────────────────────────────────────────── */}
       <section className="border-b border-foreground/15">
         <div className="container max-w-6xl py-20 md:py-28">
-          <h1 className="max-w-4xl text-5xl font-extrabold leading-[0.95] tracking-[-0.03em] text-foreground sm:text-6xl md:text-7xl">
+          {/* Hero animates on load rather than on scroll — it is already in
+              view, so waiting for an intersection would leave it blank. The
+              60ms steps read as one considered movement, not four separate
+              ones. */}
+          <h1 className="max-w-4xl animate-rise-in text-5xl font-extrabold leading-[0.95] tracking-[-0.03em] text-foreground sm:text-6xl md:text-7xl">
             Run the season like a system.
           </h1>
-          <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl">
+          <p className="mt-8 max-w-2xl animate-rise-in text-lg leading-relaxed text-muted-foreground [animation-delay:90ms] md:text-xl">
             Tennis AI keeps the season between coach and player in one place — trainings
             scheduled, sessions planned, kit logged, tournaments chosen. Built for coaches,
             players and the parents who drive.
           </p>
-          <div className="mt-10 flex flex-wrap items-center gap-6">
+          <div className="mt-10 flex animate-rise-in flex-wrap items-center gap-6 [animation-delay:180ms]">
             <Button size="lg" className="h-12 px-7 text-sm font-semibold" asChild>
               <Link to="/signup">Get Started</Link>
             </Button>
@@ -43,8 +48,11 @@ const Index = () => {
               href="#how-it-works"
               className="group inline-flex items-center gap-2 text-sm font-semibold text-foreground"
             >
-              See how it works
-              <ArrowRight className="h-4 w-4 text-primary" />
+              {/* Underline sweeps out from the left on hover. */}
+              <span className="relative after:absolute after:-bottom-0.5 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-foreground after:transition-transform after:duration-300 after:ease-editorial group-hover:after:scale-x-100 motion-reduce:after:transition-none">
+                See how it works
+              </span>
+              <ArrowRight className="h-4 w-4 text-primary transition-transform duration-300 ease-editorial group-hover:translate-x-1 motion-reduce:transition-none" />
             </a>
           </div>
         </div>
@@ -55,8 +63,11 @@ const Index = () => {
         <div className="container max-w-6xl px-0">
           <div className="grid grid-cols-1 md:grid-cols-2">
             {capabilities.map((c, i) => (
-              <div
+              <Reveal
                 key={c.title}
+                // Reading order, not grid order: each cell follows the last by
+                // 80ms so the eye is led through them.
+                delay={i * 80}
                 className={
                   "px-6 py-12 md:px-10 md:py-16 " +
                   // hairline rules between cells only
@@ -68,7 +79,7 @@ const Index = () => {
                 <Marker />
                 <h3 className="text-2xl font-bold tracking-tight text-foreground">{c.title}</h3>
                 <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted-foreground">{c.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -77,18 +88,21 @@ const Index = () => {
       {/* ── How it works ──────────────────────────────────── */}
       <section id="how-it-works" className="border-b border-foreground/15 scroll-mt-20">
         <div className="container max-w-6xl py-20 md:py-24">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">How it works</p>
+          <Reveal as="span" className="block">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">How it works</p>
+          </Reveal>
           <div className="mt-10">
-            {steps.map((s) => (
-              <div
+            {steps.map((s, i) => (
+              <Reveal
                 key={s.n}
+                delay={i * 110}
                 className="grid grid-cols-[auto_1fr] gap-6 border-t border-border py-8 md:grid-cols-[6rem_1fr] md:gap-10 md:py-10"
               >
                 <span className="font-mono text-2xl font-bold text-foreground md:text-3xl">{s.n}</span>
                 <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl">
                   <span className="font-semibold text-foreground">{s.lead}</span> {s.desc}
                 </p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -97,8 +111,10 @@ const Index = () => {
       {/* ── Access (private trial — no invented paid tiers) ── */}
       <section id="pricing" className="border-b border-foreground/15 scroll-mt-20">
         <div className="container max-w-6xl py-20 md:py-24">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Access</p>
-          <div className="mt-10 max-w-2xl">
+          <Reveal as="span" className="block">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Access</p>
+          </Reveal>
+          <Reveal delay={80} className="mt-10 max-w-2xl">
             {/* Not "invite-only" any more — signup takes no invite code, so
                 claiming otherwise would be false. */}
             <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">Currently a free early trial.</h2>
@@ -111,24 +127,26 @@ const Index = () => {
                 <Link to="/signup">Get Started</Link>
               </Button>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* ── Closing CTA ───────────────────────────────────── */}
       <section className="border-b border-foreground/15">
         <div className="container max-w-6xl py-24 md:py-28">
-          <h2 className="max-w-3xl text-4xl font-extrabold leading-[0.98] tracking-[-0.03em] text-foreground md:text-6xl">
-            Step on court with the season already handled.
-          </h2>
-          <div className="mt-10 flex flex-wrap items-center gap-6">
+          <Reveal>
+            <h2 className="max-w-3xl text-4xl font-extrabold leading-[0.98] tracking-[-0.03em] text-foreground md:text-6xl">
+              Step on court with the season already handled.
+            </h2>
+          </Reveal>
+          <Reveal delay={120} className="mt-10 flex flex-wrap items-center gap-6">
             <Button size="lg" className="h-12 px-7 text-sm font-semibold" asChild>
               <Link to="/signup">Get Started</Link>
             </Button>
             <Link to="/login" className="text-sm font-semibold text-foreground underline-offset-4 hover:underline">
               Already on Tennis AI? Sign in
             </Link>
-          </div>
+          </Reveal>
         </div>
       </section>
 

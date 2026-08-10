@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -96,6 +96,7 @@ const navItems: NavItem[] = [
 export function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   // Collapsing the nav hands the whole width to the current page. Remembered
   // across reloads so a user who works collapsed isn't re-expanded every visit.
@@ -140,9 +141,8 @@ export function DashboardLayout() {
     navigate("/login");
   };
 
-  // `withSlot` is true for the desktop sidebar only. The mobile drawer renders
-  // this same markup, and a second slot target would fight the first over the
-  // portal's single node.
+  // `withSlot` is true for the desktop sidebar only (it owns the collapse
+  // button). The desktop sidebar and the mobile drawer render this same markup.
   const renderSidebar = ({ withSlot = false }: { withSlot?: boolean } = {}) => (
     <>
       <div className="flex h-14 items-center gap-2 border-b border-border pl-6 pr-2">
@@ -170,34 +170,56 @@ export function DashboardLayout() {
           <NavLink
             key={item.to}
             to={item.to}
-            end={item.to === "/dashboard"}
+            // NOT `end` for /dashboard: that path immediately redirects to a
+            // role dashboard (/dashboard/coach etc.), so an exact match meant
+            // NO nav item was ever highlighted on the page users actually land
+            // on. Prefix matching keeps Dashboard lit for /dashboard/*.
+            end={false}
             onClick={() => setMobileMenuOpen(false)}
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                // The highlight is each link's OWN background, cross-fading in
+                // place: switching pages fades the old row's green out while the
+                // new row's fades in, over the same 120ms. Deliberately not a
+                // shared element sliding down the column — that made a jump from
+                // the first item to the last visibly sweep past every row
+                // between them, which reads as travel time, not responsiveness.
+                "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-120",
                 isActive
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )
             }
           >
-            {item.icon}
-            <span className="flex-1">{t(item.labelKey)}</span>
-            {item.to === "/trainings" && unreviewedCount > 0 && (
-              <span
-                className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground"
-                aria-label={t("nav.trainings.unreviewedAria", { count: unreviewedCount })}
-              >
-                {t("nav.trainings.unreviewedBadge", { count: formatBadgeCount(unreviewedCount) })}
-              </span>
-            )}
-            {item.to === "/notifications" && unreadNotificationCount > 0 && (
-              <span
-                className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground"
-                aria-label={t("nav.notifications.unreadAria", { count: unreadNotificationCount })}
-              >
+            {({ isActive }) => (
+              <>
+                {item.icon}
+                <span className="flex-1">{t(item.labelKey)}</span>
+                {item.to === "/trainings" && unreviewedCount > 0 && (
+                  <span
+                    className={cn(
+                      "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                      // On the active row the pill behind it is already primary,
+                      // so a primary badge would vanish into it.
+                      isActive ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground",
+                    )}
+                    aria-label={t("nav.trainings.unreviewedAria", { count: unreviewedCount })}
+                  >
+                    {t("nav.trainings.unreviewedBadge", { count: formatBadgeCount(unreviewedCount) })}
+                  </span>
+                )}
+                {item.to === "/notifications" && unreadNotificationCount > 0 && (
+                  <span
+                    className={cn(
+                      "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                      isActive ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground",
+                    )}
+                    aria-label={t("nav.notifications.unreadAria", { count: unreadNotificationCount })}
+                  >
                 {t("nav.notifications.unreadBadge", { count: formatBadgeCount(unreadNotificationCount) })}
-              </span>
+                  </span>
+                )}
+              </>
             )}
           </NavLink>
         ))}
@@ -298,7 +320,12 @@ export function DashboardLayout() {
               {t("dashboard.nav.menu")}
             </Button>
           )}
-          <Outlet />
+          {/* Keyed on the path so React remounts this wrapper per route and the
+              fade replays. Opacity only — no movement, so it can't fight the
+              browser's scroll restoration or nudge content under the cursor. */}
+          <div key={location.pathname} className="animate-fade-in-soft">
+            <Outlet />
+          </div>
         </div>
       </main>
     </div>
