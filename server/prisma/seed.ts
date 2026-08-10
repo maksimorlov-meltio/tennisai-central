@@ -189,7 +189,36 @@ const DEMO_MATCHES = [
   },
 ];
 
+/**
+ * Whether this run is allowed to write demo data.
+ *
+ * The demo accounts share one publicly-documented password, so seeding a
+ * production database would hand anyone who reads this repo four working
+ * logins — one of them `admin`. Production therefore refuses by default and
+ * has to be opted in explicitly with SEED_ON_BOOT=true.
+ *
+ * The guard lives here rather than in the deploy blueprint's start command so
+ * it holds no matter how the seed is invoked — `npm run prisma:seed`,
+ * `db:setup`, a one-off shell on the host, or a future platform's hook.
+ */
+function seedingAllowed(): { ok: boolean; reason?: string } {
+  if (process.env.NODE_ENV !== "production") return { ok: true };
+  if (process.env.SEED_ON_BOOT === "true") return { ok: true };
+  return {
+    ok: false,
+    reason:
+      "NODE_ENV=production and SEED_ON_BOOT is not \"true\" — refusing to write demo accounts. " +
+      "Set SEED_ON_BOOT=true only if you really want the shared-password demo logins in this database.",
+  };
+}
+
 async function main() {
+  const allowed = seedingAllowed();
+  if (!allowed.ok) {
+    console.log(`⏭️  Seed skipped: ${allowed.reason}`);
+    return;
+  }
+
   const passwordHash = await bcrypt.hash("password123", 12);
 
   // Mark demo users as consented (Terms accepted + age confirmed) so they look

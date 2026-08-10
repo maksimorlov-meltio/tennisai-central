@@ -1,10 +1,16 @@
-# Render Blueprint — API service + managed Postgres (FREE tier, for a private test).
-# Deploy: push to GitHub, then New > Blueprint in the Render dashboard and point
-# it at this repo. Set APP_URL to the deployed frontend origin after the first deploy.
+# Render Blueprint — API service only.
 #
-# NOTE: the free tier has no pre-deploy hook, so migrations + seed run at startup
-# (both idempotent). Free web services sleep after ~15 min idle (first request cold-
-# starts in ~30s) and the free database expires after ~30 days — fine for a trial.
+# Deploy: push to GitHub, then New > Blueprint in the Render dashboard and point
+# it at this repo. Set the `sync: false` values in the dashboard afterwards.
+#
+# NO DATABASE IS DEFINED HERE, deliberately. Render's free Postgres is deleted
+# after ~30 days, which would take a live beta's data with it. Provision a
+# persistent database yourself (Neon or Supabase free tier, or paid Render) and
+# paste its connection string into DATABASE_URL below. See DEPLOY.md step 1.
+#
+# The free web plan also sleeps after ~15 minutes idle, so the first request
+# after a quiet spell takes ~30s. Acceptable for a beta; upgrade the plan if
+# testers complain about the first load.
 services:
   - type: web
     name: tennisai-api
@@ -13,31 +19,44 @@ services:
     plan: free
     # Build phase has devDeps (prisma, tsx, typescript) available.
     buildCommand: npm ci && npm run build
-    # Free tier lacks preDeployCommand, so apply migrations + seed at boot (idempotent),
-    # then start the API. Seeding loads the demo coach/players + the tournament catalog
-    # with coordinates so there's something to explore on first login.
-    startCommand: npm run migrate:deploy && (npm run prisma:seed || echo "seed skipped") && npm start
+    # Free tier lacks preDeployCommand, so migrations run at boot. They are
+    # idempotent. The seed is NOT run: it writes demo accounts that share one
+    # password published in this repo, one of them an admin. (prisma/seed.ts
+    # refuses under NODE_ENV=production anyway unless SEED_ON_BOOT=true.)
+    startCommand: npm run migrate:deploy && npm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
+      # Persistent Postgres — paste the connection string, including
+      # ?sslmode=require. NOT a Render free database; see the note above.
       - key: DATABASE_URL
-        fromDatabase:
-          name: tennisai-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         generateValue: true # strong random secret (satisfies the production secret check)
       - key: JWT_EXPIRES_IN
         value: 1d
-      # Test trial: no email service — users sign up and log in without a verify link.
-      - key: REQUIRE_EMAIL_VERIFICATION
-        value: "false"
-      # NOTE: signup is OPEN — anyone who reaches the deployed URL can register.
+      # Exact frontend origin, no trailing slash. CORS rejects everything else,
+      # so this must be set before testers can use the app.
       - key: APP_URL
-        sync: false # set to the deployed frontend origin, e.g. https://tennisai.vercel.app
-
-databases:
-  - name: tennisai-db
-    plan: free
-    databaseName: tennisai
-    user: tennisai
+        sync: false # e.g. https://tennisai.vercel.app
+      # Proves a signup owns the address it claimed. Requires the Gmail values
+      # below — with verification on and no mail configured, nobody can log in.
+      - key: REQUIRE_EMAIL_VERIFICATION
+        value: "true"
+      - key: GMAIL_USER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false # Google app password — set in the dashboard, never in git
+      - key: MAIL_FROM_NAME
+        value: TennisAI
+      # Registration is OPEN (no invite code). This caps it. Counts existing
+      # player/coach/observer accounts; remove the key for no cap.
+      - key: MAX_SIGNUPS
+        value: "50"
+      # Optional AI features. Both must be set or they stay off and say so in
+      # the UI. Tournament conditions need no key and work either way.
+      - key: AI_PROVIDER
+        sync: false # anthropic | openai — optional
+      - key: AI_API_KEY
+        sync: false # server-side secret — optional
