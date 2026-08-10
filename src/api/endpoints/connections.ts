@@ -13,14 +13,19 @@ import type {
 } from "@/types";
 import { apiClient } from "@/api/client";
 
-/** When true, network calls are skipped and a synthetic success is returned. */
-export const USE_MOCK_CONNECTIONS = true;
-
 /**
- * Dynamic mock-mode check.
- * - `VITE_USE_MOCK_CONNECTIONS="false"` forces real mode (used by tests).
- * - `VITE_USE_MOCK_CONNECTIONS="true"` forces mock mode.
- * - Otherwise: real when an API base is configured (production), else mock.
+ * Whether to skip the network and let the in-memory ConnectionStore stay
+ * authoritative. Same env-driven rule as every other endpoint module, so a
+ * deployed build with `VITE_API_BASE_URL` set always talks to the real API.
+ *
+ * - `VITE_USE_MOCK_CONNECTIONS="true"` forces mock mode (local dev, tests).
+ * - `VITE_USE_MOCK_CONNECTIONS="false"` forces real mode.
+ * - Otherwise: real when an API base is configured, mock when it is not.
+ *
+ * An exported `USE_MOCK_CONNECTIONS = true` used to sit beside this. Only a
+ * test double ever read it — every real caller goes through this function —
+ * but a hardcoded `true` in this module read like the production switch, so it
+ * is deleted rather than left to mislead the next person auditing for mocks.
  */
 export const isMockMode = (): boolean => {
   const flag = import.meta.env.VITE_USE_MOCK_CONNECTIONS;
