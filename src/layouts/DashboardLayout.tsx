@@ -105,18 +105,19 @@ export function DashboardLayout() {
     setNavCollapsed(next);
     try { localStorage.setItem(NAV_COLLAPSED_KEY, String(next)); } catch { /* private mode — collapse still works, just isn't remembered */ }
   };
-  const toggleNav = () => applyNavCollapsed(!navCollapsed);
 
-  // The nav hides itself once a destination is chosen, so the page gets the
-  // full width without anyone having to ask for it.
+  // The nav opens and closes only when asked. It used to hide itself as soon as
+  // a destination was chosen, to hand the page the full width — but that turned
+  // a deliberate setting into one you had to keep restoring, so navigating now
+  // leaves the sidebar exactly as it was found.
   const expandButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusToMenu = useRef(false);
-  const collapseAfterNavigation = () => {
-    if (navCollapsed) return;
-    // The sidebar unmounts entirely, so whatever had focus is about to vanish.
-    // Without this, a keyboard user is dumped on <body> with no way back.
-    returnFocusToMenu.current = true;
-    applyNavCollapsed(true);
+  const toggleNav = () => {
+    // Collapsing unmounts the sidebar, and the button doing it lives inside.
+    // Without this a keyboard user is dumped on <body> with no way back, so
+    // focus follows the control over to its expanded counterpart.
+    if (!navCollapsed) returnFocusToMenu.current = true;
+    applyNavCollapsed(!navCollapsed);
   };
   useEffect(() => {
     if (navCollapsed && returnFocusToMenu.current) {
@@ -189,13 +190,11 @@ export function DashboardLayout() {
             // NO nav item was ever highlighted on the page users actually land
             // on. Prefix matching keeps Dashboard lit for /dashboard/*.
             end={false}
-            // `withSlot` marks the desktop sidebar. The mobile drawer closes
-            // itself instead — collapsing there too would leave the desktop
-            // nav hidden the next time the window is wide.
-            onClick={() => {
-              setMobileMenuOpen(false);
-              if (withSlot) collapseAfterNavigation();
-            }}
+            // The mobile drawer is an overlay sitting on top of the page, so
+            // choosing a destination has to dismiss it to reveal what was
+            // chosen. The desktop sidebar is a column beside the content and
+            // stays exactly where it is.
+            onClick={() => setMobileMenuOpen(false)}
             className={({ isActive }) =>
               cn(
                 // The highlight is each link's OWN background, cross-fading in
@@ -270,14 +269,12 @@ export function DashboardLayout() {
                 {user?.email}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {/* These are destinations too, so they hide the nav like any
-                  other one. */}
               {role !== "admin" && (
-                <DropdownMenuItem onSelect={() => { setMobileMenuOpen(false); navigate("/profile"); if (withSlot) collapseAfterNavigation(); }} className="gap-2">
+                <DropdownMenuItem onSelect={() => { setMobileMenuOpen(false); navigate("/profile"); }} className="gap-2">
                   <User className="h-4 w-4" /> {t("dashboard.nav.profile")}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onSelect={() => { setMobileMenuOpen(false); navigate("/notifications/settings"); if (withSlot) collapseAfterNavigation(); }} className="gap-2">
+              <DropdownMenuItem onSelect={() => { setMobileMenuOpen(false); navigate("/notifications/settings"); }} className="gap-2">
                 <Bell className="h-4 w-4" /> {t("dashboard.account.notificationSettings")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -328,10 +325,9 @@ export function DashboardLayout() {
           <ThemeToggle />
         </div>
         <div className="p-6">
-          {/* The only way back once the nav is hidden — and since the nav now
-              hides itself on every navigation, this is a main route rather than
-              an escape hatch. Inline (not floating) so it can never sit on top
-              of page content, and focus lands here when the nav auto-hides. */}
+          {/* The only way back once the nav is hidden. Inline (not floating) so
+              it can never sit on top of page content, and focus lands here the
+              moment the sidebar it replaces unmounts. */}
           {navCollapsed && (
             <Button
               ref={expandButtonRef}
