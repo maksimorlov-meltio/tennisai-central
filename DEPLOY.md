@@ -45,8 +45,8 @@ known-default secret. Anyone holding it can forge a session for any account.
 
 ## 3 · Backend on Render
 
-New → **Blueprint** → point at this repo. `server/render.yaml` defines the
-service; set the `sync: false` values in the dashboard:
+New → **Blueprint** → point at this repo. `render.yaml`, at the repository root,
+defines the service; set the `sync: false` values in the dashboard:
 
 | Variable | Value | Notes |
 |---|---|---|

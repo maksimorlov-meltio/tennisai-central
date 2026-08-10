@@ -4,7 +4,7 @@ A step-by-step guide to put TennisAI online so a coach can log in and test it, u
 **Render** (API + Postgres) and **Vercel** (website), both on their **free** tier.
 
 You do the account/click steps (I can't create accounts or type your passwords).
-Everything else is already wired in the committed config (`server/render.yaml`, `vercel.json`).
+Everything else is already wired in the committed config (`render.yaml`, `vercel.json`).
 
 **Time:** ~20 minutes. **Cost:** €0.
 
@@ -28,7 +28,7 @@ when connecting Render/Vercel below.)*
 ## Step 1 — API + database on Render
 1. Create a free account at **render.com** (sign in with GitHub).
 2. **New ▸ Blueprint** → connect GitHub → pick **`SOMAXOrlov/tennisai-central`**, branch **`main`**.
-3. Render reads `server/render.yaml` and proposes **`tennisai-api`** (web, free) + **`tennisai-db`** (Postgres, free). It auto-generates `JWT_SECRET`, wires `DATABASE_URL`, and sets `REQUIRE_EMAIL_VERIFICATION=false`.
+3. Render reads `render.yaml` (repository root) and proposes **`tennisai-api`** (web, free) + **`tennisai-db`** (Postgres, free). It auto-generates `JWT_SECRET`, wires `DATABASE_URL`, and sets `REQUIRE_EMAIL_VERIFICATION=false`.
    - If it objects to `plan: free` for the database, just pick the **Free** database plan in the dropdown.
 4. Leave **`APP_URL`** blank for now — you'll set it in Step 3, once the website has a URL.
 5. Click **Apply / Create**. First deploy runs: build → apply migrations → seed demo data → start. Wait for the service to go **Live** (health check green). First build takes a few minutes.
