@@ -1,5 +1,6 @@
 // Calendar — Professional planning tool with month/week/day views
 import { useState, useMemo, useCallback, useRef } from "react";
+import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
@@ -40,6 +41,21 @@ import {
 
 /** Events shown in a month cell before collapsing to "+N more". */
 const MONTH_CELL_EVENT_LIMIT = 4;
+
+/**
+ * Events the calendar shows but does not own, identified by an id prefix a
+ * real event id cannot produce (cuids contain no dash). `intl-` is a
+ * tournament from the public feed; `training-` is a session that belongs to
+ * the Trainings page.
+ *
+ * They cannot be edited, deleted or dragged from here: each of those paths
+ * ends in a PATCH/DELETE against an id the calendar API has never heard of,
+ * which 404s. Dragging was already offered on international events and failed
+ * exactly that way.
+ */
+function isProjected(eventId: string) {
+  return eventId.startsWith("intl-") || eventId.startsWith("training-");
+}
 
 const EVENT_CONFIG: Record<CalendarEventType, { label: string; icon: React.ReactNode; dot: string; bg: string }> = {
   training: { label: "Training", icon: <Dumbbell className="h-3.5 w-3.5" />, dot: "bg-foreground", bg: "bg-muted text-foreground dark:text-foreground border-border" },
@@ -83,11 +99,12 @@ function EventChip({ event, onClick, showPlayer, compact, draggable, registered 
   // mode: the chip's colour already encodes the federation (see the legend),
   // and the full untouched title is still on the `title` tooltip below.
   const displayTitle = compact ? event.title.replace(/^\[[^\]]{1,12}\]\s*/, "") : event.title;
+  const canDragThis = Boolean(draggable) && !isProjected(event.id);
   return (
     <button
-      draggable={draggable}
+      draggable={canDragThis}
       onDragStart={(e) => {
-        if (!draggable) return;
+        if (!canDragThis) return;
         e.stopPropagation();
         e.dataTransfer.setData("application/calendar-event-id", event.id);
         e.dataTransfer.setData("application/calendar-event-start", event.startDate);
@@ -192,6 +209,17 @@ function EventDetailDrawer({ event, open, onOpenChange, onEdit, onDelete, onDele
                 <div className="flex items-center gap-2 rounded-lg bg-muted border border-border px-3 py-2 text-sm font-medium text-foreground dark:text-foreground">
                   <CheckCircle2 className="h-4 w-4" /> You're registered for this tournament
                 </div>
+              </div>
+            )}
+            {event.id.startsWith("training-") && (
+              <div className="border-t border-border pt-4">
+                <p className="text-sm text-muted-foreground">
+                  This session is managed on the{" "}
+                  <Link to="/trainings" className="font-medium text-foreground underline underline-offset-4">
+                    Trainings
+                  </Link>{" "}
+                  page, where it can be edited, reviewed and cancelled.
+                </p>
               </div>
             )}
             {!readOnly && (
@@ -710,6 +738,9 @@ export default function CalendarPage() {
   };
 
   const handleDropEvent = useCallback((eventId: string, oldStart: string, oldEnd: string, targetDay: Date) => {
+    // The chip for a projected event is not draggable, but a drop can still be
+    // synthesised; rescheduling one here would PATCH an id the API cannot resolve.
+    if (isProjected(eventId)) return;
     const start = parseISO(oldStart);
     const end = parseISO(oldEnd);
     const dayDiff = targetDay.getTime() - new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
@@ -1044,7 +1075,7 @@ export default function CalendarPage() {
       </div>
 
       {/* Drawers & dialogs */}
-      <EventDetailDrawer event={selectedEvent} open={drawerOpen} onOpenChange={(o) => { setDrawerOpen(o); if (!o) setSelectedEvent(null); }} onEdit={handleEdit} onDelete={handleDelete} onDeleteSingle={handleDeleteSingle} readOnly={isObserver || selectedEvent?.id.startsWith("intl-")} hideCoachNotes={isObserver} deleting={deleteMut.isPending} registering={registerMut.isPending} alreadyRegistered={selectedEvent ? registeredIntlIds.has(selectedEvent.id) : false} onRegister={selectedEvent?.id.startsWith("intl-") && isPlayer ? () => {
+      <EventDetailDrawer event={selectedEvent} open={drawerOpen} onOpenChange={(o) => { setDrawerOpen(o); if (!o) setSelectedEvent(null); }} onEdit={handleEdit} onDelete={handleDelete} onDeleteSingle={handleDeleteSingle} readOnly={isObserver || (selectedEvent ? isProjected(selectedEvent.id) : false)} hideCoachNotes={isObserver} deleting={deleteMut.isPending} registering={registerMut.isPending} alreadyRegistered={selectedEvent ? registeredIntlIds.has(selectedEvent.id) : false} onRegister={selectedEvent?.id.startsWith("intl-") && isPlayer ? () => {
         const tournamentId = selectedEvent!.id.replace("intl-", "");
         const tournament = tournaments.find(t => t.id === tournamentId);
         if (!tournament) return;

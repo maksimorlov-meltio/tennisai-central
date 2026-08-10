@@ -294,6 +294,7 @@ describe("GET /api/calendar/events", () => {
 
   it("scopes the query to events the caller created or is the player on", async () => {
     db.calendarEvent.findMany.mockResolvedValue([]);
+    db.training.findMany.mockResolvedValue([]);
 
     const res = await request(app).get("/api/calendar/events").set("Authorization", bearer(ACTOR));
 
@@ -302,6 +303,108 @@ describe("GET /api/calendar/events", () => {
     expect(firstCallArg(db.calendarEvent.findMany)).toEqual({
       where: { OR: [{ createdBy: ACTOR }, { playerId: ACTOR }] },
     });
+  });
+
+  // ── Trainings projected onto the calendar ────────────────────────────────
+  // A coach booking a session writes a Training row, which is a different
+  // table from CalendarEvent — so before this the session showed up on nobody's
+  // schedule. These assert the projection AND that it inherits the trainings
+  // scope rather than widening what anyone can see.
+  const PLAYER = "user-player";
+  const OTHER = "user-other";
+
+  function trainingRow(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "tr-1",
+      title: "Serve & first ball",
+      description: null,
+      trainingType: "individual",
+      coachId: ACTOR,
+      teamId: null,
+      startDate: new Date("2026-06-02T14:00:00.000Z"),
+      endDate: new Date("2026-06-02T15:30:00.000Z"),
+      location: "Court 3",
+      coachNotes: null,
+      participants: [
+        { playerId: PLAYER, player: { id: PLAYER, firstName: "Anastasiya", lastName: "Kosar" } },
+      ],
+      ...overrides,
+    };
+  }
+
+  it("asks only for trainings the caller coaches or takes part in", async () => {
+    db.calendarEvent.findMany.mockResolvedValue([]);
+    db.training.findMany.mockResolvedValue([]);
+
+    await request(app).get("/api/calendar/events").set("Authorization", bearer(ACTOR));
+
+    expect(firstCallArg(db.training.findMany)).toMatchObject({
+      where: { OR: [{ coachId: ACTOR }, { participants: { some: { playerId: ACTOR } } }] },
+    });
+  });
+
+  it("puts a coach's training on the calendar, one event per participant", async () => {
+    db.calendarEvent.findMany.mockResolvedValue([]);
+    db.training.findMany.mockResolvedValue([trainingRow()]);
+
+    const res = await request(app).get("/api/calendar/events").set("Authorization", bearer(ACTOR));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toMatchObject({
+      id: `training-tr-1-${PLAYER}`,
+      type: "training",
+      title: "Serve & first ball",
+      location: "Court 3",
+      playerId: PLAYER,
+      playerName: "Anastasiya Kosar",
+      createdBy: ACTOR,
+      startDate: "2026-06-02T14:00:00.000Z",
+      endDate: "2026-06-02T15:30:00.000Z",
+    });
+  });
+
+  it("shows a participant only their own place in the session, not their team-mates'", async () => {
+    db.calendarEvent.findMany.mockResolvedValue([]);
+    db.training.findMany.mockResolvedValue([
+      trainingRow({
+        participants: [
+          { playerId: PLAYER, player: { id: PLAYER, firstName: "Anastasiya", lastName: "Kosar" } },
+          { playerId: OTHER, player: { id: OTHER, firstName: "Someone", lastName: "Else" } },
+        ],
+      }),
+    ]);
+
+    const res = await request(app).get("/api/calendar/events").set("Authorization", bearer(PLAYER));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].id).toBe(`training-tr-1-${PLAYER}`);
+    expect(res.body.data[0].playerId).toBe(PLAYER);
+    // The other participant's name must not travel with it.
+    expect(JSON.stringify(res.body.data)).not.toContain("Someone");
+  });
+
+  it("projects a training with no participants as the coach's own block of time", async () => {
+    db.calendarEvent.findMany.mockResolvedValue([]);
+    db.training.findMany.mockResolvedValue([trainingRow({ participants: [] })]);
+
+    const res = await request(app).get("/api/calendar/events").set("Authorization", bearer(ACTOR));
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].id).toBe("training-tr-1");
+    expect(res.body.data[0].playerId).toBeUndefined();
+  });
+
+  it("ids projected trainings so they can never collide with a real event id", async () => {
+    db.calendarEvent.findMany.mockResolvedValue([]);
+    db.training.findMany.mockResolvedValue([trainingRow()]);
+
+    const res = await request(app).get("/api/calendar/events").set("Authorization", bearer(ACTOR));
+
+    // The client keys "read-only, edited elsewhere" off this prefix; a real
+    // cuid contains no dash, so the two sets cannot overlap.
+    expect(res.body.data[0].id.startsWith("training-")).toBe(true);
   });
 
   it("404s a single event that is not visible to the caller", async () => {

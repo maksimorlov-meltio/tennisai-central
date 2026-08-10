@@ -92,14 +92,85 @@ function toData(d: z.infer<typeof updateSchema>) {
   };
 }
 
-// GET /api/calendar/events — expanded (recurring events become occurrences).
+/**
+ * Trainings, as calendar events.
+ *
+ * A session a coach books on the Trainings page is a `Training` row, and that
+ * is a different table from `CalendarEvent` — so until this existed, a coach
+ * created a training and it appeared on nobody's schedule. The client always
+ * assumed otherwise: creating a training invalidates the calendar query
+ * (hooks/api/queries.ts).
+ *
+ * These are projected at read time rather than mirrored into a second table on
+ * write. A Training has many participants but a CalendarEvent carries a single
+ * playerId, so mirroring means a row per participant kept in sync forever,
+ * through a PATCH that can replace the whole participant set. Projecting keeps
+ * one source of truth and cannot drift.
+ *
+ * The ids are prefixed `training-`, which no real event id can collide with
+ * (cuids have no dash), and the client treats that prefix as read-only on the
+ * calendar — a training is edited on the Trainings page, where it lives.
+ */
+type TrainingForCalendar = Prisma.TrainingGetPayload<{
+  include: { participants: { include: { player: { select: { id: true; firstName: true; lastName: true } } } } };
+}>;
+
+function projectTraining(t: TrainingForCalendar, viewerId: string): PresentedEvent[] {
+  // Deliberately not annotated `Omit<PresentedEvent, "id">`: PresentedEvent
+  // carries a string index signature, so Omit collapses it to the index
+  // signature alone and the spread stops contributing startDate/endDate.
+  const base = {
+    title: t.title,
+    type: "training",
+    state: "confirmed",
+    startDate: t.startDate.toISOString(),
+    endDate: t.endDate.toISOString(),
+    location: t.location ?? undefined,
+    description: t.description ?? undefined,
+    coachNotes: t.coachNotes ?? undefined,
+    createdBy: t.coachId,
+    createdByRole: "coach",
+  };
+
+  // A participant sees only their own place in the session. One row per
+  // participant would put every team-mate's name on their calendar.
+  if (t.coachId !== viewerId) {
+    return [{ ...base, id: `training-${t.id}-${viewerId}`, playerId: viewerId }];
+  }
+
+  // The coach gets one per participant, because that is what the calendar's
+  // per-player filter keys off. A session with nobody attached is the coach's
+  // own block of time.
+  if (t.participants.length === 0) return [{ ...base, id: `training-${t.id}` }];
+
+  return t.participants.map((p) => ({
+    ...base,
+    id: `training-${t.id}-${p.playerId}`,
+    playerId: p.playerId,
+    playerName: `${p.player.firstName} ${p.player.lastName}`,
+  }));
+}
+
+// GET /api/calendar/events — expanded (recurring events become occurrences),
+// plus every training the caller coaches or takes part in.
 calendarRouter.get(
   "/events",
   asyncHandler(async (req: AuthedRequest, res) => {
-    const rows = await prisma.calendarEvent.findMany({ where: visibleWhere(req.userId!) });
+    const userId = req.userId!;
+    const [rows, trainings] = await Promise.all([
+      prisma.calendarEvent.findMany({ where: visibleWhere(userId) }),
+      prisma.training.findMany({
+        // Same scope as GET /api/trainings: yours to coach, or yours to attend.
+        where: { OR: [{ coachId: userId }, { participants: { some: { playerId: userId } } }] },
+        include: {
+          participants: { include: { player: { select: { id: true, firstName: true, lastName: true } } } },
+        },
+      }),
+    ]);
     const now = new Date();
     const expanded = rows.flatMap((r) => expandRecurrence(present(r), now));
-    return ok(res, expanded);
+    const projected = trainings.flatMap((t) => projectTraining(t, userId));
+    return ok(res, [...expanded, ...projected]);
   }),
 );
 
