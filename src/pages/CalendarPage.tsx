@@ -53,7 +53,7 @@ const MONTH_CELL_EVENT_LIMIT = 4;
  * which 404s. Dragging was already offered on international events and failed
  * exactly that way.
  */
-function isProjected(eventId: string) {
+export function isProjected(eventId: string) {
   return eventId.startsWith("intl-") || eventId.startsWith("training-");
 }
 
