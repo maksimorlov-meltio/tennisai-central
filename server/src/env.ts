@@ -63,9 +63,14 @@ const schema = z.object({
   // returned by any endpoint and never reaches the browser.
   // Optional hard cap on self-service signups, for a closed beta. Counts
   // existing accounts in the publicly-registerable roles; unset = no cap.
-  // `coerce` is wrapped in blankAsUnset because a bare coerce turns "" into 0,
-  // which would read as "cap of zero" and lock everyone out.
-  MAX_SIGNUPS: blankAsUnset(z.coerce.number().int().positive().optional()),
+  //
+  // `coerce` is wrapped in blankAsUnset because a bare coerce turns "" into 0 —
+  // a copied example env would silently become "closed" rather than "no cap".
+  //
+  // 0 is ALLOWED and means "accept nobody new": that is the obvious way to
+  // pause registration, and rejecting it would make the server exit at boot —
+  // an operator reaching for the pause button would take the API down instead.
+  MAX_SIGNUPS: blankAsUnset(z.coerce.number().int().min(0).optional()),
   AI_PROVIDER: blankAsUnset(z.enum(["anthropic", "openai"]).optional()),
   AI_API_KEY: blankAsUnset(z.string().min(1).optional()),
   AI_MODEL: blankAsUnset(z.string().min(1).optional()),

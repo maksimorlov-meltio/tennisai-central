@@ -123,6 +123,18 @@ describe("POST /api/auth/signup — MAX_SIGNUPS", () => {
     expect(where.role.in).not.toContain("admin");
   });
 
+  it("treats a cap of 0 as 'registration paused', not as 'no cap'", async () => {
+    // 0 is the obvious pause button. It must refuse rather than fall through
+    // to unlimited, and the server must boot on it (see env.ts).
+    cap.value = 0;
+    db.user.count.mockResolvedValue(0);
+
+    const res = await request(app).post("/api/auth/signup").send(validSignup);
+
+    expect(res.status).toBe(403);
+    expect(db.user.create).not.toHaveBeenCalled();
+  });
+
   it("does not count at all when no cap is configured", async () => {
     cap.value = undefined;
 
