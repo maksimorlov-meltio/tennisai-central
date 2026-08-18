@@ -581,7 +581,10 @@ export default function CalendarPage() {
   const registerMut = useAddPlayerTournament();
 
   const [view, setView] = useState<ViewMode>("month");
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 1));
+  // Opens on today. This was pinned to 1 March 2026 during development, which
+  // shipped — so every coach and player landed five months in the past on an
+  // empty month and had to find "Today" before they could see this week.
+  const [currentDate, setCurrentDate] = useState(() => new Date());
   const [activeFilters, setActiveFilters] = useState<Set<CalendarEventType>>(new Set(EVENT_TYPES));
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
