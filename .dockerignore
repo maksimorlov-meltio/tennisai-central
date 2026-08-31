@@ -1,0 +1,11 @@
+node_modules
+server/node_modules
+dist
+.git
+.local-logs
+*.log
+# Never bake local secrets into an image. The Hetzner build supplies the one
+# build-time value it needs (VITE_API_BASE_URL) as a build argument.
+.env
+.env.*
+!.env.example

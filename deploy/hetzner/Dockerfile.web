@@ -1,0 +1,35 @@
+# Frontend + edge. Builds the SPA, then bakes it into a Caddy image that both
+# serves the static files and reverse-proxies /api to the API container.
+#
+# Build context is the REPOSITORY ROOT (see docker-compose.yml).
+
+FROM node:20-slim AS build
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+# --legacy-peer-deps mirrors what Vercel was using; the tree has peer conflicts
+# that npm 10 refuses to resolve on its own.
+RUN npm ci --legacy-peer-deps
+
+COPY . .
+
+# The API base URL is inlined by Vite AT BUILD TIME, so it has to be right here
+# or the finished bundle quietly keeps calling the old host.
+#
+# `.env.production` is committed and still points at Render. A `.env.production.local`
+# outranks it (Vite's documented precedence), which is why the value is written
+# to that file rather than merely exported.
+ARG VITE_API_BASE_URL=/api
+RUN echo "VITE_API_BASE_URL=${VITE_API_BASE_URL}" > .env.production.local
+RUN npm run build
+
+# Fail the build rather than ship a bundle that still calls Render. A wrong base
+# URL looks like a dead server from the browser, not like a misconfiguration.
+RUN if grep -rq "onrender.com" dist/assets; then \
+      echo "BUILD ABORTED: the bundle still references the Render API."; \
+      exit 1; \
+    fi
+
+FROM caddy:2-alpine
+COPY --from=build /app/dist /srv
+COPY deploy/hetzner/Caddyfile /etc/caddy/Caddyfile

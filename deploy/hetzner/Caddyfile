@@ -1,0 +1,36 @@
+# One origin for everything: the SPA and the API share a hostname, so the
+# browser makes same-origin requests. That removes CORS from the picture
+# entirely — the class of failure that cost the most time on the PaaS setup.
+#
+# SITE_ADDRESS comes from .env. Give it a hostname (not an IP) and Caddy
+# obtains and renews a Let's Encrypt certificate on its own.
+{$SITE_ADDRESS} {
+	encode gzip zstd
+
+	# API first — most specific wins in Caddy regardless of order, but reading
+	# order matters to the next person.
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+
+	handle {
+		root * /srv
+		# Client-side routing: every unknown path is the app, not a 404.
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		# Caddy sets HSTS itself once HTTPS is live; these are the rest.
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}
