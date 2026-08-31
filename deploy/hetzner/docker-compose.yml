@@ -46,6 +46,14 @@ services:
       GMAIL_USER: ${GMAIL_USER:-}
       GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-}
       MAIL_FROM_NAME: ${MAIL_FROM_NAME:-TennisAI}
+      # Any SMTP provider, for when Gmail cannot issue an app password.
+      # SMTP_HOST alone switches it on; Gmail wins if both are configured.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
       MAX_SIGNUPS: ${MAX_SIGNUPS:-}
       AI_PROVIDER: ${AI_PROVIDER:-}
       AI_API_KEY: ${AI_API_KEY:-}

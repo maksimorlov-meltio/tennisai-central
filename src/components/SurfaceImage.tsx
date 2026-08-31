@@ -131,7 +131,10 @@ export function SurfaceImage({
         alt={`${name} tennis court surface`}
         loading={eager ? "eager" : "lazy"}
         decoding="async"
-        fetchPriority={eager ? "high" : "low"}
+        // Lowercase, and spread so TS accepts it: React 18 does not know the
+        // camelCase spelling, so it forwards it as an unknown attribute — a
+        // console warning on every render, and the browser ignores the hint.
+        {...{ fetchpriority: eager ? "high" : "low" }}
         width={width}
         height={height}
         sizes={sizes}

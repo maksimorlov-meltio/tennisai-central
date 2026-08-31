@@ -46,9 +46,15 @@ function present(r: ConnWithUsers) {
     fromUserId: r.fromUserId,
     fromUserName: `${r.fromUser.firstName} ${r.fromUser.lastName}`,
     fromUserRole: r.fromUser.role,
+    // The shareable ids (TAI-P-…, TAI-C-…) each side needs to connect. Without
+    // them the client had nothing real to show, so it invented one from the
+    // cuid — every screen listing a player displayed an id that belonged to
+    // nobody, and typing it into "New Request" could never find that player.
+    fromUserPublicId: r.fromUser.publicId,
     toUserId: r.toUserId,
     toUserName: `${r.toUser.firstName} ${r.toUser.lastName}`,
     toUserRole: r.toUser.role,
+    toUserPublicId: r.toUser.publicId,
     status: r.status,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),

@@ -3,7 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
-import { env, emailEnabled } from "./env";
+import { env, emailEnabled, mailTransport } from "./env";
 import { prisma } from "./db";
 import { authRouter } from "./auth/routes";
 import { trainingsRouter } from "./trainings/routes";
@@ -27,6 +27,7 @@ import { opponentsRouter } from "./opponents/routes";
 import { aiRouter } from "./ai/routes";
 import { conditionsRouter } from "./conditions/routes";
 import { errorHandler } from "./http";
+import { verifyMailTransport } from "./email/mailer";
 
 const app = express();
 
@@ -64,7 +65,16 @@ const apiLimiter = rateLimit({
 app.get("/api/health", async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.json({ ok: true, db: "up", emailEnabled, time: new Date().toISOString() });
+    res.json({
+      ok: true,
+      db: "up",
+      emailEnabled,
+      // Which transport, and whether signup is currently possible at all —
+      // the two facts you need to explain "nobody can register" without SSH.
+      mailTransport,
+      signupOpen: !(env.requireEmailVerification && !emailEnabled),
+      time: new Date().toISOString(),
+    });
   } catch {
     res.status(503).json({ ok: false, db: "down", time: new Date().toISOString() });
   }
@@ -104,7 +114,22 @@ app.use(errorHandler);
 const server = app.listen(env.port, () => {
   console.log(`\n🎾  TennisAI API listening on http://localhost:${env.port} [${env.nodeEnv}]`);
   console.log(`    Database:       PostgreSQL`);
-  console.log(`    Gmail sending:  ${emailEnabled ? "ENABLED ✅" : "disabled (console fallback)"}\n`);
+  console.log(`    Mail:           ${emailEnabled ? `${mailTransport} — checking…` : "no transport (console fallback)"}`);
+  console.log(`    Signup:         ${env.requireEmailVerification && !emailEnabled ? "CLOSED — verification on, no mail" : "open"}\n`);
+
+  // Prove the credentials before anyone depends on them. A wrong app password
+  // otherwise stays invisible until a real person fails to receive a real link,
+  // by which point nobody thinks to look at the mail configuration.
+  if (emailEnabled) {
+    void verifyMailTransport().then(({ ok, error }) => {
+      console.log(
+        ok
+          ? `📧  Mail transport (${mailTransport}) authenticated — real email will be sent.`
+          : `❌  Mail transport (${mailTransport}) FAILED to authenticate: ${error}\n` +
+              `    Nothing will be delivered until this is fixed. Credentials are in the server env.`,
+      );
+    });
+  }
 });
 
 // Graceful shutdown — drain in-flight requests and close the DB pool.

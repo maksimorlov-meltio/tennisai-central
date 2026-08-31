@@ -634,7 +634,22 @@ export default function TrainingsPage() {
             const intensityCfg = INTENSITY_OPTIONS.find((o) => o.value === t.intensity);
             const past = isPast(parseISO(t.endDate));
             return (
-              <button key={t.id} onClick={() => openDetail(t)} className={`flex w-full items-start gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/20 hover:bg-accent/20 ${past ? "opacity-60" : ""}`}>
+              // A div, not a button: this row carries its own Edit and Delete
+              // buttons, and a button nested inside a button is invalid HTML
+              // that browsers and screen readers resolve differently. role +
+              // keydown keep the row clickable and reachable from the keyboard.
+              <div
+                key={t.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openDetail(t)}
+                onKeyDown={(e) => {
+                  // Let the inner buttons handle their own Enter/Space.
+                  if (e.target !== e.currentTarget) return;
+                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(t); }
+                }}
+                className={`flex w-full cursor-pointer items-start gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/20 hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${past ? "opacity-60" : ""}`}
+              >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Dumbbell className="h-5 w-5" /></div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -679,7 +694,7 @@ export default function TrainingsPage() {
                     <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setFeedbackTarget(t); }} title="Leave feedback"><MessageCircle className="h-3.5 w-3.5" /></Button>
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>

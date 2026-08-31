@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "TennisAI API — real backend (Express + Prisma + PostgreSQL) for auth + trainings, with Gmail welcome emails.",
+  "description": "TennisAI API \u2014 real backend (Express + Prisma + PostgreSQL) for auth + trainings, with Gmail welcome emails.",
   "engines": {
     "node": "20.x"
   },
@@ -17,6 +17,7 @@
     "prisma:migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
+    "reset-link": "tsx scripts/reset-link.ts",
     "db:setup": "prisma migrate deploy && tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force"
   },

@@ -77,10 +77,45 @@ gunzip -c /opt/tennisai/backups/tennisai_YYYY-MM-DD_HHMM.sql.gz \
 
 ## Email
 
-`REQUIRE_EMAIL_VERIFICATION=false` until Gmail credentials exist. Turning
-verification on without `GMAIL_USER` and `GMAIL_APP_PASSWORD` set tells every
-new account to check an inbox that will never receive anything, and they can
-never log in. Set all three together, then `docker compose up -d`.
+Nothing is sent until a transport is configured, and there are two:
+
+**Gmail** — needs 2-Step Verification on the Google account first, then an app
+password from `myaccount.google.com/apppasswords`:
+
+```
+GMAIL_USER=you@gmail.com
+GMAIL_APP_PASSWORD=the-16-characters
+```
+
+**Any SMTP provider** (Resend, Brevo, Mailgun, Postmark) — for when the Gmail
+account cannot have 2-Step Verification switched on:
+
+```
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=587
+SMTP_USER=resend
+SMTP_PASSWORD=the-api-key
+MAIL_FROM=no-reply@your-domain      # must be authorised by the provider
+```
+
+Set `REQUIRE_EMAIL_VERIFICATION=true` in the **same edit**, then
+`docker compose up -d`. The API checks the credentials at boot and logs whether
+they authenticated — `docker compose logs api | grep Mail`.
+
+Until a transport exists the server is honest rather than broken: **signup is
+refused** with 503 (instead of creating accounts nobody can ever log into), and
+password reset says it is unavailable instead of promising a link. `/api/health`
+reports `mailTransport` and `signupOpen` so this is visible without SSH.
+
+### Resetting one person's password without email
+
+```bash
+cd /opt/tennisai/deploy/hetzner
+docker compose exec api npm run reset-link -- someone@example.com
+```
+
+Prints a single-use link. Give it to them directly — anyone holding it can set
+that account's password, which is why it is a shell command and not an endpoint.
 
 ## Everyday commands
 

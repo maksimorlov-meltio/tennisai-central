@@ -247,6 +247,7 @@ describe("team ownership", () => {
   });
 
   it("POST /api/teams pins coachId to the token's user, ignoring a client-supplied coachId", async () => {
+    db.user.findUnique.mockResolvedValue({ id: COACH, role: "coach" });
     db.team.create.mockImplementation((args: { data: Record<string, unknown> }) =>
       Promise.resolve(teamRow({ coachId: args.data.coachId, name: args.data.name })),
     );
@@ -260,5 +261,49 @@ describe("team ownership", () => {
     const arg = firstCallArg<{ data: Record<string, unknown> }>(db.team.create);
     expect(arg.data.coachId).toBe(COACH);
     expect(JSON.stringify(arg.data)).not.toContain(OTHER_COACH);
+  });
+});
+
+// ── POST /api/teams — who is allowed to create one ──────────────────────────
+//
+// The route used to make whoever was signed in the team's coach. The Teams page
+// is hidden from players and observers in the UI, which is not a control: a
+// player with a token could create teams and own them.
+describe("POST /api/teams — role gate", () => {
+  it("lets a coach create a team", async () => {
+    db.user.findUnique.mockResolvedValue({ id: COACH, role: "coach" });
+    db.team.create.mockResolvedValue(teamRow());
+
+    const res = await request(app)
+      .post("/api/teams")
+      .set("Authorization", bearer(COACH))
+      .send({ name: "Squad A" });
+
+    expect(res.status).toBe(201);
+    expect(db.team.create).toHaveBeenCalled();
+  });
+
+  it("403s a PLAYER, and writes nothing", async () => {
+    db.user.findUnique.mockResolvedValue({ id: PLAYER, role: "player" });
+
+    const res = await request(app)
+      .post("/api/teams")
+      .set("Authorization", bearer(PLAYER))
+      .send({ name: "Not mine to make" });
+
+    expect(res.status).toBe(403);
+    expect(db.team.create).not.toHaveBeenCalled();
+  });
+
+  it("403s an OBSERVER, and writes nothing", async () => {
+    db.user.findUnique.mockResolvedValue({ id: "user-observer", role: "observer" });
+
+    const res = await request(app)
+      .post("/api/teams")
+      .set("Authorization", bearer("user-observer"))
+      .send({ name: "Not mine either" });
+
+    expect(res.status).toBe(403);
+    expect(db.team.create).not.toHaveBeenCalled();
   });
 });

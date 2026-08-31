@@ -66,6 +66,18 @@ GMAIL_USER=
 GMAIL_APP_PASSWORD=
 MAIL_FROM_NAME=TennisAI
 
+# Alternative to Gmail, for any SMTP provider (Resend, Brevo, Mailgun...).
+# Gmail will not issue an app password until 2-Step Verification is on for the
+# whole Google account; these credentials are handed over immediately.
+# SMTP_HOST alone switches it on. MAIL_FROM must be an address the provider has
+# authorised for your domain.
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASSWORD=
+MAIL_FROM=
+
 # Registration is open; this caps total accounts. Remove for no cap.
 MAX_SIGNUPS=50
 

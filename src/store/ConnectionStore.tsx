@@ -39,6 +39,40 @@ interface ConnectionStore {
 
 const ConnectionContext = createContext<ConnectionStore | null>(null);
 
+/**
+ * The players on the other end of this user's active connections.
+ *
+ * `playerPublicId` is whatever the server sent and nothing else. It used to be
+ * assembled from the digits in the counterpart's cuid — a plausible-looking
+ * TAI-P-… that belonged to no account — and that string was then shown on the
+ * Players page, both dashboards, Teams and Trainings. A coach reading it out so
+ * somebody could connect with that player was handing over an id that fails.
+ * Empty is honest; invented is not.
+ */
+export function deriveConnectedPlayers(
+  requests: ConnectionRequest[],
+  userId: string,
+): ConnectedPlayer[] {
+  return requests
+    .filter((r) => r.status === "active")
+    .map((r) => {
+      const isFrom = r.fromUserId === userId;
+      const otherRole = isFrom ? r.toUserRole : r.fromUserRole;
+      if (otherRole !== "player") return null;
+      const otherName = isFrom ? r.toUserName : r.fromUserName;
+      const [firstName, ...rest] = otherName.split(" ");
+      return {
+        id: isFrom ? r.toUserId : r.fromUserId,
+        playerPublicId: (isFrom ? r.toUserPublicId : r.fromUserPublicId) ?? "",
+        firstName,
+        lastName: rest.join(" ") || "",
+        connectedSince: r.updatedAt,
+      } as ConnectedPlayer;
+    })
+    .filter((p): p is ConnectedPlayer => p !== null)
+    .filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i);
+}
+
 // ─── Seed data ───
 // Every player ↔ every coach is pre-connected and fully active so that
 // whichever demo account logs in (player or coach) sees the full set of
@@ -56,9 +90,11 @@ function buildSeedRequests(): ConnectionRequest[] {
         fromUserId: coach.id,
         fromUserName: `${coach.firstName} ${coach.lastName}`,
         fromUserRole: "coach" as UserRole,
+        fromUserPublicId: coach.publicId,
         toUserId: player.id,
         toUserName: `${player.firstName} ${player.lastName}`,
         toUserRole: "player" as UserRole,
+        toUserPublicId: player.publicId,
         status: "active" as RelationshipStatus,
         createdAt: seedDate,
         updatedAt: seedDate,
@@ -120,9 +156,13 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         fromUserId: userId,
         fromUserName: `${user.firstName} ${user.lastName}`,
         fromUserRole: user.role,
+        // Carried on the optimistic row so the id shown before the refetch
+        // lands is the same real one the server will send back.
+        fromUserPublicId: user.publicId,
         toUserId: entry.id,
         toUserName: `${entry.firstName} ${entry.lastName}`,
         toUserRole: entry.role,
+        toUserPublicId: entry.publicId,
         status: "pending",
         createdAt: now,
         updatedAt: now,
@@ -205,28 +245,10 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     [requests, userId]
   );
 
-  // Derive connected players from active requests where the OTHER party is a player
-  const connectedPlayers = useMemo<ConnectedPlayer[]>(() => {
-    return requests
-      .filter((r) => r.status === "active")
-      .map((r) => {
-        const isFrom = r.fromUserId === userId;
-        const otherId = isFrom ? r.toUserId : r.fromUserId;
-        const otherName = isFrom ? r.toUserName : r.fromUserName;
-        const otherRole = isFrom ? r.toUserRole : r.fromUserRole;
-        if (otherRole !== "player") return null;
-        const [firstName, ...rest] = otherName.split(" ");
-        return {
-          id: otherId,
-          playerPublicId: `TAI-P-${otherId.replace(/\D/g, "").padStart(3, "0")}`,
-          firstName,
-          lastName: rest.join(" ") || "",
-          connectedSince: r.updatedAt,
-        } as ConnectedPlayer;
-      })
-      .filter((p): p is ConnectedPlayer => p !== null)
-      .filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i);
-  }, [requests, userId]);
+  const connectedPlayers = useMemo<ConnectedPlayer[]>(
+    () => deriveConnectedPlayers(requests, userId),
+    [requests, userId],
+  );
 
   const value = useMemo<ConnectionStore>(
     () => ({ requests, connectedPlayers, activeRelationships, sendRequest, updateStatus, revokeRelationship }),

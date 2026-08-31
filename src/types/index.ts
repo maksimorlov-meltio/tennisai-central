@@ -118,9 +118,14 @@ export interface ConnectionRequest {
   fromUserId: string;
   fromUserName: string;
   fromUserRole: UserRole;
+  /** Shareable id (TAI-P-…, TAI-C-…) as issued by the server. Optional only
+   *  because a mock-mode row has no server to supply one — the real API always
+   *  sends both, and anything shown to a user must come from here. */
+  fromUserPublicId?: string;
   toUserId: string;
   toUserName: string;
   toUserRole: UserRole;
+  toUserPublicId?: string;
   status: RelationshipStatus;
   createdAt: string;
   updatedAt: string;
