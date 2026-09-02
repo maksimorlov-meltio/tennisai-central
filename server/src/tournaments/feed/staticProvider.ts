@@ -7,6 +7,9 @@ import { TOURNAMENT_DATASET } from "../data/dataset";
 
 export const staticProvider: TournamentFeedProvider = {
   name: "static-snapshot",
+  // Mixed by nature — the curated slice spans several tours. ITF is the widest
+  // label of the ones the type allows.
+  federation: "ITF",
   async fetchTournaments(): Promise<FeedTournament[]> {
     // Return a shallow copy so callers can't mutate the shared module constant.
     return TOURNAMENT_DATASET.map((t) => ({ ...t }));
