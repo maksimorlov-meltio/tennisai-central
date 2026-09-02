@@ -72,10 +72,53 @@ function presentPlayerTournament(pt: PTWithRelations) {
 }
 
 // GET /api/tournaments — the global catalog.
+/**
+ * How much of the calendar to return when the caller does not say.
+ *
+ * This used to return every row, which was fine at 26 curated events and is not
+ * at 3,278 live ones: 1.13 MB and four seconds on every calendar and tournaments
+ * page load. A season either side covers planning — a coach entering a player
+ * for something three years out is not a case worth making everyone else pay
+ * for — and `from`/`to` are there for anyone who does need further.
+ */
+const DEFAULT_PAST_DAYS = 60;
+const DEFAULT_FUTURE_DAYS = 365;
+/** A ceiling even on an explicit range, so one request cannot pull everything. */
+const MAX_ROWS = 2000;
+
+const listQuery = z.object({
+  from: z.string().optional(),
+  to: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(MAX_ROWS).optional(),
+});
+
+function windowFrom(query: z.infer<typeof listQuery>): { gte: Date; lte: Date } {
+  const day = 86_400_000;
+  const parse = (value: string | undefined, fallback: number): Date => {
+    if (value) {
+      const d = new Date(value);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+    return new Date(Date.now() + fallback);
+  };
+  return {
+    gte: parse(query.from, -DEFAULT_PAST_DAYS * day),
+    lte: parse(query.to, DEFAULT_FUTURE_DAYS * day),
+  };
+}
+
 tournamentsRouter.get(
   "/",
-  asyncHandler(async (_req, res) => {
-    const rows = await prisma.tournament.findMany({ orderBy: { startDate: "asc" } });
+  asyncHandler(async (req, res) => {
+    const query = listQuery.parse(req.query);
+    const { gte, lte } = windowFrom(query);
+    const rows = await prisma.tournament.findMany({
+      // An event that STARTED before the window but is still running is still
+      // current, so the overlap is tested rather than just the start date.
+      where: { startDate: { lte }, endDate: { gte } },
+      orderBy: { startDate: "asc" },
+      take: query.limit ?? MAX_ROWS,
+    });
     return ok(res, rows.map(presentTournament));
   }),
 );
