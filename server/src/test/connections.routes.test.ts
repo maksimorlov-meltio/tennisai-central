@@ -34,8 +34,8 @@ function connRow(overrides: Record<string, unknown> = {}) {
     status: "pending",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-02T00:00:00.000Z"),
-    fromUser: { id: SENDER, firstName: "Sam", lastName: "Sender", role: "coach" },
-    toUser: { id: RECIPIENT, firstName: "Rita", lastName: "Recipient", role: "player" },
+    fromUser: { id: SENDER, publicId: "TAI-C-SENDER", firstName: "Sam", lastName: "Sender", role: "coach" },
+    toUser: { id: RECIPIENT, publicId: "TAI-P-RECIP", firstName: "Rita", lastName: "Recipient", role: "player" },
     ...overrides,
   };
 }
@@ -311,5 +311,44 @@ describe("GET /api/connections", () => {
     const res = await request(app).get("/api/connections");
     expect(res.status).toBe(401);
     expect(db.connectionRequest.findMany).not.toHaveBeenCalled();
+  });
+});
+
+// ── The shareable ids ───────────────────────────────────────────────────────
+//
+// These were missing from the response, so the client built a TAI-P-… of its
+// own out of the digits in the user's cuid. It looked plausible, belonged to
+// nobody, and was shown on every screen listing a player — including to a coach
+// reading it out so somebody could connect with them.
+describe("GET /api/connections — public ids", () => {
+  it("returns each side's real publicId", async () => {
+    db.connectionRequest.findMany.mockResolvedValue([connRow({ status: "active" })]);
+
+    const res = await request(app)
+      .get("/api/connections")
+      .set("Authorization", bearer(SENDER));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].fromUserPublicId).toBe("TAI-C-SENDER");
+    expect(res.body.data[0].toUserPublicId).toBe("TAI-P-RECIP");
+  });
+
+  it("still never leaks a password hash or email through the join", async () => {
+    db.connectionRequest.findMany.mockResolvedValue([
+      connRow({
+        fromUser: {
+          id: SENDER, publicId: "TAI-C-SENDER", firstName: "Sam", lastName: "Sender",
+          role: "coach", email: "sam@example.com", passwordHash: "$2a$12$nope",
+        },
+      }),
+    ]);
+
+    const res = await request(app)
+      .get("/api/connections")
+      .set("Authorization", bearer(SENDER));
+
+    const body = JSON.stringify(res.body);
+    expect(body).not.toContain("passwordHash");
+    expect(body).not.toContain("sam@example.com");
   });
 });

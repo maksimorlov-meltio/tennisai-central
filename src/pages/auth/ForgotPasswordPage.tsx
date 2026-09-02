@@ -19,6 +19,14 @@ export default function ForgotPasswordPage() {
   const [sentTo, setSentTo] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // The server's own wording. Usually the deliberately vague "if that email is
+  // registered…", but a server with no mail transport says so plainly instead —
+  // and answering "check your email" to that sends someone to watch an inbox
+  // nothing can ever arrive in.
+  const [serverMessage, setServerMessage] = useState("");
+  // Whether this server can send mail at all. A property of the server, the
+  // same for every address, so showing it reveals nothing about any account.
+  const [mailUnavailable, setMailUnavailable] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +35,9 @@ export default function ForgotPasswordPage() {
     if (!address) return setError("Enter the email address you signed up with");
     setLoading(true);
     try {
-      await authApi.forgotPassword(address);
+      const res = await authApi.forgotPassword(address);
+      setServerMessage(res?.message ?? "");
+      setMailUnavailable(res?.data?.emailConfigured === false);
       setSentTo(address);
       setSent(true);
     } catch (err: any) {
@@ -39,6 +49,7 @@ export default function ForgotPasswordPage() {
     }
   };
 
+
   if (sent) {
     return (
       <div className="flex flex-col items-center gap-4 py-6 text-center">
@@ -46,11 +57,17 @@ export default function ForgotPasswordPage() {
           <MailCheck className="h-6 w-6 text-primary" />
         </div>
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-foreground">Check your email</h2>
-          <p className="text-sm text-muted-foreground">
-            If <span className="font-medium text-foreground">{sentTo}</span> is registered, a reset link is on its
-            way. The link works once and expires in an hour.
-          </p>
+          <h2 className="text-xl font-semibold text-foreground">
+            {mailUnavailable ? "Reset isn't available yet" : "Check your email"}
+          </h2>
+          {mailUnavailable ? (
+            <p className="text-sm text-muted-foreground">{serverMessage}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              If <span className="font-medium text-foreground">{sentTo}</span> is registered, a reset link is on its
+              way. The link works once and expires in an hour.
+            </p>
+          )}
         </div>
         <div className="flex flex-col items-center gap-2">
           <Button asChild>

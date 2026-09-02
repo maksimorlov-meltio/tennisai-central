@@ -65,6 +65,13 @@ const DELEGATES = [
   "trainingRequest",
   "calendarEvent",
   "notification",
+  // The delivery funnel (notifications/deliver.ts) reads both of these right
+  // after writing a notification. Without them every notification spec logged
+  // "delivery funnel failed: Cannot read properties of undefined" and exercised
+  // only half of what it claimed to — the assertions still passed, because a
+  // delivery failure is swallowed by design.
+  "notificationPreference",
+  "pushSubscription",
   "coachAssignment",
   "guardianship",
   "academyMembership",

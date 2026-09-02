@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import type { User } from "@prisma/client";
 import { prisma } from "../db";
-import { env } from "../env";
+import { env, emailEnabled } from "../env";
 import { signToken, signPurposeToken, verifyPurposeToken, signResetToken, verifyResetToken } from "./jwt";
 import { sendWelcomeEmail, sendVerificationEmail, sendPasswordResetEmail } from "../email/mailer";
 import { publicIdFor } from "../lib/publicId";
@@ -31,6 +31,18 @@ function resetUrlFor(userId: string): string {
  * an unregistered address, so the endpoint cannot be used to enumerate accounts.
  */
 const RESET_REQUESTED_MESSAGE = "If that email is registered, a reset link is on its way.";
+
+/**
+ * What to say when the server has no way to send mail at all.
+ *
+ * This does NOT weaken the no-enumeration property: whether a transport is
+ * configured is a fact about the server, identical for every address, and
+ * observable from /api/health anyway. Telling the truth here is worth it —
+ * the alternative is a person watching an inbox that can never receive
+ * anything, concluding the app is broken, and being right.
+ */
+const RESET_UNAVAILABLE_MESSAGE =
+  "Password reset is unavailable right now — this server cannot send email yet. Please ask your coach or the person who set this up to reset it for you.";
 
 /** One uniform failure for every bad-token case (unknown, expired, already used). */
 const RESET_INVALID_MESSAGE = "This password reset link is invalid or has expired. Please request a new one.";
@@ -80,6 +92,21 @@ authRouter.post(
     // the 16+/terms consents, and the rate limiter). If access ever needs
     // restricting again, gate it here, before any account work happens.
     const email = data.email.trim().toLowerCase();
+
+    // Verification demanded, but nothing configured to deliver the link with.
+    // Every account created in this state is permanently locked: told to check
+    // an inbox that will never receive anything, and refused at login forever.
+    // Refuse the signup instead of minting one.
+    //
+    // Deliberately NOT a refuse-to-boot check. Taking the API down would log
+    // out everyone already using it to punish a setting that only harms people
+    // who have not signed up yet.
+    if (env.requireEmailVerification && !emailEnabled) {
+      throw new HttpError(
+        503,
+        "Registration is temporarily unavailable — this server cannot send verification emails yet. Please try again later.",
+      );
+    }
 
     // Closed-beta cap. Checked before any account work, so a full beta costs a
     // count and nothing else. Only self-registerable roles are counted, so an
@@ -202,6 +229,11 @@ authRouter.post(
 authRouter.post(
   "/resend-verification",
   asyncHandler(async (req, res) => {
+    // Same reasoning as /forgot-password: promising a link the server cannot
+    // send leaves someone waiting on an empty inbox indefinitely.
+    if (!emailEnabled) {
+      return ok(res, null, "This server cannot send email yet, so a verification link cannot be re-sent.");
+    }
     const parsed = z.object({ email: z.string().email() }).safeParse(req.body);
     if (parsed.success) {
       const email = parsed.data.email.trim().toLowerCase();
@@ -223,6 +255,10 @@ authRouter.post(
 authRouter.post(
   "/forgot-password",
   asyncHandler(async (req, res) => {
+    // `emailConfigured` is a property of the server, identical for every
+    // address, so returning it cannot be used to probe for accounts.
+    if (!emailEnabled) return ok(res, { emailConfigured: false }, RESET_UNAVAILABLE_MESSAGE);
+
     const parsed = z.object({ email: z.string().email() }).safeParse(req.body);
     if (parsed.success) {
       const email = parsed.data.email.trim().toLowerCase();
@@ -234,7 +270,7 @@ authRouter.post(
       }
     }
     // The token is NEVER returned to the caller — it only travels by email.
-    return ok(res, null, RESET_REQUESTED_MESSAGE);
+    return ok(res, { emailConfigured: true }, RESET_REQUESTED_MESSAGE);
   }),
 );
 

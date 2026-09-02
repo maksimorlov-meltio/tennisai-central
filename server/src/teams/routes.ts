@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Team, TeamMember, User } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
-import { assertCanActOnPlayer } from "../authz";
+import { assertCanActOnPlayer, requireRole } from "../authz";
 
 export const teamsRouter = Router();
 teamsRouter.use(requireAuth);
@@ -69,8 +69,14 @@ teamsRouter.get(
 );
 
 // POST /api/teams
+//
+// Coach-only. This route used to make whoever held a token the team's coach, so
+// any player or observer could create teams and own them — the Teams page being
+// hidden from them in the UI is not a control. Everything below (`ownedTeam`)
+// already assumes the owner is a coach.
 teamsRouter.post(
   "/",
+  requireRole("coach", "admin"),
   asyncHandler(async (req: AuthedRequest, res) => {
     const data = createSchema.parse(req.body);
     const team = await prisma.team.create({

@@ -35,6 +35,27 @@ const schema = z.object({
   GMAIL_USER: z.string().default(""),
   GMAIL_APP_PASSWORD: z.string().default(""),
   MAIL_FROM_NAME: z.string().default("TennisAI"),
+  // Any SMTP provider, as an alternative to Gmail. Gmail needs 2-Step
+  // Verification switched on before it will issue an app password, which is a
+  // Google-account change some operators can't or won't make; a provider like
+  // Resend, Brevo or Mailgun hands over SMTP credentials immediately.
+  //
+  // Gmail wins if both are configured — it was here first and is the
+  // documented default. SMTP_HOST alone is enough (some relays authenticate by
+  // IP), so the pair below is optional.
+  SMTP_HOST: blankAsUnset(z.string().min(1).optional()),
+  SMTP_PORT: blankAsUnset(z.coerce.number().int().positive().default(587)),
+  // Implicit TLS (port 465). Port 587 upgrades with STARTTLS and wants `false`.
+  SMTP_SECURE: z
+    .string()
+    .default("false")
+    .transform((v) => v.toLowerCase() === "true"),
+  SMTP_USER: z.string().default(""),
+  SMTP_PASSWORD: z.string().default(""),
+  // Envelope sender for SMTP. Providers reject mail from an address the domain
+  // has not authorised, so this cannot be guessed — it must be set alongside
+  // SMTP_HOST. Ignored on the Gmail path, which must send as the account.
+  MAIL_FROM: blankAsUnset(z.string().email().optional()),
   // Local-test escape hatch: set to "false" ONLY for a local trial with no
   // email provider, so accounts are usable without a verification round-trip.
   // Secure default is ON — anything other than the literal "false" enables it.
@@ -114,6 +135,13 @@ export const env = {
   gmailUser: e.GMAIL_USER,
   gmailAppPassword: e.GMAIL_APP_PASSWORD.replace(/\s+/g, ""),
   mailFromName: e.MAIL_FROM_NAME,
+  // Generic SMTP alternative to Gmail. Credentials are server-side secrets.
+  smtpHost: e.SMTP_HOST,
+  smtpPort: e.SMTP_PORT,
+  smtpSecure: e.SMTP_SECURE,
+  smtpUser: e.SMTP_USER,
+  smtpPassword: e.SMTP_PASSWORD,
+  mailFrom: e.MAIL_FROM,
   requireEmailVerification: e.REQUIRE_EMAIL_VERIFICATION,
   // Optional live-feed config (undefined unless explicitly set). Server-side only.
   feedApiUrl: e.FEED_API_URL,
@@ -138,5 +166,29 @@ if (isProd && !env.requireEmailVerification) {
   );
 }
 
-/** Real Gmail sending only happens when both credentials are present. */
-export const emailEnabled = Boolean(env.gmailUser && env.gmailAppPassword);
+/**
+ * Which transport will actually carry mail, or null when none is configured.
+ * Gmail wins when both are set: it is the documented default here.
+ */
+export const mailTransport: "gmail" | "smtp" | null = env.gmailUser && env.gmailAppPassword
+  ? "gmail"
+  : env.smtpHost
+    ? "smtp"
+    : null;
+
+/** Whether any real mail can leave this process. */
+export const emailEnabled = mailTransport !== null;
+
+// The combination that silently traps every new account: verification is
+// demanded, but no transport exists to deliver the link. Signup refuses while
+// this holds (see auth/routes.ts) rather than minting accounts nobody can ever
+// log into — but say so at boot, because the fix is one environment variable
+// and the operator should not have to learn about it from a stuck user.
+if (env.requireEmailVerification && !emailEnabled) {
+  console.warn(
+    "⚠️  REQUIRE_EMAIL_VERIFICATION is on but no mail transport is configured.\n" +
+      "   Verification links cannot be delivered, so SIGNUP IS DISABLED until you\n" +
+      "   set GMAIL_USER + GMAIL_APP_PASSWORD (or SMTP_HOST + MAIL_FROM), or set\n" +
+      "   REQUIRE_EMAIL_VERIFICATION=false.",
+  );
+}

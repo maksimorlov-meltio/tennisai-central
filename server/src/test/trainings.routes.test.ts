@@ -248,6 +248,9 @@ describe("PATCH /api/trainings/:id", () => {
   it("lets the owning coach update the session (200)", async () => {
     asRole("coach");
     db.training.findUnique.mockResolvedValue({ coachId: COACH });
+    // The route reads the participant set before writing, so that it can tell
+    // anyone added to — or dropped from — the session.
+    db.trainingParticipant.findMany.mockResolvedValue([]);
     db.training.update.mockImplementation((args: { data: Record<string, unknown> }) =>
       Promise.resolve(trainingRowFrom({ coachId: COACH, ...args.data })),
     );
@@ -298,7 +301,14 @@ describe("DELETE /api/trainings/:id", () => {
   });
 
   it("lets the owning coach delete (200)", async () => {
-    db.training.findUnique.mockResolvedValue({ coachId: COACH });
+    // Deleting reads the whole row first: the cascade removes the participants,
+    // so the people who need telling it is cancelled must be read beforehand.
+    db.training.findUnique.mockResolvedValue({
+      coachId: COACH,
+      title: "Serve & first ball",
+      startDate: new Date("2026-06-02T14:00:00.000Z"),
+      participants: [],
+    });
     db.training.delete.mockResolvedValue({ id: TRAINING });
 
     const res = await request(app)
@@ -347,5 +357,128 @@ describe("GET /api/trainings", () => {
     expect(firstCallArg<{ where: unknown }>(db.training.findMany).where).toEqual({
       OR: [{ coachId: PLAYER }, { participants: { some: { playerId: PLAYER } } }],
     });
+  });
+});
+
+// ── Telling the players ─────────────────────────────────────────────────────
+// Before this, only training *requests* ever produced a notification, so a
+// coach could schedule, move or cancel a session and the player found out by
+// looking. Delivery (email/push) is fire-and-forget inside `createNotification`
+// and swallows its own failures, so what is asserted here is the row it writes
+// — who is told, and that the coach is not told about their own action.
+describe("trainings notify the players", () => {
+  // The notification funnel is deliberately not awaited by the route, so let
+  // the microtask queue drain before asserting on it.
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+
+  /** userIds passed to notification.create, in call order. */
+  function notifiedUsers(): string[] {
+    return db.notification.create.mock.calls.map(
+      (c) => (c[0] as { data: { userId: string } }).data.userId,
+    );
+  }
+  function notifiedTypes(): string[] {
+    return db.notification.create.mock.calls.map(
+      (c) => (c[0] as { data: { type: string } }).data.type,
+    );
+  }
+
+  it("tells every participant when a session is created, and never the coach", async () => {
+    asRole("coach");
+    db.coachAssignment.findUnique.mockResolvedValue({ status: "active" });
+    db.notification.create.mockResolvedValue({ id: "n-1" });
+
+    const res = await request(app)
+      .post("/api/trainings")
+      .set("Authorization", bearer(COACH))
+      .send({ ...validBody, playerIds: [PLAYER, OUTSIDER] });
+    await flush();
+
+    expect(res.status).toBe(201);
+    expect(notifiedUsers().sort()).toEqual([OUTSIDER, PLAYER].sort());
+    expect(notifiedUsers()).not.toContain(COACH);
+    expect(notifiedTypes()).toEqual(["training_created", "training_created"]);
+  });
+
+  it("names the session and when it is, so the notification is worth reading", async () => {
+    asRole("coach");
+    db.coachAssignment.findUnique.mockResolvedValue({ status: "active" });
+    db.notification.create.mockResolvedValue({ id: "n-1" });
+
+    await request(app)
+      .post("/api/trainings")
+      .set("Authorization", bearer(COACH))
+      .send({ ...validBody, title: "Serve & first ball", playerIds: [PLAYER] });
+    await flush();
+
+    const written = db.notification.create.mock.calls[0][0] as {
+      data: { message: string; linkTo: string };
+    };
+    expect(written.data.message).toContain("Serve & first ball");
+    expect(written.data.linkTo).toBe("/calendar");
+  });
+
+  it("tells a player they were dropped, and a new one they were added", async () => {
+    asRole("coach");
+    db.coachAssignment.findUnique.mockResolvedValue({ status: "active" });
+    db.notification.create.mockResolvedValue({ id: "n-1" });
+    db.training.findUnique.mockResolvedValue({ coachId: COACH });
+    // PLAYER was on the session; the PATCH replaces the set with OUTSIDER.
+    db.trainingParticipant.findMany.mockResolvedValue([{ playerId: PLAYER }]);
+    db.training.update.mockImplementation((args: { data: Record<string, unknown> }) =>
+      Promise.resolve(trainingRowFrom({ coachId: COACH, ...args.data })),
+    );
+
+    const res = await request(app)
+      .patch(`/api/trainings/${TRAINING}`)
+      .set("Authorization", bearer(COACH))
+      .send({ playerIds: [OUTSIDER] });
+    await flush();
+
+    expect(res.status).toBe(200);
+    const byUser = Object.fromEntries(
+      db.notification.create.mock.calls.map((c) => {
+        const d = (c[0] as { data: { userId: string; type: string } }).data;
+        return [d.userId, d.type];
+      }),
+    );
+    expect(byUser[OUTSIDER]).toBe("training_created"); // added
+    expect(byUser[PLAYER]).toBe("training_deleted"); // dropped
+  });
+
+  it("tells the participants when a session is cancelled", async () => {
+    db.notification.create.mockResolvedValue({ id: "n-1" });
+    db.training.findUnique.mockResolvedValue({
+      coachId: COACH,
+      title: "Serve & first ball",
+      startDate: new Date("2026-06-02T14:00:00.000Z"),
+      participants: [{ playerId: PLAYER }],
+    });
+    db.training.delete.mockResolvedValue({ id: TRAINING });
+
+    const res = await request(app)
+      .delete(`/api/trainings/${TRAINING}`)
+      .set("Authorization", bearer(COACH));
+    await flush();
+
+    expect(res.status).toBe(200);
+    expect(notifiedUsers()).toEqual([PLAYER]);
+    expect(notifiedTypes()).toEqual(["training_deleted"]);
+  });
+
+  it("does not fail the request when the notification cannot be written", async () => {
+    asRole("coach");
+    db.coachAssignment.findUnique.mockResolvedValue({ status: "active" });
+    db.notification.create.mockRejectedValue(new Error("notifications table is on fire"));
+
+    const res = await request(app)
+      .post("/api/trainings")
+      .set("Authorization", bearer(COACH))
+      .send({ ...validBody, playerIds: [PLAYER] });
+    await flush();
+
+    // Scheduling succeeded; telling people about it is best-effort.
+    expect(res.status).toBe(201);
+    expect(db.training.create).toHaveBeenCalled();
   });
 });

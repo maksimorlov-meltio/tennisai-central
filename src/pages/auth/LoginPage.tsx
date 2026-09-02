@@ -1,4 +1,3 @@
-// TODO: Implement login form with validation
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
@@ -14,16 +13,24 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // The one login failure with a next step: the account exists and the password
+  // was right, but the address was never confirmed.
+  const [needsVerification, setNeedsVerification] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setNeedsVerification(false);
     setLoading(true);
     try {
       await login({ email, password });
       navigate("/dashboard");
     } catch (err: any) {
-      setError(err?.message || "Login failed");
+      const message = err?.message || "Login failed";
+      setError(message);
+      // 403 is the server's answer for "correct credentials, unverified email";
+      // every other login failure is a deliberately uniform 401.
+      setNeedsVerification(err?.status === 403);
     } finally {
       setLoading(false);
     }
@@ -41,7 +48,19 @@ export default function LoginPage() {
         <p className="text-sm text-muted-foreground">Sign in to your account</p>
       </div>
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+          {/* Being told to check an inbox is useless without a way to make the
+              email arrive again — the first one expires, or never came. */}
+          {needsVerification && (
+            <>
+              {" "}
+              <Link to="/verify-email" className="font-medium underline underline-offset-4">
+                Send it again
+              </Link>
+            </>
+          )}
+        </div>
       )}
       <div className="space-y-1">
         <Label htmlFor="email">Email</Label>

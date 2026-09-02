@@ -46,7 +46,12 @@ export const authApi = {
     return apiClient.post("/auth/resend-verification", { email });
   },
 
-  forgotPassword(email: string): Promise<ApiResponse<null>> {
+  /**
+   * `emailConfigured: false` means the server has no mail transport at all, so
+   * no link is coming — for anybody. That is a property of the server, the same
+   * for every address, so it does not reveal whether an account exists.
+   */
+  forgotPassword(email: string): Promise<ApiResponse<{ emailConfigured: boolean } | null>> {
     if (USE_MOCK) return mockAuthService.forgotPassword(email);
     return apiClient.post("/auth/forgot-password", { email });
   },

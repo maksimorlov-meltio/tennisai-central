@@ -1,25 +1,70 @@
 import nodemailer, { type Transporter } from "nodemailer";
-import { env, emailEnabled } from "../env";
+import { env, emailEnabled, mailTransport } from "../env";
 import { welcomeEmail, verifyEmailTemplate, resetPasswordTemplate, notificationTemplate } from "./templates";
 
 let transporter: Transporter | null = null;
 
-/** Lazily build a Gmail transport, only when credentials are configured. */
+/**
+ * Lazily build the mail transport, only when credentials are configured:
+ * Gmail when its app password is set, otherwise any SMTP provider.
+ *
+ * SMTP is here because Gmail will not issue an app password until 2-Step
+ * Verification is switched on for the whole Google account — a change some
+ * operators cannot make. Resend, Brevo and Mailgun hand over SMTP credentials
+ * on the spot.
+ */
 function getTransport(): Transporter | null {
   if (!emailEnabled) return null;
   if (!transporter) {
-    transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: env.gmailUser, pass: env.gmailAppPassword },
-    });
+    transporter =
+      mailTransport === "gmail"
+        ? nodemailer.createTransport({
+            service: "gmail",
+            auth: { user: env.gmailUser, pass: env.gmailAppPassword },
+          })
+        : nodemailer.createTransport({
+            host: env.smtpHost,
+            port: env.smtpPort,
+            secure: env.smtpSecure,
+            // Some relays authorise by IP and expect no auth block at all —
+            // handing those an empty user/pass is an authentication failure,
+            // not a no-op.
+            ...(env.smtpUser ? { auth: { user: env.smtpUser, pass: env.smtpPassword } } : {}),
+          });
   }
   return transporter;
 }
 
 /**
+ * The From header. Gmail must send as the authenticated account — it rewrites
+ * anything else — while an SMTP provider sends as the address the domain has
+ * authorised, which cannot be guessed and so comes from MAIL_FROM.
+ */
+function fromHeader(): string {
+  const address = mailTransport === "gmail" ? env.gmailUser : env.mailFrom || env.smtpUser;
+  return `"${env.mailFromName}" <${address}>`;
+}
+
+/**
+ * Prove the configured credentials work, without sending anything. Called once
+ * at boot so a wrong password appears in the log straight away instead of as a
+ * user who never receives their verification link.
+ */
+export async function verifyMailTransport(): Promise<{ ok: boolean; error?: string }> {
+  const transport = getTransport();
+  if (!transport) return { ok: false, error: "no transport configured" };
+  try {
+    await transport.verify();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
  * Send the welcome email for a new account.
  *
- * - If Gmail credentials are configured, sends a real email via Gmail.
+ * - If a mail transport is configured (Gmail or SMTP), sends a real email.
  * - Otherwise logs the email to the console (dev fallback) so signup still
  *   works without any credentials.
  *
@@ -31,17 +76,17 @@ export async function sendWelcomeEmail(to: string, firstName: string, role: stri
 
   if (!transport) {
     console.log(
-      `\n📧 [welcome email — Gmail disabled, logging only]` +
+      `\n📧 [welcome email — no mail transport, logging only]` +
         `\n   To:      ${to}` +
         `\n   Subject: ${subject}` +
-        `\n   → Set GMAIL_USER + GMAIL_APP_PASSWORD in server/.env to send for real.\n`
+        `\n   → Set GMAIL_USER + GMAIL_APP_PASSWORD, or SMTP_HOST + MAIL_FROM, to send for real.\n`
     );
     return { sent: false };
   }
 
   try {
     await transport.sendMail({
-      from: `"${env.mailFromName}" <${env.gmailUser}>`,
+      from: fromHeader(),
       to,
       subject,
       text,
@@ -57,7 +102,7 @@ export async function sendWelcomeEmail(to: string, firstName: string, role: stri
 
 /**
  * Send the email-verification link. Same behaviour as the welcome email: real
- * send when Gmail is configured, otherwise log the link to the console so the
+ * send when a transport is configured, otherwise log the link so the
  * flow is testable in dev without credentials.
  */
 export async function sendVerificationEmail(to: string, firstName: string, verifyUrl: string): Promise<{ sent: boolean }> {
@@ -66,7 +111,7 @@ export async function sendVerificationEmail(to: string, firstName: string, verif
 
   if (!transport) {
     console.log(
-      `\n📧 [verification email — Gmail disabled, logging only]` +
+      `\n📧 [verification email — no mail transport, logging only]` +
         `\n   To:     ${to}` +
         `\n   Verify: ${verifyUrl}\n`,
     );
@@ -74,7 +119,7 @@ export async function sendVerificationEmail(to: string, firstName: string, verif
   }
 
   try {
-    await transport.sendMail({ from: `"${env.mailFromName}" <${env.gmailUser}>`, to, subject, text, html });
+    await transport.sendMail({ from: fromHeader(), to, subject, text, html });
     console.log(`📧 Verification email sent to ${to}`);
     return { sent: true };
   } catch (err) {
@@ -99,12 +144,12 @@ export async function sendPasswordResetEmail(to: string, firstName: string, rese
   if (!transport) {
     if (env.isProd) {
       console.error(
-        `📧 [password-reset email NOT SENT — Gmail is not configured]` +
-          `\n   To: ${to} — set GMAIL_USER + GMAIL_APP_PASSWORD. Link withheld from logs.`,
+        `📧 [password-reset email NOT SENT — no mail transport is configured]` +
+          `\n   To: ${to} — set GMAIL_USER + GMAIL_APP_PASSWORD or SMTP_HOST. Link withheld from logs.`,
       );
     } else {
       console.log(
-        `\n📧 [password-reset email — Gmail disabled, logging only]` +
+        `\n📧 [password-reset email — no mail transport, logging only]` +
           `\n   To:    ${to}` +
           `\n   Reset: ${resetUrl}\n`,
       );
@@ -113,7 +158,7 @@ export async function sendPasswordResetEmail(to: string, firstName: string, rese
   }
 
   try {
-    await transport.sendMail({ from: `"${env.mailFromName}" <${env.gmailUser}>`, to, subject, text, html });
+    await transport.sendMail({ from: fromHeader(), to, subject, text, html });
     console.log(`📧 Password-reset email sent to ${to}`);
     return { sent: true };
   } catch (err) {
@@ -127,7 +172,7 @@ export async function sendPasswordResetEmail(to: string, firstName: string, rese
  * game plan"). Plain and factual — this is not a marketing channel.
  *
  * Same contract as every other mail here: fire-and-forget, never throws, logs
- * instead of sending when Gmail credentials are absent.
+ * instead of sending when no mail transport is configured.
  */
 export async function sendNotificationEmail(opts: {
   to: string;
@@ -148,7 +193,7 @@ export async function sendNotificationEmail(opts: {
 
   if (!transport) {
     console.log(
-      `\n📧 [notification email — Gmail disabled, logging only]` +
+      `\n📧 [notification email — no mail transport, logging only]` +
         `\n   To:      ${to}` +
         `\n   Subject: ${subject}` +
         `\n   Body:    ${message}` +
@@ -159,7 +204,7 @@ export async function sendNotificationEmail(opts: {
   }
 
   try {
-    await transport.sendMail({ from: `"${env.mailFromName}" <${env.gmailUser}>`, to, subject, text, html });
+    await transport.sendMail({ from: fromHeader(), to, subject, text, html });
     console.log(`📧 Notification email sent to ${to}`);
     return { sent: true };
   } catch (err) {
