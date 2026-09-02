@@ -44,12 +44,33 @@ export async function runDailyImport(prisma: PrismaClient): Promise<void> {
 }
 
 /**
+ * Fill an empty catalog immediately, instead of waiting for the first
+ * scheduled run.
+ *
+ * A redeploy must NOT re-import — several restarts in an afternoon would hammer
+ * the source for nothing, since the catalog already holds yesterday's rows. But
+ * an EMPTY catalog is a different situation entirely, and it was the normal one:
+ * a fresh install had no tournaments and no reachable way to get any. The only
+ * trigger was an admin-only endpoint, and `admin` is not a role anyone can sign
+ * up as — so the calendar read "No events found" on day one and would have gone
+ * on saying it forever.
+ *
+ * Empty is therefore the one state worth acting on at boot.
+ */
+export async function importIfEmpty(prisma: PrismaClient): Promise<boolean> {
+  const existing = await prisma.tournament.count();
+  if (existing > 0) return false;
+
+  console.log("[feed] tournament catalog is empty — importing now rather than waiting for 04:00");
+  await runDailyImport(prisma);
+  return true;
+}
+
+/**
  * Start the daily refresh. Returns a stop function.
  *
- * The first run is at the next `hourUtc`, never at boot: a redeploy should not
- * trigger a full re-import, and several restarts in an afternoon should not
- * hammer the source. The catalog already holds yesterday's rows, so waiting
- * costs nothing.
+ * Scheduled runs happen at the next `hourUtc` and every 24 hours after. The
+ * only work done at boot is filling a catalog that is completely empty.
  */
 export function startTournamentSchedule(
   prisma: PrismaClient,
@@ -57,6 +78,12 @@ export function startTournamentSchedule(
 ): { stop: () => void } {
   let timer: NodeJS.Timeout | undefined;
   let stopped = false;
+
+  // Fire-and-forget: the API must come up and serve traffic whatever the feed
+  // is doing, and a source being down at boot is not a reason to fail to start.
+  void importIfEmpty(prisma).catch((err) => {
+    console.error("[feed] initial import failed:", err instanceof Error ? err.message : err);
+  });
 
   const scheduleNext = () => {
     if (stopped) return;
