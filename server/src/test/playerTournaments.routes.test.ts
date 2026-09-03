@@ -242,9 +242,10 @@ describe("POST /api/player-tournaments", () => {
 
     // Fire-and-forget, so let the microtask queue drain before asserting.
     await new Promise((r) => setTimeout(r, 10));
-    const notified = db.notification.create.mock.calls.map(
-      (c: [{ data: { userId: string } }]) => c[0].data.userId,
-    );
+    // Cast the calls array rather than the callback: vitest types each call as
+    // any[], which a tuple-typed parameter is not assignable to.
+    const calls = db.notification.create.mock.calls as Array<[{ data: { userId: string } }]>;
+    const notified = calls.map((c) => c[0].data.userId);
     expect(notified).toContain(OTHER);
     expect(notified).not.toContain(OWNER);
   });
