@@ -26,6 +26,21 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    // ONE copy of React, whatever a dependency asks for.
+    //
+    // @react-three/fiber is a custom React renderer and pulls React in through
+    // its own resolution. Without this, Vite pre-bundles it against a second
+    // React instance: hooks read from the wrong dispatcher, `useMemo` comes
+    // back null, and <Canvas> throws on mount — which took the whole
+    // Tournaments page down with it, since the error boundary then rebuilt the
+    // tree and reset the view back to the first tab. The symptom looked like
+    // "the tabs do nothing"; the cause was two Reacts.
+    dedupe: ["react", "react-dom", "three"],
+  },
+  optimizeDeps: {
+    // Pre-bundle the 3D stack together so it links against the same React as
+    // the app rather than discovering its own on first use.
+    include: ["react", "react-dom", "three", "@react-three/fiber"],
   },
   build: {
     rollupOptions: {

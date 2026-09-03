@@ -79,13 +79,13 @@ function Pins({ tournaments }: { tournaments: Tournament[] }) {
   return (
     <points geometry={geometry}>
       <pointsMaterial
-        size={0.018}
+        // Was 0.018 and barely visible against the sphere at this distance.
+        size={0.032}
         sizeAttenuation
-        color="#e8894f"
-        transparent
-        opacity={0.95}
-        // Pins on the far side would otherwise show through the sphere and the
-        // globe would read as a flat scatter of dots.
+        color="#ff9a5c"
+        // Depth-tested against the now-opaque sphere, so only the near
+        // hemisphere's pins are drawn.
+        depthTest
         depthWrite
       />
     </points>
@@ -96,15 +96,22 @@ function Pins({ tournaments }: { tournaments: Tournament[] }) {
 function Scene({ tournaments, spinning }: { tournaments: Tournament[]; spinning: boolean }) {
   const group = useRef<THREE.Group>(null);
 
+  // Start looking at Europe. Facing 0°,0° means opening on the empty Atlantic
+  // while almost every event sits off the top-left edge — the globe looked
+  // half-broken until you dragged it.
+  const initialRotation = useMemo<[number, number, number]>(() => [0.35, -0.35, 0], []);
+
   useFrame((_, delta) => {
     if (spinning && group.current) group.current.rotation.y += delta * 0.08;
   });
 
   return (
-    <group ref={group}>
+    <group ref={group} rotation={initialRotation}>
       <mesh>
         <sphereGeometry args={[GLOBE_RADIUS, 48, 48]} />
-        <meshPhongMaterial color="#0f2a38" shininess={6} transparent opacity={0.92} />
+        {/* Opaque on purpose. At 0.92 the pins on the far side showed through
+            and the globe read as a flat scatter of dots rather than a sphere. */}
+        <meshPhongMaterial color="#0f2a38" shininess={6} />
       </mesh>
       <Graticule />
       <Pins tournaments={tournaments} />
