@@ -3,7 +3,8 @@ import { z } from "zod";
 import type { Tournament, PlayerTournament, User } from "@prisma/client";
 import { prisma } from "../db";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
-import { requireRole, readablePlayerIds } from "../authz";
+import { requireRole, readablePlayerIds, assertCanActOnPlayer } from "../authz";
+import { createAndDeliverNotification } from "../notifications/deliver";
 import { importTournaments } from "./feed";
 
 export const tournamentsRouter = Router();
@@ -16,7 +17,16 @@ const addSchema = z.object({
   tournamentId: z.string().min(1),
   status: z.enum(STATUSES).default("registered"),
   notes: z.string().optional(),
-  // The client sends the embedded tournament / playerId too — accepted but ignored.
+  /**
+   * Who the entry is for. Omitted means the caller.
+   *
+   * This used to be accepted and IGNORED — every entry was filed under whoever
+   * was signed in — so a coach could not enter a player at all, which is most
+   * of what planning a junior's season consists of. A coach may now name a
+   * player they are allowed to act on; anyone else naming someone else is
+   * refused by `assertCanActOnPlayer`, exactly as when booking a session.
+   */
+  playerId: z.string().min(1).optional(),
 });
 
 const updateSchema = z.object({
@@ -46,6 +56,16 @@ function presentTournament(t: Tournament) {
     startDate: t.startDate.toISOString(),
     endDate: t.endDate.toISOString(),
     description: t.description ?? undefined,
+    // Collected by the feeds and, until now, never sent to the client — so the
+    // one date a coach can actually miss was invisible in the app that holds it.
+    entryDeadline: t.entryDeadline?.toISOString(),
+    ageCategory: t.ageCategory ?? undefined,
+    venue: t.venue ?? undefined,
+    website: t.website ?? undefined,
+    registeredCount: t.registeredCount ?? undefined,
+    utrRangeMin: t.utrRangeMin ?? undefined,
+    utrRangeMax: t.utrRangeMax ?? undefined,
+    source: t.source ?? undefined,
     federation: (t.federation ?? undefined) as
       | "ITF"
       | "WTA"
@@ -165,18 +185,47 @@ playerTournamentsRouter.post(
     const tournament = await prisma.tournament.findUnique({ where: { id: data.tournamentId } });
     if (!tournament) throw new HttpError(404, "Tournament not found");
 
+    // Default to the caller; a coach may name a connected player instead.
+    const playerId = data.playerId ?? req.userId!;
+    await assertCanActOnPlayer(req.userId!, playerId);
+
     // One entry per (tournament, player) — upsert keeps it idempotent.
     const pt = await prisma.playerTournament.upsert({
-      where: { tournamentId_playerId: { tournamentId: data.tournamentId, playerId: req.userId! } },
+      where: { tournamentId_playerId: { tournamentId: data.tournamentId, playerId } },
       update: { status: data.status, notes: data.notes },
       create: {
         tournamentId: data.tournamentId,
-        playerId: req.userId!,
+        playerId,
         status: data.status,
         notes: data.notes,
       },
       include: { tournament: true, player: true },
     });
+
+    // A tournament put on someone's calendar by somebody else is exactly the
+    // kind of thing they should hear about rather than discover. Never notify
+    // the person who did it.
+    if (playerId !== req.userId) {
+      const when = tournament.startDate.toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+      void createAndDeliverNotification(prisma, {
+        userId: playerId,
+        type: "tournament_entry_added",
+        title: "Tournament added to your calendar",
+        message: `Your coach entered you for ${tournament.name} in ${tournament.city} — ${when}.`,
+        linkTo: "/tournaments",
+      }).catch((err) => {
+        console.error(
+          `[tournaments] entry notification for ${playerId} failed:`,
+          err instanceof Error ? err.message : err,
+        );
+      });
+    }
+
     return ok(res, presentPlayerTournament(pt), "Tournament entry added", 201);
   }),
 );

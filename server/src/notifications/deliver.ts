@@ -58,6 +58,9 @@ export function categoryForType(type: string): CategoryFlag {
     case "training_deleted":
       return "trainingReminders";
     case "tournament_reminder":
+    // A coach entering a player belongs with tournament mail, not the
+    // catch-all: someone who muted tournament alerts meant this one too.
+    case "tournament_entry_added":
       return "tournamentReminders";
     case "request_approval":
     case "training_request_created":

@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Search, MapPin, Calendar, Sun, Warehouse, Mountain, X, Users, Trophy, RefreshCw, Plus, Trash2, Check,
-  Eye, EyeOff, LocateFixed, Loader2, Lock,
+  Eye, EyeOff, LocateFixed, Loader2, Lock, Globe,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
@@ -23,10 +23,15 @@ import { TeamFilterSelect } from "@/components/TeamFilterSelect";
 import { PlayerFilterSelect } from "@/components/PlayerFilterSelect";
 import { PlayerDetailDrawer } from "@/components/PlayerDetailDrawer";
 import { TournamentConditionsDialog } from "@/components/tournaments/TournamentConditionsDialog";
+import { AddToCalendarDialog } from "@/components/tournaments/AddToCalendarDialog";
 // Loaded on demand: Leaflet + its CSS are ~160 KB and only the Map tab needs
 // them, so they must not ship with the rest of this page.
 const TournamentMap = lazy(() =>
   import("@/components/tournaments/TournamentMap").then((m) => ({ default: m.TournamentMap })),
+);
+// three.js is heavier again than Leaflet, and only the Globe tab needs it.
+const TournamentGlobe = lazy(() =>
+  import("@/components/tournaments/TournamentGlobe").then((m) => ({ default: m.TournamentGlobe })),
 );
 import {
   useTournaments, usePlayerTournaments, useUpdatePlayerTournament, useAddPlayerTournament, useRemovePlayerTournament, useTeams,
@@ -120,7 +125,10 @@ export default function TournamentsPage() {
   const [playerFilter, setPlayerFilter] = useState(ALL);
   const [teamFilter, setTeamFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
-  const [viewMode, setViewMode] = useState<"tournaments" | "players" | "map">(showPlayerTournaments || isPlayer ? "players" : "tournaments");
+  const [viewMode, setViewMode] = useState<"tournaments" | "players" | "map" | "globe">(showPlayerTournaments || isPlayer ? "players" : "tournaments");
+
+  // The tournament awaiting the add dialog, or null when it is closed.
+  const [addTarget, setAddTarget] = useState<Tournament | null>(null);
 
   // Map view controls
   const [radiusKm, setRadiusKm] = useState(MAX_RADIUS_KM);
@@ -223,10 +231,15 @@ export default function TournamentsPage() {
     toast.success("Tournaments refreshed");
   };
 
+  /**
+   * Opens the add dialog rather than writing straight away.
+   *
+   * A coach has to say WHICH player, and either of them should be told when the
+   * dates clash with something already entered — neither of which fits a button
+   * that silently commits.
+   */
   const handleAddToSchedule = (t: Tournament) => {
-    if (!isPlayer || !user) return;
-    if (myEntryFor(t.id)) return; // already scheduled
-    addPT.mutate({ tournamentId: t.id, tournament: t, playerId: user.id, playerName: `${user.firstName} ${user.lastName}`, status: "registered" });
+    setAddTarget(t);
   };
 
   if (loadingT || loadingPT) return <LoadingState message="Loading tournaments…" />;
@@ -246,6 +259,7 @@ export default function TournamentsPage() {
             )}
             <TabsTrigger value="tournaments" className="gap-1.5"><Trophy className="h-3.5 w-3.5" /> {isPlayer ? "Add Tournaments" : "Browse All"}</TabsTrigger>
             <TabsTrigger value="map" className="gap-1.5"><MapPin className="h-3.5 w-3.5" /> Map</TabsTrigger>
+            <TabsTrigger value="globe" className="gap-1.5"><Globe className="h-3.5 w-3.5" /> Globe</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -464,6 +478,26 @@ export default function TournamentsPage() {
         )
       )}
 
+      {viewMode === "globe" && (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Every tournament that matches your filters, on one sphere. Drag to turn it; it spins
+            again when you let go.
+          </p>
+          {mapVisibleTournaments.length === 0 ? (
+            <EmptyState
+              icon={<Globe className="h-6 w-6 text-muted-foreground" />}
+              title="No tournaments found"
+              description="No tournaments match your filters."
+            />
+          ) : (
+            <Suspense fallback={<LoadingState message="Loading globe…" />}>
+              <TournamentGlobe tournaments={mapVisibleTournaments} />
+            </Suspense>
+          )}
+        </div>
+      )}
+
       {viewMode === "map" && (
         <div className="space-y-4">
           <div className="space-y-3 border border-border bg-muted/30 p-4">
@@ -552,7 +586,7 @@ export default function TournamentsPage() {
                   radiusKm={userCoords ? radiusKm : null}
                   onAdd={handleAddToSchedule}
                   onHide={(id) => hideTournament.mutate(id)}
-                  canAdd={isPlayer}
+                  canAdd={isPlayer || isCoach}
                 />
               </Suspense>
 
@@ -623,6 +657,12 @@ export default function TournamentsPage() {
         open={conditionsFor !== null}
         onOpenChange={(o) => { if (!o) setConditionsFor(null); }}
       />
+      <AddToCalendarDialog
+        tournament={addTarget}
+        open={!!addTarget}
+        onOpenChange={(o) => { if (!o) setAddTarget(null); }}
+      />
+
       {removeTarget && (
         <RemoveFromScheduleDialog
           open={!!removeTarget}

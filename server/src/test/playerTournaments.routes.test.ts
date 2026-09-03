@@ -176,7 +176,7 @@ describe("PATCH /api/player-tournaments/:id", () => {
 
 // ── POST /api/player-tournaments ────────────────────────────────────────────
 describe("POST /api/player-tournaments", () => {
-  it("pins playerId to the authenticated user and IGNORES a client-supplied playerId", async () => {
+  it("files the entry under the caller when no player is named", async () => {
     db.tournament.findUnique.mockResolvedValue({ id: "t-1" });
     db.playerTournament.upsert.mockImplementation((args: { create: Record<string, unknown> }) =>
       Promise.resolve(entryRow({ playerId: args.create.playerId })),
@@ -185,18 +185,68 @@ describe("POST /api/player-tournaments", () => {
     const res = await request(app)
       .post("/api/player-tournaments")
       .set("Authorization", bearer(OWNER))
-      // Hostile body: try to register SOMEONE ELSE for this tournament.
-      .send({ tournamentId: "t-1", status: "registered", playerId: OTHER, createdBy: OTHER });
+      .send({ tournamentId: "t-1", status: "registered", createdBy: OTHER });
 
     expect(res.status).toBe(201);
-    const arg = firstCallArg<{
-      where: { tournamentId_playerId: { playerId: string } };
-      create: { playerId: string };
-    }>(db.playerTournament.upsert);
-    expect(arg.where.tournamentId_playerId.playerId).toBe(OWNER);
+    const arg = firstCallArg<{ create: { playerId: string } }>(db.playerTournament.upsert);
     expect(arg.create.playerId).toBe(OWNER);
-    expect(JSON.stringify(arg)).not.toContain(OTHER);
     expect(res.body.data.playerId).toBe(OWNER);
+  });
+
+  it("REFUSES a caller who names a player they may not act on, and writes nothing", async () => {
+    // This used to be silently rewritten to the caller, which hid the attempt.
+    // Refusing names it, and matches how every other cross-player write behaves.
+    db.tournament.findUnique.mockResolvedValue({ id: "t-1" });
+    db.coachAssignment.findUnique.mockResolvedValue(null);
+    db.connectionRequest.findFirst.mockResolvedValue(null);
+    db.guardianship.findUnique.mockResolvedValue(null);
+
+    const res = await request(app)
+      .post("/api/player-tournaments")
+      .set("Authorization", bearer(OWNER))
+      .send({ tournamentId: "t-1", status: "registered", playerId: OTHER });
+
+    expect(res.status).toBe(403);
+    expect(db.playerTournament.upsert).not.toHaveBeenCalled();
+  });
+
+  it("lets a coach enter a player they are connected to", async () => {
+    // Planning a junior's season is most of what a coach does with tournaments,
+    // and it was impossible: every entry was filed under whoever was signed in.
+    db.tournament.findUnique.mockResolvedValue({ id: "t-1", name: "J100 Vic", city: "Vic", startDate: new Date("2026-10-01") });
+    db.coachAssignment.findUnique.mockResolvedValue({ status: "active" });
+    db.playerTournament.upsert.mockImplementation((args: { create: Record<string, unknown> }) =>
+      Promise.resolve(entryRow({ playerId: args.create.playerId })),
+    );
+
+    const res = await request(app)
+      .post("/api/player-tournaments")
+      .set("Authorization", bearer(OWNER))
+      .send({ tournamentId: "t-1", status: "registered", playerId: OTHER });
+
+    expect(res.status).toBe(201);
+    const arg = firstCallArg<{ create: { playerId: string } }>(db.playerTournament.upsert);
+    expect(arg.create.playerId).toBe(OTHER);
+  });
+
+  it("tells the player when their coach enters them, and never tells the coach", async () => {
+    db.tournament.findUnique.mockResolvedValue({ id: "t-1", name: "J100 Vic", city: "Vic", startDate: new Date("2026-10-01") });
+    db.coachAssignment.findUnique.mockResolvedValue({ status: "active" });
+    db.playerTournament.upsert.mockResolvedValue(entryRow({ playerId: OTHER }));
+    db.notification.create.mockResolvedValue({ id: "n-1", userId: OTHER });
+
+    await request(app)
+      .post("/api/player-tournaments")
+      .set("Authorization", bearer(OWNER))
+      .send({ tournamentId: "t-1", status: "registered", playerId: OTHER });
+
+    // Fire-and-forget, so let the microtask queue drain before asserting.
+    await new Promise((r) => setTimeout(r, 10));
+    const notified = db.notification.create.mock.calls.map(
+      (c: [{ data: { userId: string } }]) => c[0].data.userId,
+    );
+    expect(notified).toContain(OTHER);
+    expect(notified).not.toContain(OWNER);
   });
 
   it("404s an unknown tournament without writing an orphan entry", async () => {
