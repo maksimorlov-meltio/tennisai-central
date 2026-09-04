@@ -511,6 +511,18 @@ export default function TrainingsPage() {
   const [search, setSearch] = useState("");
   const [playerFilter, setPlayerFilter] = useState("__all__");
   const [teamFilter, setTeamFilter] = useState("__all__");
+  // A deep-linked ?player=/?team= that is not ours (stale link, another
+  // coach's player) would leave an empty list under "All Players"/"All Teams"
+  // with nothing visible to clear. Fall back once the lists have loaded and
+  // proved the id unknown — same guard as CalendarPage.
+  useEffect(() => {
+    if (teamFilter === "__all__" || teams.length === 0) return;
+    if (!teams.some((t) => t.id === teamFilter)) setTeamFilter("__all__");
+  }, [teams, teamFilter]);
+  useEffect(() => {
+    if (playerFilter === "__all__" || connectedPlayers.length === 0) return;
+    if (!connectedPlayers.some((p) => p.id === playerFilter)) setPlayerFilter("__all__");
+  }, [connectedPlayers, playerFilter]);
   const [typeFilter, setTypeFilter] = useState("__all__");
   const [timeFilter, setTimeFilter] = useState<"upcoming" | "past" | "all">("upcoming");
 

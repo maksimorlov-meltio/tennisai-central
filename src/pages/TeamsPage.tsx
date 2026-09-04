@@ -193,7 +193,7 @@ export default function TeamsPage() {
 
   // Deep link: /teams?team=<id> opens that team's roster. The dashboard's team
   // menu points here; an id that is not one of this coach's teams is ignored.
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const requestedTeamId = searchParams.get("team");
   useEffect(() => {
     if (requestedTeamId && teams.some((t) => t.id === requestedTeamId)) setSelectedTeamId(requestedTeamId);
@@ -212,7 +212,16 @@ export default function TeamsPage() {
         <TeamDetail
           team={selectedTeam}
           connectedPlayers={connectedPlayers}
-          onBack={() => setSelectedTeamId(null)}
+          onBack={() => {
+            setSelectedTeamId(null);
+            // Drop the deep-link param too: left in place, the next teams
+            // refetch would re-run the effect above and reopen this roster.
+            if (searchParams.has("team")) {
+              const next = new URLSearchParams(searchParams);
+              next.delete("team");
+              setSearchParams(next, { replace: true });
+            }
+          }}
           onAddPlayer={(p) => addMemberMut.mutate({ teamId: selectedTeam.id, player: p })}
           onRemovePlayer={(pid) => removeMemberMut.mutate({ teamId: selectedTeam.id, playerId: pid })}
           onRename={() => setRenameTarget(selectedTeam)}
