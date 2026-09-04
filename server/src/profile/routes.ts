@@ -7,6 +7,7 @@ import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "..
 import { sendVerificationEmail } from "../email/mailer";
 import { verifyUrlFor } from "../auth/routes";
 import { onboardingToPlayerProfile } from "./onboardingProfile";
+import { publicUser } from "../lib/publicUser";
 
 // Mounted at /api/me.
 export const profileRouter = Router();
@@ -20,10 +21,7 @@ const updateSchema = z
   })
   .partial();
 
-function publicUser(u: User) {
-  const { passwordHash, ...rest } = u;
-  return rest;
-}
+
 
 // GET /api/me/profile
 profileRouter.get(
@@ -134,5 +132,79 @@ profileRouter.get(
   asyncHandler(async (req: AuthedRequest, res) => {
     const profile = await prisma.playerProfile.findUnique({ where: { userId: req.userId! } });
     return ok(res, profile);
+  }),
+);
+
+// ── Calendar preferences ────────────────────────────────────────────────────
+//
+// Which tournament calendars this user wants to see. Stored per account rather
+// than per browser: the filters used to be session-only, so with the world's
+// feeds loaded a coach met 1,458 events in September and re-hid them on every
+// visit, on every device.
+
+/**
+ * What the calendar can be subscribed to.
+ *
+ * These are CIRCUITS, not raw federations. The client splits ITF's junior
+ * events out from its professional ones — a junior coach wants the 256 junior
+ * events and none of the pro tour — so "ITF Junior" is a subscribable thing
+ * even though no tournament row carries it as a federation.
+ *
+ * It is enumerated rather than free text so a typo cannot silently become a
+ * subscription that matches nothing.
+ */
+const FEDERATIONS = ["ITF", "ITF Junior", "WTA", "ATP", "UTR", "USTA"] as const;
+
+const calendarPrefsSchema = z.object({
+  // Empty is a real, valid choice and the default — own sessions only.
+  federations: z.array(z.enum(FEDERATIONS)).max(FEDERATIONS.length),
+  showOwnEvents: z.boolean().optional(),
+});
+
+/** The shape the client gets, whether or not a row exists yet. */
+function presentCalendarPrefs(row: { federations: string[]; showOwnEvents: boolean } | null) {
+  return {
+    federations: row?.federations ?? [],
+    showOwnEvents: row?.showOwnEvents ?? true,
+  };
+}
+
+// GET /api/me/calendar-preferences
+profileRouter.get(
+  "/calendar-preferences",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    // No row yet is the normal state for a new account, not an error: it means
+    // "nothing subscribed", which is exactly the intended default.
+    const row = await prisma.calendarPreference.findUnique({
+      where: { userId: req.userId! },
+      select: { federations: true, showOwnEvents: true },
+    });
+    return ok(res, presentCalendarPrefs(row));
+  }),
+);
+
+// PUT /api/me/calendar-preferences — replace the subscription set.
+profileRouter.put(
+  "/calendar-preferences",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const data = calendarPrefsSchema.parse(req.body);
+    // De-duplicated so a client sending ["ITF","ITF"] cannot grow the column.
+    const federations = [...new Set(data.federations)];
+
+    const row = await prisma.calendarPreference.upsert({
+      where: { userId: req.userId! },
+      create: {
+        userId: req.userId!,
+        federations,
+        showOwnEvents: data.showOwnEvents ?? true,
+      },
+      update: {
+        federations,
+        ...(data.showOwnEvents === undefined ? {} : { showOwnEvents: data.showOwnEvents }),
+      },
+      select: { federations: true, showOwnEvents: true },
+    });
+
+    return ok(res, presentCalendarPrefs(row), "Calendar preferences saved");
   }),
 );

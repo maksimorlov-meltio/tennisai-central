@@ -14,7 +14,13 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      "fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
+      // Safe-area padding, not a bare p-4: index.html now carries
+      // `viewport-fit=cover`, so the page extends under the notch and the home
+      // indicator. Portrait pins this to the top (under the notch); from `sm`
+      // up — which includes a phone in landscape — it pins to the bottom.
+      // Each max() collapses to exactly 1rem wherever the inset is 0, so this
+      // is identical to p-4 on every desktop.
+      "fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))] sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
       className,
     )}
     {...props}

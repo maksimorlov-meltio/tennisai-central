@@ -1,10 +1,10 @@
 // Tournaments — with React Query, team filter, player detail, and a map view
-import { useState, useMemo, lazy, Suspense } from "react";
+import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Search, MapPin, Calendar, Sun, Warehouse, Mountain, X, Users, Trophy, RefreshCw, Plus, Trash2, Check,
-  Eye, EyeOff, LocateFixed, Loader2, Lock, Globe,
+  Eye, EyeOff, LocateFixed, Loader2, Lock,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
@@ -24,14 +24,11 @@ import { PlayerFilterSelect } from "@/components/PlayerFilterSelect";
 import { PlayerDetailDrawer } from "@/components/PlayerDetailDrawer";
 import { TournamentConditionsDialog } from "@/components/tournaments/TournamentConditionsDialog";
 import { AddToCalendarDialog } from "@/components/tournaments/AddToCalendarDialog";
+import { useCalendarPreferences, useSaveCalendarPreferences } from "@/hooks/api/queries";
 // Loaded on demand: Leaflet + its CSS are ~160 KB and only the Map tab needs
 // them, so they must not ship with the rest of this page.
 const TournamentMap = lazy(() =>
   import("@/components/tournaments/TournamentMap").then((m) => ({ default: m.TournamentMap })),
-);
-// three.js is heavier again than Leaflet, and only the Globe tab needs it.
-const TournamentGlobe = lazy(() =>
-  import("@/components/tournaments/TournamentGlobe").then((m) => ({ default: m.TournamentGlobe })),
 );
 import {
   useTournaments, usePlayerTournaments, useUpdatePlayerTournament, useAddPlayerTournament, useRemovePlayerTournament, useTeams,
@@ -44,6 +41,15 @@ import { haversineKm, formatDistanceKm } from "@/lib/geo/distance";
 import type { TournamentStatus, ConnectedPlayer, Tournament } from "@/types";
 import { toast } from "sonner";
 const ALL = "__all__";
+
+/** Tours a user can follow, in the order a coach thinks of them. */
+const FEDERATION_CHOICES = [
+  { value: "ITF", label: "ITF" },
+  { value: "UTR", label: "UTR" },
+  { value: "ATP", label: "ATP" },
+  { value: "WTA", label: "WTA" },
+  { value: "USTA", label: "USTA" },
+] as const;
 const surfaceColor: Record<string, string> = {
   Clay: "bg-primary/10 text-primary dark:text-primary",
   Hard: "bg-muted text-foreground dark:text-foreground",
@@ -114,9 +120,36 @@ export default function TournamentsPage() {
   // the browse grid it falls back to the current user.
   const [conditionsFor, setConditionsFor] = useState<{ id: string; playerId?: string } | null>(null);
 
+  /** How many events each tour has, so the picker says what it is offering. */
+  const federationCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const t of tournaments) {
+      if (t.federation) counts[t.federation] = (counts[t.federation] ?? 0) + 1;
+    }
+    return counts;
+  }, [tournaments]);
+
   const surfaces = useMemo(() => [...new Set(tournaments.map((t) => t.surface))], [tournaments]);
   const countries = useMemo(() => [...new Set(tournaments.map((t) => t.country))].sort(), [tournaments]);
   const categories = useMemo(() => [...new Set(tournaments.map((t) => t.category).filter(Boolean))] as string[], [tournaments]);
+
+  // The same account-level subscription the calendar uses. Nothing is on until
+  // the user picks a tour: browsing 3,331 events from every circuit on Earth is
+  // not browsing, and the old default made this page a wall.
+  const { data: calendarPrefs } = useCalendarPreferences();
+  const saveCalendarPrefs = useSaveCalendarPreferences();
+  const subscribed = useMemo(() => new Set(calendarPrefs?.federations ?? []), [calendarPrefs]);
+  const toggleFederation = (f: string) => {
+    const next = new Set(subscribed);
+    next.has(f) ? next.delete(f) : next.add(f);
+    saveCalendarPrefs.mutate({ federations: [...next] });
+  };
+
+  // How many cards are on screen. Rendering 2,000 at once is what made this
+  // page crawl: each is a Card with badges and buttons, so it was thousands of
+  // DOM nodes for a list nobody scrolls past the top of.
+  const PAGE = 48;
+  const [shown, setShown] = useState(PAGE);
 
   const [search, setSearch] = useState("");
   const [surface, setSurface] = useState(ALL);
@@ -125,7 +158,7 @@ export default function TournamentsPage() {
   const [playerFilter, setPlayerFilter] = useState(ALL);
   const [teamFilter, setTeamFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
-  const [viewMode, setViewMode] = useState<"tournaments" | "players" | "map" | "globe">(showPlayerTournaments || isPlayer ? "players" : "tournaments");
+  const [viewMode, setViewMode] = useState<"tournaments" | "players" | "map">(showPlayerTournaments || isPlayer ? "players" : "tournaments");
 
   // The tournament awaiting the add dialog, or null when it is closed.
   const [addTarget, setAddTarget] = useState<Tournament | null>(null);
@@ -177,6 +210,8 @@ export default function TournamentsPage() {
   // per-view below, since the Map tab can reveal hidden tournaments again.
   const filteredTournaments = useMemo(() => {
     return tournaments.filter((t) => {
+      // Nothing subscribed means nothing to browse — the page asks first.
+      if (!t.federation || !subscribed.has(t.federation)) return false;
       const q = search.toLowerCase();
       if (q && !t.name.toLowerCase().includes(q) && !t.city.toLowerCase().includes(q) && !t.country.toLowerCase().includes(q)) return false;
       if (surface !== ALL && t.surface !== surface) return false;
@@ -184,7 +219,7 @@ export default function TournamentsPage() {
       if (country !== ALL && t.country !== country) return false;
       return true;
     });
-  }, [tournaments, search, surface, category, country]);
+  }, [tournaments, search, surface, category, country, subscribed]);
 
   // Browse tab: hidden tournaments never show here (that's what "eliminate
   // from suggestions" means) — revealing them again happens from the Map tab.
@@ -216,6 +251,9 @@ export default function TournamentsPage() {
       return da - db;
     });
   }, [mapVisibleTournaments, sortByNearest, userCoords]);
+
+  // A narrowed list should start at its own beginning, not 500 cards down.
+  useEffect(() => { setShown(PAGE); }, [search, surface, category, country, subscribed]);
 
   const hasFilters = surface !== ALL || category !== ALL || country !== ALL || playerFilter !== ALL || teamFilter !== ALL || statusFilter !== ALL || search !== "";
   const clearFilters = () => { setSearch(""); setSurface(ALL); setCategory(ALL); setCountry(ALL); setPlayerFilter(ALL); setTeamFilter(ALL); setStatusFilter(ALL); };
@@ -259,7 +297,6 @@ export default function TournamentsPage() {
             )}
             <TabsTrigger value="tournaments" className="gap-1.5"><Trophy className="h-3.5 w-3.5" /> {isPlayer ? "Add Tournaments" : "Browse All"}</TabsTrigger>
             <TabsTrigger value="map" className="gap-1.5"><MapPin className="h-3.5 w-3.5" /> Map</TabsTrigger>
-            <TabsTrigger value="globe" className="gap-1.5"><Globe className="h-3.5 w-3.5" /> Globe</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -384,12 +421,62 @@ export default function TournamentsPage() {
         )
       )}
 
+      {viewMode === "tournaments" && subscribed.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Following
+          </span>
+          {FEDERATION_CHOICES.map((f) => {
+            const on = subscribed.has(f.value);
+            return (
+              <button
+                key={f.value}
+                type="button"
+                onClick={() => toggleFederation(f.value)}
+                aria-pressed={on}
+                className={`rounded-full border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  on
+                    ? "border-primary bg-primary/10 font-medium text-foreground"
+                    : "border-border text-muted-foreground hover:bg-accent/30"
+                }`}
+              >
+                {f.label} <span className="text-muted-foreground">{federationCounts[f.value] ?? 0}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {viewMode === "tournaments" && (
-        visibleBrowseTournaments.length === 0 ? (
+        subscribed.size === 0 ? (
+          // The page asks before it shows anything. Browsing every circuit on
+          // Earth at once is not browsing.
+          <div className="rounded-xl border border-border bg-card p-6">
+            <h2 className="text-base font-semibold text-foreground">Which tours do you follow?</h2>
+            <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+              Pick one to start browsing. The feeds carry thousands of events worldwide, so nothing
+              is shown until you choose. Your choice is saved and used on the calendar too.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {FEDERATION_CHOICES.map((f) => (
+                <Button
+                  key={f.value}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => toggleFederation(f.value)}
+                >
+                  {f.label}
+                  <span className="text-muted-foreground">{federationCounts[f.value] ?? 0}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : visibleBrowseTournaments.length === 0 ? (
           <EmptyState icon={<Trophy className="h-6 w-6 text-muted-foreground" />} title="No tournaments found" description="No tournaments match your filters." />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleBrowseTournaments.map((t) => {
+            {visibleBrowseTournaments.slice(0, shown).map((t) => {
               const distance = distanceFromUser(userCoords, t);
               return (
               <Card key={t.id} className="flex flex-col justify-between">
@@ -478,23 +565,14 @@ export default function TournamentsPage() {
         )
       )}
 
-      {viewMode === "globe" && (
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Every tournament that matches your filters, on one sphere. Drag to turn it; it spins
-            again when you let go.
+      {viewMode === "tournaments" && visibleBrowseTournaments.length > shown && (
+        <div className="flex flex-col items-center gap-2 py-2">
+          <p className="text-xs text-muted-foreground">
+            Showing {shown.toLocaleString()} of {visibleBrowseTournaments.length.toLocaleString()}
           </p>
-          {mapVisibleTournaments.length === 0 ? (
-            <EmptyState
-              icon={<Globe className="h-6 w-6 text-muted-foreground" />}
-              title="No tournaments found"
-              description="No tournaments match your filters."
-            />
-          ) : (
-            <Suspense fallback={<LoadingState message="Loading globe…" />}>
-              <TournamentGlobe tournaments={mapVisibleTournaments} />
-            </Suspense>
-          )}
+          <Button variant="outline" onClick={() => setShown((n) => n + PAGE)}>
+            Show more
+          </Button>
         </div>
       )}
 

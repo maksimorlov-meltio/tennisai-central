@@ -8,15 +8,29 @@ import { RoleBadge } from "@/components/ui/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Copy, Check, ClipboardList, Pencil } from "lucide-react";
+import { User, Copy, Check, ClipboardList, Pencil, CalendarRange, Trophy } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useCalendarPreferences, useSaveCalendarPreferences } from "@/hooks/api/queries";
 import { toast } from "sonner";
 import { onboardingApi } from "@/api/endpoints/onboarding";
 import { questionsForRole } from "@/lib/onboarding/questions";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 
+/** The tours a user can subscribe to, described in a coach's terms. */
+const FEDERATION_OPTIONS = [
+  { value: "ITF", label: "ITF", hint: "World Tennis Tour — juniors and the professional entry level" },
+  { value: "UTR", label: "UTR", hint: "UTR-rated events, usually local and frequent" },
+  { value: "ATP", label: "ATP", hint: "Men's professional tour" },
+  { value: "WTA", label: "WTA", hint: "Women's professional tour" },
+  { value: "USTA", label: "USTA", hint: "United States national events" },
+] as const;
+
 export default function ProfilePage() {
   const { user } = useAuth();
   const updateMut = useUpdateProfile();
+  const { data: calendarPrefs } = useCalendarPreferences();
+  const saveCalendarPrefs = useSaveCalendarPreferences();
+  const subscribed = useMemo(() => new Set(calendarPrefs?.federations ?? []), [calendarPrefs]);
   // Real shareable ID from the API (was a hardcoded map that showed "TAI-X-000"
   // for every non-seeded account, which broke new users' ability to connect).
   const publicId = user?.publicId ?? "—";
@@ -106,6 +120,56 @@ export default function ProfilePage() {
             ))}
           </dl>
         )}
+      </DashboardCard>
+
+      <DashboardCard title="Tournament calendars" icon={<CalendarRange className="h-4 w-4" />}>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Which tours appear on your calendar. Nothing is on to begin with — the
+          feeds carry thousands of events worldwide, and a calendar showing all of
+          them is one nobody can read. Pick the ones your players actually enter.
+        </p>
+
+        <div className="space-y-1">
+          {FEDERATION_OPTIONS.map((f) => {
+            const on = subscribed.has(f.value);
+            return (
+              <label
+                key={f.value}
+                className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent/20"
+              >
+                <Switch
+                  checked={on}
+                  onCheckedChange={() => {
+                    const next = new Set(subscribed);
+                    next.has(f.value) ? next.delete(f.value) : next.add(f.value);
+                    saveCalendarPrefs.mutate({ federations: [...next] });
+                  }}
+                  aria-label={f.label}
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-foreground">{f.label}</span>
+                  <span className="block text-xs text-muted-foreground">{f.hint}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+
+        <label className="mt-3 flex cursor-pointer items-center gap-3 border-t border-border pt-3">
+          <Switch
+            checked={calendarPrefs?.showOwnEvents ?? true}
+            onCheckedChange={(checked) =>
+              saveCalendarPrefs.mutate({ federations: [...subscribed], showOwnEvents: checked })
+            }
+            aria-label="Show my own sessions"
+          />
+          <span>
+            <span className="block text-sm font-medium text-foreground">My own sessions</span>
+            <span className="block text-xs text-muted-foreground">
+              Trainings, matches and anything you or your coach put on the calendar.
+            </span>
+          </span>
+        </label>
       </DashboardCard>
 
       {user && (

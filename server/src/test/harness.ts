@@ -71,6 +71,7 @@ const DELEGATES = [
   // only half of what it claimed to — the assertions still passed, because a
   // delivery failure is swallowed by design.
   "notificationPreference",
+  "calendarPreference",
   "pushSubscription",
   "coachAssignment",
   "guardianship",

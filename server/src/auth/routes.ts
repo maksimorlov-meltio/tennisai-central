@@ -6,13 +6,38 @@ import type { User } from "@prisma/client";
 import { prisma } from "../db";
 import { env, emailEnabled } from "../env";
 import { signToken, signPurposeToken, verifyPurposeToken, signResetToken, verifyResetToken } from "./jwt";
-import { sendWelcomeEmail, sendVerificationEmail, sendPasswordResetEmail } from "../email/mailer";
+import {
+  sendWelcomeEmail,
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendNotificationEmail,
+} from "../email/mailer";
 import { publicIdFor } from "../lib/publicId";
+import { publicUser } from "../lib/publicUser";
 import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "../http";
 import { PUBLIC_SIGNUP_ROLES } from "../authz";
+import { ageFromIsoDate, todayUtc } from "./age";
+import {
+  minorAgeThreshold,
+  mintGuardianConsentToken,
+  hashGuardianConsentToken,
+  consentLinkExpired,
+  GUARDIAN_CONSENT_PENDING_STATUS,
+  GUARDIAN_CONSENT_PENDING_CODE,
+  GUARDIAN_CONSENT_PENDING_MESSAGE,
+  GUARDIAN_CONSENT_INVALID_MESSAGE,
+} from "./guardianConsent";
 
 const VERIFY_PURPOSE = "verify_email";
 const VERIFY_TTL = "1d";
+
+/**
+ * The one password rule, declared once. Both signup and reset validate against
+ * it, and GET /signup-policy publishes it so the sign-up form can state the
+ * requirement up front instead of only after a rejected submit.
+ */
+export const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_TOO_SHORT = `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
 
 /** Build the front-end verification link a user clicks from their email. */
 /** Exported so the profile router can re-send verification on an email change. */
@@ -24,6 +49,17 @@ export function verifyUrlFor(userId: string): string {
 /** Build the front-end password-reset link a user clicks from their email. */
 function resetUrlFor(userId: string): string {
   return `${env.appUrl}/reset-password?token=${encodeURIComponent(signResetToken(userId))}`;
+}
+
+/**
+ * Build the link a parent or guardian clicks to approve a child's account.
+ *
+ * Takes the RAW token (only the digest of it is ever stored) and is called in
+ * exactly one place — the argument to the guardian email. It must never reach a
+ * response body or a log.
+ */
+function guardianConsentUrlFor(token: string): string {
+  return `${env.appUrl}/guardian-consent?token=${encodeURIComponent(token)}`;
 }
 
 /**
@@ -51,35 +87,72 @@ export const authRouter = Router();
 
 const BCRYPT_COST = 12;
 
-const signupSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  // SECURITY: public signup may NOT self-assign "admin" (academy administrator).
-  // Admin accounts are provisioned by invite/seed only. See PUBLIC_SIGNUP_ROLES.
-  role: z.enum(PUBLIC_SIGNUP_ROLES),
-  // ADULTS-ONLY trial: both consents are mandatory and must be exactly `true`.
-  // (The 16+ minimum-age wording is presented on the client.) A missing or
-  // false value fails validation → 400.
-  ageConfirmed: z
-    .boolean()
-    .refine((v) => v === true, { message: "You must confirm you meet the minimum age to sign up." }),
-  termsAccepted: z
-    .boolean()
-    .refine((v) => v === true, { message: "You must accept the Terms of Service and Privacy Policy." }),
-});
+const signupSchema = z
+  .object({
+    email: z.string().email(),
+    password: z.string().min(PASSWORD_MIN_LENGTH, PASSWORD_TOO_SHORT),
+    firstName: z.string().min(1),
+    lastName: z.string().min(1),
+    // SECURITY: public signup may NOT self-assign "admin" (academy administrator).
+    // Admin accounts are provisioned by invite/seed only. See PUBLIC_SIGNUP_ROLES.
+    role: z.enum(PUBLIC_SIGNUP_ROLES),
+    // Calendar date of birth, `yyyy-MM-dd`. OPTIONAL at the schema level and
+    // validated for real below, because a client that predates this change
+    // sends only `ageConfirmed` and must keep working exactly as it did.
+    dateOfBirth: z.string().min(1).optional(),
+    // The legacy self-declared "I meet the minimum age" tick. Now only consulted
+    // when no date of birth was supplied — a real date beats a checkbox, and a
+    // 14-year-old must be able to say so without the form calling them a liar.
+    ageConfirmed: z.boolean().optional(),
+    // Supplied only when the date of birth puts the applicant below the age of
+    // digital consent. Required in that case; see the superRefine below.
+    guardianName: z.string().trim().min(1).max(120).optional(),
+    guardianEmail: z.string().email().max(254).optional(),
+    termsAccepted: z
+      .boolean()
+      .refine((v) => v === true, { message: "You must accept the Terms of Service and Privacy Policy." }),
+  })
+  .superRefine((value, ctx) => {
+    // Preserved verbatim for the no-date-of-birth path: a missing or false
+    // age confirmation is still a 400, exactly as before this change.
+    if (value.dateOfBirth === undefined && value.ageConfirmed !== true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ageConfirmed"],
+        message: "You must confirm you meet the minimum age to sign up.",
+      });
+    }
+  });
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
 
-/** Strip the password hash before sending a user to the client. */
-function publicUser(u: User) {
-  const { passwordHash, ...rest } = u;
-  return rest;
+/**
+ * Is this account still waiting on a parent or guardian?
+ *
+ * Reads the explicit flag AND the timestamp, and never derives the rule from
+ * "guardianEmail is set" — a rule inferred from an incidental column is the
+ * kind that quietly stops firing when that column changes shape.
+ *
+ * `guardianConsentRequired` is NOT cleared when consent arrives: it records
+ * that this account was created for a minor, which stays true forever. The
+ * timestamp is what lifts the gate.
+ */
+function guardianConsentPending(u: Pick<User, "guardianConsentRequired" | "guardianConsentAt">): boolean {
+  return u.guardianConsentRequired && !u.guardianConsentAt;
 }
+
+/**
+ * Strip everything secret before sending a user to the client.
+ *
+ * `guardianConsentToken` is stripped for the same reason as `passwordHash`: it
+ * is a live credential. It holds the SHA-256 digest rather than the token, but
+ * a digest is still the thing the consent endpoint looks up, and the whole
+ * point of the gate is that nothing which can lift it travels in a response.
+ */
+
 
 // POST /api/auth/signup — create account, then send a welcome email.
 authRouter.post(
@@ -89,9 +162,49 @@ authRouter.post(
 
     // NOTE: registration is OPEN — there is no invite-code gate. Anyone who can
     // reach this endpoint can create an account (subject to role restrictions,
-    // the 16+/terms consents, and the rate limiter). If access ever needs
+    // the age/terms consents, and the rate limiter). If access ever needs
     // restricting again, gate it here, before any account work happens.
     const email = data.email.trim().toLowerCase();
+
+    // ── Age of digital consent ───────────────────────────────────────────────
+    // A supplied date of birth decides; `ageConfirmed` is ignored whenever one
+    // is present, because a real date is evidence and a checkbox is a promise.
+    const threshold = minorAgeThreshold();
+    let isMinor = false;
+    if (data.dateOfBirth !== undefined) {
+      const age = ageFromIsoDate(data.dateOfBirth, todayUtc());
+      // null covers a malformed string, a date that does not exist
+      // (2025-02-29), a future date, and an implausible one. It NEVER means
+      // "old enough".
+      if (age === null) {
+        throw new HttpError(400, "Please enter a real date of birth.");
+      }
+      isMinor = age < threshold;
+    }
+
+    // Below the threshold the account cannot be self-authorised, so a guardian
+    // must be named before anything is created.
+    let guardianEmail: string | undefined;
+    if (isMinor) {
+      if (!data.guardianName || !data.guardianEmail) {
+        throw new HttpError(
+          400,
+          `Because you are under ${threshold}, a parent or guardian has to approve this account. ` +
+            "Please give their name and email address.",
+        );
+      }
+      guardianEmail = data.guardianEmail.trim().toLowerCase();
+      // Without this the gate is decoration for anyone who owns one mailbox:
+      // sign up as a minor, name yourself as your own guardian, approve.
+      // It is not airtight (a second free address defeats it), but the point
+      // is that consent must involve a second party at all.
+      if (guardianEmail === email) {
+        throw new HttpError(
+          400,
+          "A parent or guardian's email has to be different from the account's own email address.",
+        );
+      }
+    }
 
     // Verification demanded, but nothing configured to deliver the link with.
     // Every account created in this state is permanently locked: told to check
@@ -132,6 +245,16 @@ authRouter.post(
 
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_COST);
     const now = new Date();
+
+    // Mint the consent token ONLY when there is a transport to carry it.
+    //
+    // With no mail configured the account is still created and still locked —
+    // it simply waits. That is the honest outcome: the alternative shortcuts
+    // (echo the token in the response, print the link to the log) would turn
+    // the gate into decoration, because anyone who can read either can approve
+    // any child's account.
+    const consent = isMinor && emailEnabled ? mintGuardianConsentToken() : null;
+
     const user = await prisma.user.create({
       data: {
         email,
@@ -141,9 +264,23 @@ authRouter.post(
         firstName: data.firstName,
         lastName: data.lastName,
         emailVerified: autoVerified,
-        // Record the consents captured at signup (adults-only trial + ToS).
+        // Record the consents captured at signup (ToS always; the self-declared
+        // age confirmation only where it means something — a minor is not
+        // confirming they meet the minimum age, their guardian is consenting).
         termsAcceptedAt: now,
-        ageConfirmedAt: now,
+        ageConfirmedAt: isMinor ? null : now,
+        ...(data.dateOfBirth !== undefined ? { dateOfBirth: data.dateOfBirth } : {}),
+        ...(isMinor
+          ? {
+              // The gate itself. `guardianConsentAt` stays null until a guardian
+              // clicks the link, and login refuses for as long as it is null.
+              guardianConsentRequired: true,
+              guardianName: data.guardianName,
+              guardianEmail,
+              // Only the DIGEST is stored, and only when a link actually went out.
+              ...(consent ? { guardianConsentToken: consent.digest, guardianConsentSentAt: now } : {}),
+            }
+          : {}),
       },
     });
 
@@ -153,15 +290,56 @@ authRouter.post(
       void sendVerificationEmail(email, user.firstName, verifyUrlFor(user.id));
     }
 
+    // The guardian's approval link. Sent through the ordinary transactional
+    // mailer, and only when `consent` exists — which is only when a transport
+    // exists, so the mailer's no-transport branch (which logs the link) can
+    // never be reached with this URL.
+    if (consent && guardianEmail) {
+      void sendNotificationEmail({
+        to: guardianEmail,
+        firstName: data.guardianName!,
+        title: "Approve a TennisAI account for your child",
+        message:
+          `${user.firstName} ${user.lastName} (${user.email}) signed up for TennisAI — a training, ` +
+          `calendar and tournament app — and gave your address as their parent or guardian.\n\n` +
+          `Because they are under ${threshold}, the account is locked and cannot be used until you ` +
+          `approve it. Follow the link below to read what it involves and confirm.\n\n` +
+          `The link stops working in 30 days. If you were not expecting this, do nothing: without ` +
+          `your approval the account stays locked.`,
+        linkUrl: guardianConsentUrlFor(consent.token),
+      });
+    }
+
+    const minorMessage = emailEnabled
+      ? "Account created. We've emailed your parent or guardian to ask for their approval — " +
+        "you'll be able to sign in as soon as they confirm."
+      : "Account created, but it's waiting for a parent or guardian to approve it. This server " +
+        "cannot send email yet, so ask your coach or whoever set up TennisAI to sort it out.";
+
     return ok(
       res,
       { user: publicUser(user) },
-      autoVerified
-        ? "Account created! You can log in now."
-        : "Account created! Check your email for a verification link to activate your account.",
+      isMinor
+        ? minorMessage
+        : autoVerified
+          ? "Account created! You can log in now."
+          : "Account created! Check your email for a verification link to activate your account.",
       201,
     );
   }),
+);
+
+/**
+ * GET /api/auth/signup-policy — the rules the sign-up form has to state up front.
+ *
+ * Public and unauthenticated: neither value is a secret, and both are already
+ * observable by submitting a form and reading the rejection. Publishing them is
+ * what lets the client show the password requirement before a failed submit,
+ * and ask for guardian details at the SAME age the server enforces — rather
+ * than duplicating a number that is deployment-specific by design.
+ */
+authRouter.get("/signup-policy", (_req, res) =>
+  ok(res, { minorAgeThreshold: minorAgeThreshold(), passwordMinLength: PASSWORD_MIN_LENGTH }),
 );
 
 // POST /api/auth/login — verify credentials, issue a JWT.
@@ -184,6 +362,19 @@ authRouter.post(
       throw new HttpError(403, "Please verify your email first — check your inbox for the verification link.");
     }
 
+    // THE GATE. Checked AFTER the password comparison above, deliberately: put
+    // it first and the endpoint becomes an oracle that reveals which addresses
+    // belong to children, to anyone who can type an email address.
+    //
+    // Distinct status and code, never "invalid credentials" — a 14-year-old
+    // whose parent has not clicked yet has not got their password wrong, and
+    // telling them so would send them round the reset loop forever.
+    if (guardianConsentPending(user)) {
+      return res
+        .status(GUARDIAN_CONSENT_PENDING_STATUS)
+        .json({ message: GUARDIAN_CONSENT_PENDING_MESSAGE, code: GUARDIAN_CONSENT_PENDING_CODE });
+    }
+
     const accessToken = signToken(user.id);
     return ok(res, { user: publicUser(user), tokens: { accessToken, refreshToken: accessToken } });
   }),
@@ -201,7 +392,65 @@ authRouter.get(
   asyncHandler(async (req: AuthedRequest, res) => {
     const user = await prisma.user.findUnique({ where: { id: req.userId! } });
     if (!user) throw new HttpError(401, "Not authenticated");
+
+    // Belt and braces. /login is the only route that mints a token, and it
+    // refuses while consent is pending — so in ordinary operation no token for
+    // a pending account can exist. This catches the cases that ordinary
+    // operation does not cover: a token minted before the gate existed, and a
+    // consent that is somehow withdrawn while a session is live.
+    if (guardianConsentPending(user)) {
+      return res
+        .status(GUARDIAN_CONSENT_PENDING_STATUS)
+        .json({ message: GUARDIAN_CONSENT_PENDING_MESSAGE, code: GUARDIAN_CONSENT_PENDING_CODE });
+    }
+
     return ok(res, publicUser(user));
+  }),
+);
+
+// POST /api/auth/guardian-consent — a parent or guardian approves an account.
+//
+// TOKEN SEMANTICS, matching the password-reset link next door:
+//   • one uniform message for unknown / expired / already-used, so the endpoint
+//     cannot be used to probe which tokens ever existed;
+//   • strictly single use — the stored digest is cleared on success;
+//   • time limited (30 days, measured from guardianConsentSentAt).
+//
+// Unlike /verify-email this is NOT idempotent, and that is on purpose: consent
+// is a one-time legal act, and a link that keeps working is a link that keeps
+// being replayable from a forwarded email.
+authRouter.post(
+  "/guardian-consent",
+  asyncHandler(async (req, res) => {
+    const parsed = z.object({ token: z.string().min(1) }).safeParse(req.body);
+    if (!parsed.success) throw new HttpError(400, GUARDIAN_CONSENT_INVALID_MESSAGE);
+
+    // Look up by digest — the raw token is never stored, so it is hashed here
+    // and compared against what signup wrote.
+    const digest = hashGuardianConsentToken(parsed.data.token);
+    const user = await prisma.user.findUnique({ where: { guardianConsentToken: digest } });
+    if (!user) throw new HttpError(400, GUARDIAN_CONSENT_INVALID_MESSAGE);
+
+    if (consentLinkExpired(user.guardianConsentSentAt)) {
+      // Burn the dead token rather than leaving it addressable forever.
+      await prisma.user.update({ where: { id: user.id }, data: { guardianConsentToken: null } });
+      throw new HttpError(400, GUARDIAN_CONSENT_INVALID_MESSAGE);
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { guardianConsentAt: new Date(), guardianConsentToken: null },
+    });
+
+    // Tell the guardian what they just approved — but only the child's first
+    // name and the kind of account. Whoever holds the link is presumed to be
+    // the guardian, not proven to be, so this is not a place to hand back a
+    // user record.
+    return ok(
+      res,
+      { childFirstName: user.firstName, accountRole: user.role },
+      "Thank you — the account is approved and can now be used.",
+    );
   }),
 );
 
@@ -281,7 +530,7 @@ authRouter.post(
     const parsed = z
       .object({
         token: z.string().min(1, RESET_INVALID_MESSAGE),
-        password: z.string().min(8, "Password must be at least 8 characters"),
+        password: z.string().min(PASSWORD_MIN_LENGTH, PASSWORD_TOO_SHORT),
       })
       .safeParse(req.body);
     // Surface the field message (never the submitted value) so the reset form can

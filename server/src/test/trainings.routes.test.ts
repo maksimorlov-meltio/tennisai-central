@@ -300,7 +300,24 @@ describe("DELETE /api/trainings/:id", () => {
     expect(db.training.delete).not.toHaveBeenCalled();
   });
 
+  // DELETE is `requireRole("coach")` like POST and PATCH. The ownership check
+  // below already made this unreachable for anyone else — no non-coach can own
+  // a training — so the gate closes no hole today; it stops the route from
+  // resting on that coincidence, and refuses before the row is even read.
+  it("403s a player before the training is read", async () => {
+    asRole("player");
+
+    const res = await request(app)
+      .delete(`/api/trainings/${TRAINING}`)
+      .set("Authorization", bearer(PLAYER));
+
+    expect(res.status).toBe(403);
+    expect(db.training.findUnique).not.toHaveBeenCalled();
+    expect(db.training.delete).not.toHaveBeenCalled();
+  });
+
   it("lets the owning coach delete (200)", async () => {
+    asRole("coach");
     // Deleting reads the whole row first: the cascade removes the participants,
     // so the people who need telling it is cancelled must be read beforehand.
     db.training.findUnique.mockResolvedValue({
@@ -320,6 +337,9 @@ describe("DELETE /api/trainings/:id", () => {
   });
 
   it("403s a DIFFERENT authenticated user and does NOT delete", async () => {
+    // A coach, so the request gets past the role gate and the refusal below is
+    // genuinely the OWNERSHIP check — which is what this spec is about.
+    asRole("coach");
     db.training.findUnique.mockResolvedValue({ coachId: COACH });
 
     const res = await request(app)
@@ -331,6 +351,7 @@ describe("DELETE /api/trainings/:id", () => {
   });
 
   it("404s a missing session", async () => {
+    asRole("coach");
     db.training.findUnique.mockResolvedValue(null);
     const res = await request(app)
       .delete("/api/trainings/ghost")
@@ -447,6 +468,7 @@ describe("trainings notify the players", () => {
   });
 
   it("tells the participants when a session is cancelled", async () => {
+    asRole("coach");
     db.notification.create.mockResolvedValue({ id: "n-1" });
     db.training.findUnique.mockResolvedValue({
       coachId: COACH,

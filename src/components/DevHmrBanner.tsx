@@ -28,7 +28,7 @@ export function DevHmrBanner() {
   if (!import.meta.env.DEV || !show) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-[100] w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-primary/25 bg-primary/10 p-3 text-sm text-primary shadow-lg dark:bg-primary/10 dark:text-primary">
+    <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-[100] w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-primary/25 bg-primary/10 p-3 text-sm text-primary shadow-lg dark:bg-primary/10 dark:text-primary">
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <div className="flex-1">

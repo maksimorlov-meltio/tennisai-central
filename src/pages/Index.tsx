@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
+import { AmbientCourt } from "@/components/motion/AmbientCourt";
 
 // ── Content ───────────────────────────────────────────────
 const capabilities = [
@@ -24,7 +25,14 @@ function Marker() {
 
 const Index = () => {
   return (
-    <div className="bg-background">
+    // `isolate` keeps the -z-10 background layer inside this element's own
+    // stacking context, above the page fill and below every section.
+    <div className="relative isolate bg-background">
+      {/* Moving background, at the louder of its two settings — on the landing
+          page the atmosphere is doing a job, where inside the app it must stay
+          out of the way of a coach reading a training plan. */}
+      <AmbientCourt intensity="hero" />
+
       {/* ── Hero ──────────────────────────────────────────── */}
       <section className="border-b border-foreground/15">
         <div className="container max-w-6xl py-20 md:py-28">

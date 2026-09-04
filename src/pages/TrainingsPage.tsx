@@ -24,10 +24,12 @@ import { TrainingReviewDialog } from "@/components/training/TrainingReviewDialog
 import { PlayerFeedbackDialog } from "@/components/training/PlayerFeedbackDialog";
 import { DiscardChangesDialog } from "@/components/training/DiscardChangesDialog";
 import { TrainingAdvicePanel } from "@/components/training/TrainingAdvicePanel";
+import { AttendanceRegister } from "@/components/training/AttendanceRegister";
 import type { AdviceSession } from "@/api/endpoints/aiAdvice";
-import type { TrainingSession, TrainingType, ConnectedPlayer, PlayerSessionFeedback } from "@/types";
+import type { TrainingSession, TrainingType, ConnectedPlayer, PlayerSessionFeedback, AttendanceStatus } from "@/types";
 import { useAuth } from "@/auth/AuthContext";
-import { useTrainings, useCreateTraining, useUpdateTraining, useDeleteTraining, useTeams, useAnalyzeTraining } from "@/hooks/api/queries";
+import { useTrainings, useCreateTraining, useUpdateTraining, useDeleteTraining, useTeams, useAnalyzeTraining, useSaveTrainingFeedback } from "@/hooks/api/queries";
+import { useMarkAttendance } from "@/hooks/api/useTrainingAttendance";
 import { format, parseISO, isPast } from "date-fns";
 
 const TRAINING_TYPES: { value: TrainingType; label: string }[] = [
@@ -271,12 +273,15 @@ function TrainingFormDialog({
 
 function TrainingDetailDrawer({
   training, open, onOpenChange, onEdit, onDelete, onReview, onPlayerFeedback, readOnly, isPlayer, deleting,
-  onAnalyze, analyzing, analyzeError,
+  onAnalyze, analyzing, analyzeError, canMarkAttendance, viewerId, onMarkAttendance, attendancePendingFor,
 }: {
   training: TrainingSession | null; open: boolean; onOpenChange: (o: boolean) => void;
   onEdit: () => void; onDelete: () => void; onReview?: () => void; onPlayerFeedback?: () => void;
   readOnly?: boolean; isPlayer?: boolean; deleting?: boolean;
   onAnalyze?: () => void; analyzing?: boolean; analyzeError?: string | null;
+  canMarkAttendance?: boolean; viewerId?: string;
+  onMarkAttendance?: (playerId: string, status: AttendanceStatus) => void;
+  attendancePendingFor?: string | null;
 }) {
   const { connectedPlayers } = useConnections();
   if (!training) return null;
@@ -304,6 +309,16 @@ function TrainingDetailDrawer({
             {training.notes && <div className="rounded-lg border border-border bg-secondary/30 p-3"><div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><StickyNote className="h-3 w-3" /> Notes</div><p className="text-sm text-foreground">{training.notes}</p></div>}
             {!readOnly && training.coachNotes && <div className="rounded-lg border border-border bg-primary/5 p-3"><div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-primary"><StickyNote className="h-3 w-3" /> Coach Notes (private)</div><p className="text-sm text-primary/80">{training.coachNotes}</p></div>}
           </div>
+
+          {/* Attendance register — the coach's record of who turned up. */}
+          <AttendanceRegister
+            training={training}
+            players={connectedPlayers}
+            canMark={canMarkAttendance}
+            viewerId={viewerId}
+            onMark={onMarkAttendance}
+            pendingPlayerId={attendancePendingFor}
+          />
 
           {/* Training Review Section */}
           {training.review && (
@@ -469,6 +484,10 @@ export default function TrainingsPage() {
   const { connectedPlayers } = useConnections();
   const role = user?.role ?? "player";
   const isCoach = role === "coach";
+  // Feedback is a PLAYER's own word on a session. `!isCoach` also caught
+  // observers (parents), who would now be refused by the player-only route —
+  // so the feedback affordances key off this, not off "not a coach".
+  const isPlayer = role === "player";
   const readOnly = !isCoach;
 
   const { data: trainings = [], isLoading, error } = useTrainings();
@@ -477,6 +496,8 @@ export default function TrainingsPage() {
   const updateMut = useUpdateTraining();
   const deleteMut = useDeleteTraining();
   const analyzeMut = useAnalyzeTraining();
+  const feedbackMut = useSaveTrainingFeedback();
+  const attendanceMut = useMarkAttendance(user?.id);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<TrainingSession | undefined>(undefined);
@@ -602,6 +623,30 @@ export default function TrainingsPage() {
     setPlayerDetailOpen(true);
   };
 
+  // `detailTarget` is a SNAPSHOT taken when the row was clicked. Attendance is
+  // written straight into the trainings cache (optimistically), so reading the
+  // drawer's session back out of the live list is what makes a tap visibly
+  // land — otherwise the save succeeds and the drawer sits there unchanged.
+  const liveDetail = detailTarget
+    ? trainings.find((t) => t.id === detailTarget.id) ?? detailTarget
+    : null;
+
+  // The same rule the server enforces: the session's OWN coach, nobody else.
+  // A coach can be shown a session they merely take part in, and they must not
+  // get controls for it.
+  const canMarkAttendance = isCoach && !!liveDetail && liveDetail.coachId === user?.id;
+
+  const handleMarkAttendance = (playerId: string, status: AttendanceStatus) => {
+    if (!liveDetail) return;
+    attendanceMut.mutate({ trainingId: liveDetail.id, marks: [{ playerId, status }] });
+  };
+
+  // Which row is still in flight, so exactly one row can say "Saving…".
+  const attendancePendingFor =
+    attendanceMut.isPending && attendanceMut.variables?.trainingId === liveDetail?.id
+      ? attendanceMut.variables.marks[0]?.playerId ?? null
+      : null;
+
   if (isLoading) return <LoadingState message="Loading trainings…" />;
   if (error) return <ErrorState message="Failed to load trainings" onRetry={() => window.location.reload()} />;
 
@@ -664,12 +709,18 @@ export default function TrainingsPage() {
                     {past && !t.review && isCoach && (
                       <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Unreviewed</span>
                     )}
+                    {/* Only for the owning coach, and only once the session is
+                        over — an unmarked register on a session that has not
+                        happened yet is simply the normal state of things. */}
+                    {past && isCoach && t.coachId === user?.id && t.playerIds.length > 0 && !t.attendance && (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">No register</span>
+                    )}
                     {t.playerSessionFeedback && (
                       <span className="rounded-full bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                         {({ awful: "😫", bad: "😕", okay: "😐", good: "🙂", great: "🤩" })[t.playerSessionFeedback.feeling]}
                       </span>
                     )}
-                    {!isCoach && past && !t.playerSessionFeedback && (
+                    {isPlayer && past && !t.playerSessionFeedback && (
                       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Give feedback</span>
                     )}
                   </div>
@@ -701,10 +752,10 @@ export default function TrainingsPage() {
       )}
 
       {formOpen && <TrainingFormDialog key={editTarget?.id ?? "new"} open={formOpen} onOpenChange={setFormOpen} initial={editTarget} onSave={handleSave} saving={createMut.isPending || updateMut.isPending} preselectedPlayerIds={preselectedPlayerIds} />}
-      <TrainingDetailDrawer training={detailTarget} open={detailOpen} onOpenChange={(o) => { setDetailOpen(o); if (!o) { setDetailTarget(null); analyzeMut.reset(); } }} onEdit={() => detailTarget && openEdit(detailTarget)} onDelete={() => detailTarget && setDeleteTarget(detailTarget)} onReview={isCoach ? () => { if (detailTarget) { setReviewTarget(detailTarget); } } : undefined} onPlayerFeedback={!isCoach ? () => { if (detailTarget) setFeedbackTarget(detailTarget); } : undefined} readOnly={readOnly} isPlayer={!isCoach} deleting={deleteMut.isPending} onAnalyze={detailTarget ? () => analyzeMut.mutate(detailTarget.id) : undefined} analyzing={analyzeMut.isPending} analyzeError={analyzeMut.isError ? ((analyzeMut.error as any)?.message ?? "Unable to reach the analysis service. Check your connection and try again.") : null} />
+      <TrainingDetailDrawer training={liveDetail} open={detailOpen} onOpenChange={(o) => { setDetailOpen(o); if (!o) { setDetailTarget(null); analyzeMut.reset(); } }} onEdit={() => liveDetail && openEdit(liveDetail)} onDelete={() => liveDetail && setDeleteTarget(liveDetail)} onReview={isCoach ? () => { if (liveDetail) { setReviewTarget(liveDetail); } } : undefined} onPlayerFeedback={isPlayer ? () => { if (liveDetail) setFeedbackTarget(liveDetail); } : undefined} readOnly={readOnly} isPlayer={isPlayer} deleting={deleteMut.isPending} onAnalyze={liveDetail ? () => analyzeMut.mutate(liveDetail.id) : undefined} analyzing={analyzeMut.isPending} analyzeError={analyzeMut.isError ? ((analyzeMut.error as any)?.message ?? "Unable to reach the analysis service. Check your connection and try again.") : null} canMarkAttendance={canMarkAttendance} viewerId={user?.id} onMarkAttendance={handleMarkAttendance} attendancePendingFor={attendancePendingFor} />
       {deleteTarget && <DeleteTrainingDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)} title={deleteTarget.title} onConfirm={() => { handleDelete(deleteTarget.id); setDeleteTarget(null); }} loading={deleteMut.isPending} />}
       {reviewTarget && <TrainingReviewDialog open={!!reviewTarget} onOpenChange={(o) => { if (!o) setReviewTarget(null); }} training={reviewTarget} onSave={async (review) => { await updateMut.mutateAsync({ id: reviewTarget.id, data: { review } }); }} saving={updateMut.isPending} />}
-      {feedbackTarget && <PlayerFeedbackDialog open={!!feedbackTarget} onOpenChange={(o) => { if (!o) setFeedbackTarget(null); }} training={feedbackTarget} onSave={(feedback) => { updateMut.mutate({ id: feedbackTarget.id, data: { playerSessionFeedback: feedback } }); setFeedbackTarget(null); }} saving={updateMut.isPending} />}
+      {feedbackTarget && <PlayerFeedbackDialog open={!!feedbackTarget} onOpenChange={(o) => { if (!o) setFeedbackTarget(null); }} training={feedbackTarget} onSave={(feedback) => { feedbackMut.mutate({ id: feedbackTarget.id, feedback }); setFeedbackTarget(null); }} saving={feedbackMut.isPending} />}
       <PlayerDetailDrawer player={detailPlayer} open={playerDetailOpen} onOpenChange={setPlayerDetailOpen} onCreateTraining={(pid) => handleCreate([pid])} />
     </div>
   );

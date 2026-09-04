@@ -23,3 +23,29 @@ export const profileApi = {
     return apiClient.patch("/me/profile", data);
   },
 };
+
+// ── Calendar preferences ────────────────────────────────────────────────────
+
+export interface CalendarPreferences {
+  /** Subscribed federations. Empty means own sessions only — a real choice. */
+  federations: string[];
+  showOwnEvents: boolean;
+}
+
+export const calendarPreferencesApi = {
+  async get(): Promise<ApiResponse<CalendarPreferences>> {
+    if (USE_MOCK) {
+      await delay();
+      return { data: { federations: [], showOwnEvents: true } };
+    }
+    return apiClient.get("/me/calendar-preferences");
+  },
+
+  async save(prefs: Partial<CalendarPreferences> & { federations: string[] }): Promise<ApiResponse<CalendarPreferences>> {
+    if (USE_MOCK) {
+      await delay();
+      return { data: { showOwnEvents: true, ...prefs }, message: "Saved (mock)" };
+    }
+    return apiClient.put("/me/calendar-preferences", prefs);
+  },
+};
