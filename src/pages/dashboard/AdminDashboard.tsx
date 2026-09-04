@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
+import { useT, formatDate as formatDateIntl } from "@/lib/i18n";
 import type { UserRole } from "@/types";
 
 // ── Mock admin data ──
@@ -88,11 +89,11 @@ const mockAlerts: SystemAlert[] = [
 // ── Helpers ──
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatDateIntl(iso, { month: "short", day: "numeric" });
 }
 
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  return formatDateIntl(iso, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 const userStatusStyles: Record<string, string> = {
@@ -123,6 +124,7 @@ const alertBorders: Record<string, string> = {
 // ── Component ──
 
 export default function AdminDashboard() {
+  const { t } = useT();
   const { user } = useAuth();
   const { requests } = useConnections();
   const [userSearch, setUserSearch] = useState("");
@@ -142,57 +144,57 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-        <p className="text-muted-foreground">Platform overview and management tools.</p>
+        <h1 className="text-2xl font-bold text-foreground">{t("dashboard.admin.header.title")}</h1>
+        <p className="text-muted-foreground">{t("dashboard.admin.header.subtitle")}</p>
       </div>
 
       {/* Preview banner — this dashboard is not wired to real data yet */}
       <div className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/50 px-4 py-2.5">
         <Info className="h-4 w-4 shrink-0 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          <strong className="text-foreground">Preview — sample data.</strong> The user, tournament and alert figures below are illustrative placeholders, not live platform data.
+          <strong className="text-foreground">{t("dashboard.admin.previewBanner.strong")}</strong> {t("dashboard.admin.previewBanner.text")}
         </p>
       </div>
 
       {/* User count cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard label="Total Users" value={mockUserCounts.total.toLocaleString()} icon={<Users className="h-4 w-4" />} trend="+32 this week" />
-        <StatCard label="Players" value={mockUserCounts.players.toLocaleString()} icon={<Users className="h-4 w-4" />} />
-        <StatCard label="Coaches" value={mockUserCounts.coaches.toLocaleString()} icon={<Users className="h-4 w-4" />} />
-        <StatCard label="Observers" value={mockUserCounts.observers.toLocaleString()} icon={<Users className="h-4 w-4" />} />
-        <StatCard label="Admins" value={mockUserCounts.admins} icon={<Shield className="h-4 w-4" />} />
+        <StatCard label={t("dashboard.admin.userCounts.total")} value={mockUserCounts.total.toLocaleString()} icon={<Users className="h-4 w-4" />} trend={t("dashboard.admin.userCounts.totalTrend", { count: 32 })} />
+        <StatCard label={t("dashboard.admin.userCounts.players")} value={mockUserCounts.players.toLocaleString()} icon={<Users className="h-4 w-4" />} />
+        <StatCard label={t("dashboard.admin.userCounts.coaches")} value={mockUserCounts.coaches.toLocaleString()} icon={<Users className="h-4 w-4" />} />
+        <StatCard label={t("dashboard.admin.userCounts.observers")} value={mockUserCounts.observers.toLocaleString()} icon={<Users className="h-4 w-4" />} />
+        <StatCard label={t("dashboard.admin.userCounts.admins")} value={mockUserCounts.admins} icon={<Shield className="h-4 w-4" />} />
       </div>
 
       {/* Relationship overview + System Alerts */}
       <div className="grid gap-6 lg:grid-cols-2">
         <DashboardCard
-          title="Relationships"
-          description="All role connections across the platform"
+          title={t("dashboard.admin.relationships.title")}
+          description={t("dashboard.admin.relationships.description")}
           icon={<Link2 className="h-4 w-4" />}
         >
           <div className="grid grid-cols-2 gap-4">
             <div className="rounded-lg border border-border bg-secondary/30 p-4 text-center">
               <p className="text-2xl font-bold text-foreground">{activeRelationships.length}</p>
-              <p className="text-xs text-muted-foreground">Active</p>
+              <p className="text-xs text-muted-foreground">{t("dashboard.admin.relationships.active")}</p>
             </div>
             <div className="rounded-lg border border-border bg-secondary/30 p-4 text-center">
               <p className="text-2xl font-bold text-foreground">{pendingRelationships.length}</p>
-              <p className="text-xs text-muted-foreground">Pending</p>
+              <p className="text-xs text-muted-foreground">{t("dashboard.admin.relationships.pending")}</p>
             </div>
             <div className="rounded-lg border border-border bg-secondary/30 p-4 text-center">
               <p className="text-2xl font-bold text-foreground">{requests.filter((r) => r.status === "rejected").length}</p>
-              <p className="text-xs text-muted-foreground">Rejected</p>
+              <p className="text-xs text-muted-foreground">{t("dashboard.admin.relationships.rejected")}</p>
             </div>
             <div className="rounded-lg border border-border bg-secondary/30 p-4 text-center">
               <p className="text-2xl font-bold text-foreground">{requests.filter((r) => r.status === "revoked").length}</p>
-              <p className="text-xs text-muted-foreground">Revoked</p>
+              <p className="text-xs text-muted-foreground">{t("dashboard.admin.relationships.revoked")}</p>
             </div>
           </div>
         </DashboardCard>
 
         <DashboardCard
-          title="System Alerts"
-          description={`${unresolvedAlerts.length} unresolved`}
+          title={t("dashboard.admin.systemAlerts.title")}
+          description={t("dashboard.admin.systemAlerts.unresolved", { count: unresolvedAlerts.length })}
           icon={<AlertTriangle className="h-4 w-4" />}
           badge={
             unresolvedAlerts.length > 0 ? (
@@ -216,7 +218,7 @@ export default function AdminDashboard() {
                     </p>
                     {alert.resolved && (
                       <span className="flex items-center gap-1 text-[10px] text-primary">
-                        <CheckCircle className="h-3 w-3" /> Resolved
+                        <CheckCircle className="h-3 w-3" /> {t("dashboard.admin.systemAlerts.resolved")}
                       </span>
                     )}
                   </div>
@@ -225,7 +227,7 @@ export default function AdminDashboard() {
                 </div>
                 {!alert.resolved && (
                   <Button variant="ghost" size="sm" className="shrink-0 text-xs">
-                    Resolve
+                    {t("dashboard.admin.systemAlerts.resolve")}
                   </Button>
                 )}
               </div>
@@ -236,14 +238,14 @@ export default function AdminDashboard() {
 
       {/* User Management Table */}
       <DashboardCard
-        title="Recent Registrations"
-        description="Newest users on the platform"
+        title={t("dashboard.admin.recentRegistrations.title")}
+        description={t("dashboard.admin.recentRegistrations.description")}
         icon={<UserPlus className="h-4 w-4" />}
         action={
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search users..."
+              placeholder={t("dashboard.admin.recentRegistrations.searchPlaceholder")}
               value={userSearch}
               onChange={(e) => setUserSearch(e.target.value)}
               className="h-8 w-48 pl-8 text-xs"
@@ -256,11 +258,11 @@ export default function AdminDashboard() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary/30">
-                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">User</th>
-                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Role</th>
-                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Registered</th>
-                <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
+                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("dashboard.admin.recentRegistrations.columnUser")}</th>
+                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("dashboard.admin.recentRegistrations.columnRole")}</th>
+                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("dashboard.admin.recentRegistrations.columnStatus")}</th>
+                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("dashboard.admin.recentRegistrations.columnRegistered")}</th>
+                <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("dashboard.admin.recentRegistrations.columnActions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -293,7 +295,7 @@ export default function AdminDashboard() {
               {filteredUsers.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-5 py-8 text-center text-sm text-muted-foreground">
-                    No users found matching "{userSearch}"
+                    {t("dashboard.admin.recentRegistrations.noResults", { query: userSearch })}
                   </td>
                 </tr>
               )}
@@ -304,8 +306,8 @@ export default function AdminDashboard() {
 
       {/* Tournament Management */}
       <DashboardCard
-        title="Tournament Management"
-        description={`${mockAdminTournaments.length} tournaments`}
+        title={t("dashboard.admin.tournamentManagement.title")}
+        description={t("dashboard.admin.tournamentManagement.description", { count: mockAdminTournaments.length })}
         icon={<Trophy className="h-4 w-4" />}
         noPadding
       >
@@ -313,12 +315,12 @@ export default function AdminDashboard() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary/30">
-                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Tournament</th>
-                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Location</th>
-                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Date</th>
-                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Participants</th>
-                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-                <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
+                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("dashboard.admin.tournamentManagement.columnTournament")}</th>
+                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("dashboard.admin.tournamentManagement.columnLocation")}</th>
+                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("dashboard.admin.tournamentManagement.columnDate")}</th>
+                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("dashboard.admin.tournamentManagement.columnParticipants")}</th>
+                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("dashboard.admin.tournamentManagement.columnStatus")}</th>
+                <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("dashboard.admin.tournamentManagement.columnActions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
