@@ -55,6 +55,16 @@ const DELEGATE_METHODS = [
 const DELEGATES = [
   "user",
   "training",
+  // The coaching knowledge base (see docs/library.md). Listed next to the
+  // training models because that is what links to them: a plan's drill may
+  // point at a library drill, and the route checks the library before it saves.
+  "drill",
+  "drillSource",
+  "drillTag",
+  "sessionTemplate",
+  "generatedSession",
+  "coachPreference",
+  "drillReview",
   "trainingParticipant",
   "tournament",
   "playerTournament",

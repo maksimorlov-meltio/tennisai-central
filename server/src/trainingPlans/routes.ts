@@ -20,6 +20,10 @@ const drillSchema = z.object({
   successCriteria: z.string().min(1),
   relatedInsight: z.string().optional(),
   coachNotes: z.string().optional(),
+  // Provenance when the drill came out of the coaching library. Checked against
+  // the library below — an id that does not resolve to an approved, visible
+  // drill is a 400, never a silently-null column.
+  libraryDrillId: z.string().min(1).optional(),
 });
 
 const createSchema = z.object({
@@ -54,6 +58,7 @@ function presentDrill(d: TrainingDrill) {
     coachNotes: d.coachNotes ?? undefined,
     completionStatus: d.completionStatus,
     trainingId: d.trainingId ?? undefined,
+    libraryDrillId: d.libraryDrillId ?? undefined,
     createdAt: d.createdAt.toISOString(),
     updatedAt: d.updatedAt.toISOString(),
   };
@@ -119,6 +124,39 @@ async function assertCanPlanFor(userId: string, playerId: string): Promise<void>
   }
 }
 
+/**
+ * Every `libraryDrillId` in the body must resolve to a drill the caller is
+ * actually allowed to use: approved, and either global, their own, or their
+ * academy's. Anything else is a 400 — a plan that cites a drill nobody can open
+ * is worse than a plan with no citation at all.
+ *
+ * The library is only queried when at least one drill carries an id, so a
+ * hand-written plan costs no extra round trips.
+ */
+async function assertLibraryDrillsUsable(userId: string, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+
+  const memberships = await prisma.academyMembership.findMany({
+    where: { userId },
+    select: { academyId: true },
+  });
+  const academyIds = memberships.map((m) => m.academyId);
+
+  const visible: Prisma.DrillWhereInput[] = [{ visibility: "global" }, { ownerCoachId: userId }];
+  if (academyIds.length > 0) visible.push({ visibility: "academy", academyId: { in: academyIds } });
+
+  const found = await prisma.drill.findMany({
+    where: { id: { in: ids }, status: "approved", OR: visible },
+    select: { id: true },
+  });
+
+  const usable = new Set(found.map((d) => d.id));
+  const missing = [...new Set(ids)].filter((id) => !usable.has(id));
+  if (missing.length > 0) {
+    throw new HttpError(400, `Unknown or unavailable library drill: ${missing.join(", ")}`);
+  }
+}
+
 // GET /api/training-plans — plans the user created OR that are about them.
 trainingPlansRouter.get(
   "/",
@@ -153,6 +191,10 @@ trainingPlansRouter.post(
     const userId = req.userId!;
     const data = createSchema.parse(req.body);
     await assertCanPlanFor(userId, data.playerId);
+    await assertLibraryDrillsUsable(
+      userId,
+      data.drills.map((d) => d.libraryDrillId).filter((id): id is string => typeof id === "string"),
+    );
 
     const plan = await prisma.trainingPlan.create({
       data: {
@@ -174,6 +216,7 @@ trainingPlansRouter.post(
             successCriteria: d.successCriteria,
             relatedInsight: d.relatedInsight,
             coachNotes: d.coachNotes,
+            libraryDrillId: d.libraryDrillId,
           })),
         },
       },

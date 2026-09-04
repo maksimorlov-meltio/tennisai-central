@@ -98,6 +98,12 @@ model User {
   guardianshipsAsGuardian  Guardianship[]      @relation("GuardianshipGuardian")
   guardianshipsAsJunior    Guardianship[]      @relation("GuardianshipJunior")
 
+  // back-relations (coaching knowledge base — additive)
+  ownedDrills               Drill[]            @relation("DrillOwnerCoach")
+  generatedSessionsAsCoach  GeneratedSession[] @relation("GeneratedSessionCoach")
+  generatedSessionsAsPlayer GeneratedSession[] @relation("GeneratedSessionPlayer")
+  coachPreferences          CoachPreference[]  @relation("CoachPreferenceCoach")
+
   @@map("users")
 }
 
@@ -268,6 +274,8 @@ model Team {
 
   coach   User         @relation("TeamCoach", fields: [coachId], references: [id], onDelete: Cascade)
   members TeamMember[]
+
+  generatedSessions GeneratedSession[] @relation("GeneratedSessionTeam")
 
   @@index([coachId])
   @@map("teams")
@@ -771,6 +779,8 @@ model TrainingPlan {
   createdBy User            @relation("TrainingPlanCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   drills    TrainingDrill[]
 
+  generatedSessions GeneratedSession[] @relation("GeneratedSessionPlan")
+
   @@index([playerId])
   @@index([createdById])
   @@map("training_plans")
@@ -791,13 +801,223 @@ model TrainingDrill {
   coachNotes       String?
   completionStatus String   @default("pending") // pending | done | skipped
   trainingId       String? // optional link to a scheduled Training (loose)
+  // Provenance when this drill came out of the coaching library rather than
+  // being typed by hand. SetNull, not Cascade: retiring a library drill must
+  // never erase a plan a player already worked through.
+  libraryDrillId   String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  plan TrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan         TrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  libraryDrill Drill?       @relation("TrainingDrillLibrary", fields: [libraryDrillId], references: [id], onDelete: SetNull)
 
   @@index([planId])
+  @@index([libraryDrillId])
   @@map("training_drills")
+}
+
+// ── Coaching knowledge base (drill library) ──────────────────────
+// The library is CONTENT, not user data: every row is imported from a
+// reviewed YAML document under `content/drills/` (see docs/library.md).
+// `id` is therefore the slug from that document — not a cuid — so the
+// same drill keeps its identity across environments and re-imports, and
+// `contentHash` makes a re-import of unchanged content a no-op.
+model Drill {
+  id          String @id // the slug from the YAML document, e.g. "serve-plus-one-deep-cross"
+  version     Int    @default(1)
+  status      String @default("draft") // draft | reviewed | approved | retired
+  contentHash String // sha256 of the canonical JSON of the source document
+  domain      String // technique | tactics | footwork | serve_return | physical | mental | warmup_cooldown | games_kids
+
+  titleEn           String
+  titleEs           String
+  objectiveEn       String
+  objectiveEs       String
+  setupEn           String
+  setupEs           String
+  progressionEn     String
+  progressionEs     String
+  regressionEn      String
+  regressionEs      String
+  successCriteriaEn String
+  successCriteriaEs String
+  stepsEn           String[]
+  stepsEs           String[]
+  cuesEn            String[]
+  cuesEs            String[]
+  commonErrorsEn    String[]
+  commonErrorsEs    String[]
+
+  levelBands String[] // beginner | intermediate | advanced | high_performance
+  ageBands   String[] // u10 | u12 | u14 | u16 | u18 | adult
+  blockKinds String[] // warmup | technical | tactical | live | cooldown
+
+  playersMin Int
+  playersMax Int
+  courtsMin  Float
+  courtsMax  Float
+  equipment  String[]
+
+  defaults Json // { durationMin, reps, sets, restSec, intensity }
+  ranges   Json // { durationMin: [lo, hi], reps: [lo, hi], sets: [lo, hi] }
+  diagram  Json // { court, markers[], paths[] } in court metres — never an image
+
+  // Safeguarding: strength work for under-14s is bodyweight only and must be
+  // supervised by a qualified professional. The flag travels with the drill so
+  // the assembler and the UI can refuse to place it unsupervised.
+  requiresQualifiedSupervision Boolean @default(false)
+
+  licence     String  @default("none")
+  authorAgent String? // researcher | fullstack | db
+
+  // Tenancy. "global" rows are the shared library; academies and individual
+  // coaches may hold their own (or forked) drills without polluting it.
+  visibility   String  @default("global") // global | academy | private
+  academyId    String?
+  ownerCoachId String?
+  forkedFromId String?
+
+  approvedById String? // the human who approved it in the app — never an agent
+  approvedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy    Academy? @relation("DrillAcademy", fields: [academyId], references: [id], onDelete: SetNull)
+  ownerCoach User?    @relation("DrillOwnerCoach", fields: [ownerCoachId], references: [id], onDelete: SetNull)
+  forkedFrom Drill?   @relation("DrillFork", fields: [forkedFromId], references: [id], onDelete: SetNull)
+  forks      Drill[]  @relation("DrillFork")
+
+  sources        DrillSource[]
+  tags           DrillTag[]
+  reviews        DrillReview[]
+  trainingDrills TrainingDrill[] @relation("TrainingDrillLibrary")
+
+  @@index([status, visibility])
+  @@index([domain])
+  @@index([academyId])
+  @@index([ownerCoachId])
+  @@map("drills")
+}
+
+// Provenance. Every drill carries at least one citation; nothing in the
+// library is published without saying where the idea is documented.
+model DrillSource {
+  id                 String    @id @default(cuid())
+  drillId            String
+  coachOrBody        String
+  title              String
+  medium             String // video | book | article | course | clip | conference | curriculum
+  publisherOrChannel String?
+  url                String?
+  year               Int?
+  timestamp          String?
+  note               String?
+  fetchedAt          DateTime?
+
+  drill Drill @relation(fields: [drillId], references: [id], onDelete: Cascade)
+
+  @@index([drillId])
+  @@map("drill_sources")
+}
+
+// Skill / pattern tags, normalised out of the YAML taxonomy so the
+// assembler can select on them without scanning JSON.
+model DrillTag {
+  id      String @id @default(cuid())
+  drillId String
+  kind    String // skill | pattern
+  tag     String
+
+  drill Drill @relation(fields: [drillId], references: [id], onDelete: Cascade)
+
+  @@unique([drillId, kind, tag])
+  @@index([kind, tag])
+  @@map("drill_tags")
+}
+
+// The shape of a session: an ordered list of blocks with a share of the
+// total time. Templates are data, so a coach can hold their own.
+model SessionTemplate {
+  id         String   @id @default(cuid())
+  name       String
+  levelBands String[]
+  phase      String? // pre_season | in_season | taper | off_season
+  blocks     Json // ordered [{ kind, sharePct, minMin, maxMin }]
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("session_templates")
+}
+
+// One assembled session proposal. `proposal` is what the assembler
+// produced, `final` what the coach kept, `diff` what they changed —
+// which is what the preference learner reads.
+model GeneratedSession {
+  id               String   @id @default(cuid())
+  coachId          String
+  playerId         String?
+  teamId           String?
+  constraints      Json
+  proposal         Json
+  final            Json?
+  diff             Json?
+  assemblerVersion String
+  seed             String?
+  aiGenerationId   String?
+  trainingPlanId   String?
+  status           String   @default("proposed") // proposed | saved | discarded
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  coach        User          @relation("GeneratedSessionCoach", fields: [coachId], references: [id], onDelete: Cascade)
+  player       User?         @relation("GeneratedSessionPlayer", fields: [playerId], references: [id], onDelete: SetNull)
+  team         Team?         @relation("GeneratedSessionTeam", fields: [teamId], references: [id], onDelete: SetNull)
+  trainingPlan TrainingPlan? @relation("GeneratedSessionPlan", fields: [trainingPlanId], references: [id], onDelete: SetNull)
+
+  @@index([coachId, createdAt])
+  @@index([playerId])
+  @@map("generated_sessions")
+}
+
+// What this coach tends to keep or throw away. Written by the coach
+// (explicit) or learned from an accepted session diff (system).
+model CoachPreference {
+  id                   String   @id @default(cuid())
+  coachId              String
+  kind                 String // favour_source | avoid_source | avoid_drill | favour_drill | intensity | duration | block_order
+  key                  String
+  weight               Float
+  learnedFromSessionId String?
+  createdBy            String // coach | system
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  coach User @relation("CoachPreferenceCoach", fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@unique([coachId, kind, key])
+  @@map("coach_preferences")
+}
+
+// The review trail for one version of a drill. An agent may only file a
+// report; `humanDecision` is set by a person in the app.
+model DrillReview {
+  id                  String    @id @default(cuid())
+  drillId             String
+  version             Int
+  reviewerAgentReport Json?
+  humanDecision       String? // approved | returned
+  decidedById         String?
+  decidedAt           DateTime?
+  reasons             String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  drill Drill @relation(fields: [drillId], references: [id], onDelete: Cascade)
+
+  @@index([drillId, createdAt])
+  @@map("drill_reviews")
 }
 
 // --- AI generation audit + dedup ────────────────────────────────
@@ -869,6 +1089,7 @@ model Academy {
   updatedAt DateTime @updatedAt
 
   memberships AcademyMembership[]
+  drills      Drill[]             @relation("DrillAcademy")
 
   @@map("academies")
 }
