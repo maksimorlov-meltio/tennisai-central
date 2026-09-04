@@ -13,7 +13,7 @@ import { hiddenTournamentsApi } from "@/api/endpoints/hiddenTournaments";
 import { financeApi } from "@/api/endpoints/finance";
 import { equipmentApi } from "@/api/endpoints/equipment";
 import { notificationsApi } from "@/api/endpoints/notifications";
-import { profileApi } from "@/api/endpoints/profile";
+import { profileApi, calendarPreferencesApi, type CalendarPreferences } from "@/api/endpoints/profile";
 import { trainingPlansApi } from "@/api/endpoints/trainingPlans";
 import type { TrainingSession, TrainingRequest, Team, CalendarEvent, PlayerTournament, FinanceEntry, EquipmentItem, Notification, NotificationSettings, ConnectedPlayer, User, TrainingPlanCreateInput } from "@/types";
 import { toast } from "sonner";
@@ -32,6 +32,7 @@ export const queryKeys = {
   equipment: (playerId: string) => ["equipment", playerId] as const,
   notifications: (userId: string) => ["notifications", userId] as const,
   notificationPrefs: ["notificationPrefs"] as const,
+  calendarPrefs: ["calendarPrefs"] as const,
   trainingPlans: ["trainingPlans"] as const,
 };
 
@@ -525,5 +526,47 @@ export function useUpdateProfile() {
     mutationFn: (data: Partial<User>) => profileApi.updateProfile(data),
     onSuccess: () => toast.success("Profile updated"),
     onError: (e: any) => toast.error(e?.message ?? "Failed to update profile"),
+  });
+}
+
+// ── Calendar preferences ────────────────────────────────────────────────────
+//
+// Which tournament calendars this user has subscribed to. Kept on the account,
+// not in the browser: the filters used to be session-only, so a coach re-hid
+// 1,458 September events on every visit and again on their phone.
+
+export function useCalendarPreferences() {
+  return useQuery({
+    queryKey: queryKeys.calendarPrefs,
+    queryFn: async () => (await calendarPreferencesApi.get()).data,
+    // A subscription changes about twice a year. Refetching it on every window
+    // focus is pure noise.
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+export function useSaveCalendarPreferences() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (prefs: { federations: string[]; showOwnEvents?: boolean }) =>
+      calendarPreferencesApi.save(prefs),
+    // Optimistic: toggling a calendar should redraw immediately. A round trip
+    // before the tick appears makes the control feel broken.
+    onMutate: async (prefs) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.calendarPrefs });
+      const previous = queryClient.getQueryData<CalendarPreferences>(queryKeys.calendarPrefs);
+      queryClient.setQueryData<CalendarPreferences>(queryKeys.calendarPrefs, {
+        showOwnEvents: previous?.showOwnEvents ?? true,
+        ...prefs,
+      });
+      return { previous };
+    },
+    onError: (e: any, _vars, context) => {
+      // Put the old choice back rather than leaving the UI showing a state the
+      // server never accepted.
+      if (context?.previous) queryClient.setQueryData(queryKeys.calendarPrefs, context.previous);
+      toast.error(e?.message ?? "Could not save your calendar choice");
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.calendarPrefs }),
   });
 }

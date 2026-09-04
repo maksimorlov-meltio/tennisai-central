@@ -29,7 +29,7 @@ import { DayEventsSheet } from "@/components/calendar/DayEventsSheet";
 import { MultiFilterMenu, SingleFilterMenu, LocationFilterMenu, ReassignDropStrip } from "@/components/calendar/CalendarFilterMenus";
 import { CalendarLegendPanel } from "@/components/calendar/CalendarLegend";
 import type { CalendarEvent, CalendarEventType, CalendarEventState, ConnectedPlayer, RecurrenceFrequency, RecurrenceEndType, RecurrenceRule, Tournament, TournamentFederation } from "@/types";
-import { useCalendarEvents, useCreateCalendarEvent, useUpdateCalendarEvent, useDeleteCalendarEvent, useTeams, useTournaments, useAddPlayerTournament, usePlayerTournaments } from "@/hooks/api/queries";
+import { useCalendarEvents, useCreateCalendarEvent, useUpdateCalendarEvent, useDeleteCalendarEvent, useTeams, useTournaments, useAddPlayerTournament, usePlayerTournaments, useCalendarPreferences, useSaveCalendarPreferences } from "@/hooks/api/queries";
 import { queryKeys } from "@/hooks/api/queries";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
@@ -627,12 +627,23 @@ export default function CalendarPage() {
   const [isDraggingEvent, setIsDraggingEvent] = useState(false);
   // The mini-calendar column; collapsing it hands its 260px + gap to the grid.
   const [miniOpen, setMiniOpen] = useState(true);
-  const [calendarSource, setCalendarSource] = useState<"all" | "mine" | "international">("all");
-  // Circuit filter for international tournaments (ITF split into pro + junior).
-  // Defaults to all on.
-  const [activeFederations, setActiveFederations] = useState<Set<TournamentCircuit>>(
-    new Set(ALL_CIRCUITS),
+  // Subscribed calendars, from the account. EMPTY IS THE DEFAULT and means
+  // "just my sessions" — the old behaviour started with everything on, which
+  // buried a coach's week under 1,458 September tournaments on first open.
+  const { data: calendarPrefs } = useCalendarPreferences();
+  const saveCalendarPrefs = useSaveCalendarPreferences();
+  const activeFederations = useMemo(
+    () => new Set((calendarPrefs?.federations ?? []) as TournamentCircuit[]),
+    [calendarPrefs],
   );
+  const toggleFederation = (f: TournamentCircuit) => {
+    const next = new Set(activeFederations);
+    next.has(f) ? next.delete(f) : next.add(f);
+    saveCalendarPrefs.mutate({ federations: [...next] });
+  };
+  // Own trainings, matches and events. Saved alongside the subscriptions, so a
+  // coach who wants a tournaments-only view keeps it.
+  const showOwnEvents = calendarPrefs?.showOwnEvents ?? true;
   // Countries to keep. EMPTY MEANS EVERYWHERE, which is the right default for a
   // filter nobody has opened — the alternative, starting with all 150 ticked,
   // makes "clear the filter" mean "tick 150 boxes".
@@ -643,29 +654,15 @@ export default function CalendarPage() {
       next.has(c) ? next.delete(c) : next.add(c);
       return next;
     });
-  const toggleFederation = (f: TournamentCircuit) => {
-    setActiveFederations((prev) => {
-      const next = new Set(prev);
-      next.has(f) ? next.delete(f) : next.add(f);
-      return next;
-    });
-  };
 
   const handleRefreshTournaments = async () => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.tournaments });
     const result = await refetchTournaments();
     if (result.data) {
-      const circuitsInData = new Set(
-        result.data
-          .map((t) => circuitOf(t))
-          .filter((c): c is TournamentCircuit => !!c),
-      );
-      // Add any newly discovered circuits to the active set
-      setActiveFederations((prev) => {
-        const next = new Set(prev);
-        circuitsInData.forEach((c) => next.add(c));
-        return next;
-      });
+      // Deliberately does NOT subscribe the user to any new circuit it finds.
+      // Refreshing the catalog is not a request to start watching four more
+      // tours, and silently widening someone's calendar is how it became
+      // unreadable in the first place.
       toast.success("Tournaments refreshed");
     }
   };
@@ -727,10 +724,10 @@ export default function CalendarPage() {
   }, [connectedPlayers, teamPlayerIds]);
 
   const scopedEvents = useMemo(() => {
-    // If only showing international tournaments
-    if (calendarSource === "international") {
-      return internationalEvents.filter((e) => activeFilters.has(e.type));
-    }
+    // What is shown is now decided by two saved facts — which tournament
+    // calendars are subscribed to, and whether own sessions are wanted — rather
+    // than a "source" dropdown that said the same thing a second way.
+    if (!showOwnEvents) return internationalEvents.filter((e) => activeFilters.has(e.type));
 
     const connectedIds = new Set(connectedPlayers.map((p) => p.id));
 
@@ -753,13 +750,16 @@ export default function CalendarPage() {
       return true;
     });
 
-    if (calendarSource === "mine") return myEvents;
+    // No subscriptions means own sessions only, which is the default and the
+    // whole point of the change.
+    if (internationalEvents.length === 0) return myEvents;
 
-    // "all" — merge personal + international (dedup by checking if tournament already exists as personal event)
+    // Merge personal + subscribed tournaments, dropping a tournament the coach
+    // has already put on the calendar themselves.
     const personalTournamentTitles = new Set(myEvents.filter((e) => e.type === "tournament").map((e) => e.title));
     const uniqueIntl = internationalEvents.filter((e) => !personalTournamentTitles.has(e.title) && activeFilters.has(e.type));
     return [...myEvents, ...uniqueIntl];
-  }, [events, activeFilters, role, playerScope, teamScope, connectedPlayers, user?.id, isPlayer, isCoach, isObserver, teamPlayerIds, calendarSource, internationalEvents]);
+  }, [events, activeFilters, role, playerScope, teamScope, connectedPlayers, user?.id, isPlayer, isCoach, isObserver, teamPlayerIds, showOwnEvents, internationalEvents]);
 
   const toggleFilter = (type: CalendarEventType) => {
     setActiveFilters((prev) => { const next = new Set(prev); next.has(type) ? next.delete(type) : next.add(type); return next; });
@@ -937,6 +937,23 @@ export default function CalendarPage() {
     return counts;
   }, [scopedEvents]);
 
+  /**
+   * How many events each federation would contribute, whether or not it is
+   * currently subscribed.
+   *
+   * Counted from the whole catalog rather than from what is on screen: the
+   * number has to answer "what would I get if I turned this on", and a count
+   * that read 0 for everything unsubscribed would be useless.
+   */
+  const circuitCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const t of tournaments) {
+      const c = circuitOf(t);
+      if (c) counts[c] = (counts[c] ?? 0) + 1;
+    }
+    return counts;
+  }, [tournaments]);
+
   if (isLoading) return <LoadingState message="Loading calendar…" />;
   if (error) return <ErrorState message="Failed to load calendar" onRetry={() => window.location.reload()} />;
 
@@ -989,33 +1006,12 @@ export default function CalendarPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <SingleFilterMenu
-            label="Source"
-            icon={<Globe className="h-3.5 w-3.5" />}
-            value={calendarSource}
-            defaultValue="all"
-            onChange={(v) => setCalendarSource(v as typeof calendarSource)}
-            options={[
-              { value: "all", label: "All sources", icon: <Globe className="h-3.5 w-3.5" /> },
-              { value: "mine", label: "My calendar", icon: <CalendarIcon className="h-3.5 w-3.5" /> },
-              { value: "international", label: "International", icon: <Trophy className="h-3.5 w-3.5" /> },
-            ]}
-          />
+          {/* "Source" (all / mine / international) used to live here and said the
+              same thing twice: "mine" is every federation off, "international"
+              is own-events off. The subscription list beside the mini-calendar
+              is now the single expression of it. */}
 
-          {/* Federation only matters when international events can appear. */}
-          {(calendarSource === "international" || calendarSource === "all") && (
-            <MultiFilterMenu
-              label="Federation"
-              icon={<Trophy className="h-3.5 w-3.5" />}
-              options={ALL_CIRCUITS.map((f) => ({ value: f, label: f, color: CIRCUIT_COLOR[f] }))}
-              selected={activeFederations as Set<string>}
-              onToggle={(v) => toggleFederation(v as TournamentCircuit)}
-              onSelectAll={() => setActiveFederations(new Set(ALL_CIRCUITS))}
-              onSelectNone={() => setActiveFederations(new Set())}
-            />
-          )}
-
-          {(calendarSource === "international" || calendarSource === "all") && countryOptions.length > 0 && (
+          {activeFederations.size > 0 && countryOptions.length > 0 && (
             <LocationFilterMenu
               icon={<MapPin className="h-3.5 w-3.5" />}
               options={countryOptions}
@@ -1058,7 +1054,7 @@ export default function CalendarPage() {
             </>
           )}
 
-          {(calendarSource === "international" || calendarSource === "all") && (
+          {activeFederations.size > 0 && (
             <Button
               variant="ghost"
               size="icon"
@@ -1134,7 +1130,14 @@ export default function CalendarPage() {
               />
               <CalendarLegendPanel
                 typeItems={EVENT_TYPES.map((t) => ({ label: EVENT_CONFIG[t].label, color: EVENT_TYPE_COLOR[t], count: eventCounts[t] ?? 0 }))}
-                circuitItems={ALL_CIRCUITS.map((f) => ({ label: f, color: CIRCUIT_COLOR[f] }))}
+                circuitItems={ALL_CIRCUITS.map((f) => ({
+                  label: f,
+                  color: CIRCUIT_COLOR[f],
+                  count: circuitCounts[f] ?? 0,
+                  on: activeFederations.has(f),
+                }))}
+                onToggleCircuit={(label) => toggleFederation(label as TournamentCircuit)}
+                savingCircuits={saveCalendarPrefs.isPending}
               />
             </div>
           ) : (

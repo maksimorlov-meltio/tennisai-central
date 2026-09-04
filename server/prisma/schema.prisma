@@ -51,6 +51,7 @@ model User {
   equipmentItems         EquipmentItem[]
   notifications          Notification[]
   notificationPreference NotificationPreference?
+  calendarPreference     CalendarPreference?
   pushSubscriptions      PushSubscription[]
 
   // back-relations (analytics domain — Stage 1, additive)
@@ -395,6 +396,36 @@ model Notification {
 
   @@index([userId])
   @@map("notifications")
+}
+
+// What a user wants to SEE on their calendar.
+//
+// Separate from NotificationPreference because it answers a different question:
+// that one is "what should reach me", this is "what should I be looking at".
+//
+// It exists because the calendar filters were session-only, and with the world's
+// tournament feeds loaded a coach met 1,458 events in September and had to
+// re-hide them on every single visit. Subscribing once is the whole point.
+model CalendarPreference {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Federations the user has subscribed to, e.g. ["ITF", "UTR"].
+  //
+  // EMPTY IS MEANINGFUL and is the default: a new account sees its own sessions
+  // and nothing else, then opts in. It deliberately does not mean "all" — that
+  // was the old behaviour and is what made the calendar unreadable.
+  federations String[] @default([])
+
+  // Own trainings, matches and calendar events. Off means tournaments only.
+  showOwnEvents Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("calendar_preferences")
 }
 
 model NotificationPreference {
