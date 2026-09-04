@@ -187,6 +187,11 @@ second way to get it half-done. A `retiredAt` of `null` *is* what "current"
 means; the API derives `isCurrent` from it rather than storing a flag that can
 drift.
 
+**Un-retiring is not supported. Omit `retiredAt`; do not send `null`.** A
+`retiredAt: null` is rejected with a 400 rather than coerced — `new Date(null)`
+is the 1970 epoch, and the usual `z.coerce.date()` would have accepted it
+silently, leaving the row retired forever with a date nobody typed.
+
 ---
 
 ## CSV import

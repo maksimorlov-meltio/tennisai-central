@@ -170,8 +170,15 @@ describe("GET /api/catalogue/facets", () => {
 
   function stubFacets() {
     db.equipmentProduct.groupBy.mockResolvedValue([{ brand: "Wilson", _count: { _all: 3 } }]);
-    db.stringSpec.groupBy.mockResolvedValue([{ material: "polyester", _count: { _all: 2 } }]);
-    db.shoeSpec.groupBy.mockResolvedValue([{ courtType: "clay", _count: { _all: 1 } }]);
+    // stringSpec.groupBy is called twice (material, then shape) and shoeSpec
+    // twice (courtType, then widthFit) — stub each call separately so the
+    // second facet is not silently reading a key the first call's rows lack.
+    db.stringSpec.groupBy
+      .mockResolvedValueOnce([{ material: "polyester", _count: { _all: 2 } }])
+      .mockResolvedValueOnce([{ shape: "hexagonal", _count: { _all: 1 } }]);
+    db.shoeSpec.groupBy
+      .mockResolvedValueOnce([{ courtType: "clay", _count: { _all: 1 } }])
+      .mockResolvedValueOnce([{ widthFit: "wide", _count: { _all: 2 } }]);
     db.racketSpec.groupBy.mockResolvedValue([{ targetLevel: "pro", _count: { _all: 4 } }]);
     db.racketSpec.aggregate.mockResolvedValue({
       _min: { headSizeIn2: 95, unstrungWeightG: 300, balanceMm: 310, stiffnessRa: 66, recommendedTensionMinKg: 20.5 },
@@ -208,6 +215,8 @@ describe("GET /api/catalogue/facets", () => {
     expect(res.body.data.facets.brand).toEqual([{ value: "Wilson", count: 3 }]);
     expect(res.body.data.facets.material).toEqual([{ value: "polyester", count: 2 }]);
     expect(res.body.data.facets.targetLevel).toEqual([{ value: "pro", count: 4 }]);
+    expect(res.body.data.facets.shape).toEqual([{ value: "hexagonal", count: 1 }]);
+    expect(res.body.data.facets.widthFit).toEqual([{ value: "wide", count: 2 }]);
     expect(res.body.data.ranges.headSizeIn2).toEqual({ min: 95, max: 100 });
     expect(res.body.data.ranges.weightG).toEqual({ min: 300, max: 400 });
     // Tension spans BOTH spec tables: the widest window either publishes.

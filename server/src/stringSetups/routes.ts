@@ -29,6 +29,17 @@ const RETIRED_REASONS = ["broke", "dead", "switched", "other"] as const;
 // not to have an opinion about how someone strings their racket.
 const tensionKg = z.number().positive().min(10).max(35);
 
+// NOT z.coerce.date(). `new Date(null)` is the 1970 epoch and coercion accepts
+// it silently, so a client PATCHing `{ retiredAt: null }` to un-retire a setup
+// would store 1970-01-01 and the row would read as retired forever. This
+// rejects null, empty strings and unparseable input with a 400 instead.
+//
+// Un-retiring is deliberately NOT supported: omit the field, do not send null.
+const dateInput = z
+  .union([z.string().min(1), z.date()])
+  .transform((v) => new Date(v))
+  .refine((d) => !Number.isNaN(d.getTime()), { message: "Invalid date" });
+
 const createSchema = z
   .object({
     racketItemId: z.string().min(1),
@@ -40,11 +51,11 @@ const createSchema = z
     // Absent means "same as mains" — one tension, which is most jobs.
     tensionCrossesKg: tensionKg.optional(),
     prestretch: z.boolean().optional(),
-    strungAt: z.coerce.date(),
+    strungAt: dateInput,
     stringerName: z.string().max(200).optional(),
     costEur: z.number().nonnegative().optional(),
     hoursPlayed: z.number().nonnegative().max(2000).optional(),
-    retiredAt: z.coerce.date().optional(),
+    retiredAt: dateInput.optional(),
     retiredReason: z.enum(RETIRED_REASONS).optional(),
     comfortNote: z.number().int().min(1).max(5).optional(),
     notes: z.string().max(2000).optional(),

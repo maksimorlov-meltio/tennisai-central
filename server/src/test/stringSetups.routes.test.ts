@@ -287,6 +287,30 @@ describe("PATCH /api/string-setups/:id", () => {
     expect(db.stringSetup.update).not.toHaveBeenCalled();
   });
 
+  it("400s retiredAt:null instead of silently storing the 1970 epoch", async () => {
+    // z.coerce.date() would accept null — new Date(null) is 1970-01-01 — and
+    // the row would read as retired forever. Un-retiring is not supported:
+    // omit the field, do not send null.
+    db.stringSetup.findUnique.mockResolvedValue({ playerId: PLAYER });
+    const res = await request(app)
+      .patch(`/api/string-setups/${SETUP}`)
+      .set("Authorization", bearer(PLAYER))
+      .send({ retiredAt: null });
+
+    expect(res.status).toBe(400);
+    expect(db.stringSetup.update).not.toHaveBeenCalled();
+  });
+
+  it("400s an unparseable strungAt on create rather than storing an Invalid Date", async () => {
+    const res = await request(app)
+      .post(`/api/players/${PLAYER}/string-setups`)
+      .set("Authorization", bearer(PLAYER))
+      .send({ racketItemId: "eq-1", tensionMainsKg: 23, strungAt: "not-a-date" });
+
+    expect(res.status).toBe(400);
+    expect(db.stringSetup.create).not.toHaveBeenCalled();
+  });
+
   it("404s a setup that does not exist", async () => {
     db.stringSetup.findUnique.mockResolvedValue(null);
     const res = await request(app)
