@@ -1,5 +1,6 @@
 // Team Management — Full Coach CRUD via React Query
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
@@ -11,6 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Plus, Users, Pencil, Trash2, UserPlus, UserMinus, ArrowLeft, Search, Check } from "lucide-react";
 import type { Team, ConnectedPlayer } from "@/types";
 import { useTeams, useCreateTeam, useUpdateTeam, useDeleteTeam, useAddTeamMember, useRemoveTeamMember } from "@/hooks/api/queries";
+import { PlayerActionsMenu, TeamActionsMenu } from "@/components/coach/EntityActionsMenu";
+import { PlayerStatsDrawer } from "@/components/players/PlayerStatsDrawer";
+import { PlayerEquipmentDrawer } from "@/components/equipment/PlayerEquipmentDrawer";
 import { format } from "date-fns";
 
 function PlayerAvatar({ player, size = "md" }: { player: ConnectedPlayer; size?: "sm" | "md" }) {
@@ -35,9 +39,12 @@ function TeamCard({ team, onSelect, onRename, onDelete }: {
             <p className="text-xs text-muted-foreground">{team.players.length} player{team.players.length !== 1 ? "s" : ""} · Created {format(new Date(team.createdAt), "MMM yyyy")}</p>
           </div>
         </div>
-        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onRename(); }}><Pencil className="h-3.5 w-3.5" /></Button>
-          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); onDelete(); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+        <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onRename(); }}><Pencil className="h-3.5 w-3.5" /></Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); onDelete(); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+          </div>
+          <TeamActionsMenu team={team} onManage={onSelect} compact />
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -56,6 +63,8 @@ function TeamDetail({ team, connectedPlayers, onBack, onAddPlayer, onRemovePlaye
   onRename: () => void; addingPlayer?: boolean; removingPlayer?: boolean;
 }) {
   const [search, setSearch] = useState("");
+  const [statsPlayer, setStatsPlayer] = useState<ConnectedPlayer | null>(null);
+  const [equipmentPlayer, setEquipmentPlayer] = useState<ConnectedPlayer | null>(null);
   const teamPlayerIds = new Set(team.players.map((p) => p.id));
   const availablePlayers = connectedPlayers.filter(
     (p) => !teamPlayerIds.has(p.id) && (!search || `${p.firstName} ${p.lastName}`.toLowerCase().includes(search.toLowerCase()))
@@ -87,6 +96,7 @@ function TeamDetail({ team, connectedPlayers, onBack, onAddPlayer, onRemovePlaye
                     <p className="font-medium text-foreground">{player.firstName} {player.lastName}</p>
                     <p className="font-mono text-xs text-muted-foreground">{player.playerPublicId}</p>
                   </div>
+                  <PlayerActionsMenu player={player} compact onViewStats={setStatsPlayer} onViewEquipment={setEquipmentPlayer} />
                   <Button size="sm" variant="ghost" disabled={removingPlayer} className="h-8 gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onRemovePlayer(player.id)}>
                     <UserMinus className="h-3.5 w-3.5" /> Remove
                   </Button>
@@ -121,6 +131,9 @@ function TeamDetail({ team, connectedPlayers, onBack, onAddPlayer, onRemovePlaye
           </div>
         </DashboardCard>
       </div>
+
+      <PlayerStatsDrawer player={statsPlayer} open={!!statsPlayer} onOpenChange={(o) => { if (!o) setStatsPlayer(null); }} />
+      <PlayerEquipmentDrawer player={equipmentPlayer} open={!!equipmentPlayer} onOpenChange={(o) => { if (!o) setEquipmentPlayer(null); }} />
     </div>
   );
 }
@@ -177,6 +190,14 @@ export default function TeamsPage() {
 
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+
+  // Deep link: /teams?team=<id> opens that team's roster. The dashboard's team
+  // menu points here; an id that is not one of this coach's teams is ignored.
+  const [searchParams] = useSearchParams();
+  const requestedTeamId = searchParams.get("team");
+  useEffect(() => {
+    if (requestedTeamId && teams.some((t) => t.id === requestedTeamId)) setSelectedTeamId(requestedTeamId);
+  }, [requestedTeamId, teams]);
   const [renameTarget, setRenameTarget] = useState<Team | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Team | null>(null);
 

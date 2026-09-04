@@ -1,6 +1,6 @@
 // Calendar — Professional planning tool with month/week/day views
-import { useState, useMemo, useCallback, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
@@ -639,8 +639,23 @@ export default function CalendarPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | undefined>(undefined);
-  const [playerScope, setPlayerScope] = useState<string>("all");
-  const [teamScope, setTeamScope] = useState<string>("__all__");
+  // Deep link: /calendar?player=<id> or ?team=<id> arrives already scoped —
+  // the player and team action menus point here. Read once, as the initial
+  // value; the params stay in the URL so the scoped view can be shared.
+  const [searchParams] = useSearchParams();
+  const [playerScope, setPlayerScope] = useState<string>(() => searchParams.get("player") || "all");
+  const [teamScope, setTeamScope] = useState<string>(() => searchParams.get("team") || "__all__");
+  // An id that turns out not to be one of ours (stale link, other coach's
+  // player) would leave an empty calendar with no visible filter to clear.
+  // Fall back to "all" once the lists have loaded and proved it unknown.
+  useEffect(() => {
+    if (playerScope === "all" || playerScope === "mine" || connectedPlayers.length === 0) return;
+    if (!connectedPlayers.some((p) => p.id === playerScope)) setPlayerScope("all");
+  }, [connectedPlayers, playerScope]);
+  useEffect(() => {
+    if (teamScope === "__all__" || teams.length === 0) return;
+    if (!teams.some((t) => t.id === teamScope)) setTeamScope("__all__");
+  }, [teams, teamScope]);
   const [playerDetailOpen, setPlayerDetailOpen] = useState(false);
   const [detailPlayer, setDetailPlayer] = useState<ConnectedPlayer | null>(null);
   // True only between an event chip's dragstart and dragend, which is when the

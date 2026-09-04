@@ -543,10 +543,11 @@ export default function TrainingsPage() {
     }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
   }, [trainings, search, playerFilter, teamFilter, typeFilter, timeFilter, teamPlayerIds]);
 
-  // ── Deep link: /trainings?filter=past&review=<trainingId>
+  // ── Deep link: /trainings?filter=past&review=<trainingId>&player=<id>&team=<id>
   // Applied once per mount. The `review` param is dropped from the URL as soon
-  // as it is consumed so a refresh doesn't reopen the dialog; `filter` stays so
-  // the list the coach was sent to remains shareable.
+  // as it is consumed so a refresh doesn't reopen the dialog; `filter`, `player`
+  // and `team` stay so the list the coach was sent to remains shareable.
+  // `player`/`team` come from the player and team action menus ("Schedule").
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkApplied = useRef(false);
   const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
@@ -555,10 +556,15 @@ export default function TrainingsPage() {
     if (deepLinkApplied.current) return;
     const filterParam = searchParams.get("filter");
     const reviewParam = searchParams.get("review");
-    if (!filterParam && !reviewParam) return;
+    const playerParam = searchParams.get("player");
+    const teamParam = searchParams.get("team");
+    if (!filterParam && !reviewParam && !playerParam && !teamParam) return;
     deepLinkApplied.current = true;
 
     if (filterParam === "past" || filterParam === "upcoming" || filterParam === "all") setTimeFilter(filterParam);
+    // Team first, then player: picking a team resets the player filter in the UI.
+    if (teamParam) setTeamFilter(teamParam);
+    if (playerParam) setPlayerFilter(playerParam);
     if (reviewParam) {
       setPendingReviewId(reviewParam);
       const next = new URLSearchParams(searchParams);

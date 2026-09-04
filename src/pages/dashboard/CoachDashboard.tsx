@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
@@ -23,6 +24,10 @@ import {
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
 import { useTrainings, useTeams, useCalendarEvents, usePlayerTournaments, useTrainingPlans } from "@/hooks/api/queries";
+import { PlayerActionsMenu, TeamActionsMenu } from "@/components/coach/EntityActionsMenu";
+import { PlayerStatsDrawer } from "@/components/players/PlayerStatsDrawer";
+import { PlayerEquipmentDrawer } from "@/components/equipment/PlayerEquipmentDrawer";
+import type { ConnectedPlayer } from "@/types";
 import { isBefore } from "date-fns";
 
 function formatDate(iso: string) {
@@ -40,6 +45,9 @@ const eventTypeColor: Record<string, string> = {
 export default function CoachDashboard() {
   const { user } = useAuth();
   const { connectedPlayers, requests } = useConnections();
+  // Drawers opened from the player menus below; one of each for the page.
+  const [statsPlayer, setStatsPlayer] = useState<ConnectedPlayer | null>(null);
+  const [equipmentPlayer, setEquipmentPlayer] = useState<ConnectedPlayer | null>(null);
   const { data: trainings = [], isLoading: loadingTrainings, error: errorTrainings } = useTrainings();
   const { data: teams = [], isLoading: loadingTeams, error: errorTeams } = useTeams();
   const { data: calendarEvents = [], isLoading: loadingEvents, error: errorEvents } = useCalendarEvents();
@@ -169,17 +177,15 @@ export default function CoachDashboard() {
                     <p className="text-sm font-medium text-foreground">{player.firstName} {player.lastName}</p>
                     <p className="font-mono text-xs text-muted-foreground">{player.playerPublicId}</p>
                   </div>
-                  {/* ?player=<id> opens that player's stats drawer on /players. */}
-                  <Button size="sm" variant="ghost" className="text-xs" asChild>
-                    <Link to={`/players?player=${encodeURIComponent(player.id)}`}>
-                      View <ArrowRight className="ml-1 h-3 w-3" />
-                    </Link>
-                  </Button>
+                  <PlayerActionsMenu player={player} compact onViewStats={setStatsPlayer} onViewEquipment={setEquipmentPlayer} />
                 </div>
               ))}
             </div>
           )}
         </DashboardCard>
+
+        <PlayerStatsDrawer player={statsPlayer} open={!!statsPlayer} onOpenChange={(o) => { if (!o) setStatsPlayer(null); }} />
+        <PlayerEquipmentDrawer player={equipmentPlayer} open={!!equipmentPlayer} onOpenChange={(o) => { if (!o) setEquipmentPlayer(null); }} />
 
         <DashboardCard
           title="Pending Requests"
@@ -228,11 +234,15 @@ export default function CoachDashboard() {
         <div className="grid gap-4 sm:grid-cols-2">
           {teams.map((team) => (
             <div key={team.id} className="rounded-lg border border-border bg-secondary/30 p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground">{team.name}</h4>
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                  {team.players.length} players
-                </span>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h4 className="min-w-0 truncate text-sm font-semibold text-foreground">{team.name}</h4>
+                <div className="flex shrink-0 items-center gap-1">
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                    {team.players.length} players
+                  </span>
+                  {/* No onManage here: the menu navigates to /teams?team=<id>. */}
+                  <TeamActionsMenu team={team} compact />
+                </div>
               </div>
               <div className="flex -space-x-2">
                 {team.players.slice(0, 5).map((p) => (

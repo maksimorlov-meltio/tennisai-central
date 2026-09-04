@@ -78,6 +78,9 @@ const DELEGATES = [
   "academyMembership",
   "aiGeneration",
   "aiUsageCounter",
+  // Equipment reads are gated by assertCanActOnPlayer; the specs need the
+  // table itself as well as the relationship delegates above.
+  "equipmentItem",
 ] as const;
 
 export type MockDelegate = Record<(typeof DELEGATE_METHODS)[number], MockFn>;
