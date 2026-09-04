@@ -18,9 +18,10 @@ import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
 import { useCalendarEvents, usePlayerTournaments, useNotifications } from "@/hooks/api/queries";
 import { isBefore } from "date-fns";
+import { useT, formatDate as formatDateIntl } from "@/lib/i18n";
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatDateIntl(iso, { month: "short", day: "numeric" });
 }
 
 function formatDateRange(start: string, end: string) {
@@ -36,6 +37,7 @@ const eventTypeColor: Record<string, string> = {
 };
 
 export default function ObserverDashboard() {
+  const { t } = useT();
   const { user } = useAuth();
   const { connectedPlayers, requests } = useConnections();
 
@@ -56,8 +58,8 @@ export default function ObserverDashboard() {
     .slice(0, 4);
   const unreadNotifications = notifications.filter((n) => !n.read);
 
-  if (isLoading) return <LoadingState message="Loading dashboard…" />;
-  if (hasError) return <ErrorState message="Failed to load dashboard data" onRetry={() => window.location.reload()} />;
+  if (isLoading) return <LoadingState message={t("dashboard.observer.loading")} />;
+  if (hasError) return <ErrorState message={t("dashboard.common.loadError")} onRetry={() => window.location.reload()} />;
 
   return (
     <div className="space-y-6">
@@ -66,9 +68,9 @@ export default function ObserverDashboard() {
         <div className="flex items-center gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
-              Welcome, {user?.firstName}
+              {t("dashboard.observer.header.title", { name: user?.firstName ?? "" })}
             </h1>
-            <p className="text-muted-foreground">Viewing connected player's progress.</p>
+            <p className="text-muted-foreground">{t("dashboard.observer.header.subtitle")}</p>
           </div>
           <ReadOnlyBadge />
         </div>
@@ -88,7 +90,7 @@ export default function ObserverDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link to="/connections" className={statLinkClass}>
           <StatCard
-            label="Connected Players"
+            label={t("dashboard.observer.stats.connectedPlayers")}
             value={connectedPlayers.length}
             icon={<Users className="h-4 w-4" />}
             className={statCardClass}
@@ -96,7 +98,7 @@ export default function ObserverDashboard() {
         </Link>
         <Link to="/connections" className={statLinkClass}>
           <StatCard
-            label="Pending Requests"
+            label={t("dashboard.observer.stats.pendingRequests")}
             value={pendingRequests.length}
             icon={<Users className="h-4 w-4" />}
             className={statCardClass}
@@ -104,7 +106,7 @@ export default function ObserverDashboard() {
         </Link>
         <Link to="/calendar" className={statLinkClass}>
           <StatCard
-            label="Upcoming Events"
+            label={t("dashboard.common.upcomingEvents")}
             value={upcomingEvents.length}
             icon={<Calendar className="h-4 w-4" />}
             className={statCardClass}
@@ -112,7 +114,7 @@ export default function ObserverDashboard() {
         </Link>
         <Link to="/notifications" className={statLinkClass}>
           <StatCard
-            label="Unread Notifications"
+            label={t("dashboard.common.unreadNotifications")}
             value={unreadNotifications.length}
             icon={<Bell className="h-4 w-4" />}
             className={statCardClass}
@@ -122,21 +124,21 @@ export default function ObserverDashboard() {
 
       {/* Connected Players Summary */}
       <DashboardCard
-        title="Connected Players"
-        description={`${connectedPlayers.length} player${connectedPlayers.length !== 1 ? "s" : ""} you follow`}
+        title={t("dashboard.observer.connectedPlayers.title")}
+        description={t("dashboard.observer.connectedPlayers.description", { count: connectedPlayers.length })}
         icon={<Users className="h-4 w-4" />}
         badge={<ReadOnlyBadge />}
         action={
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/connections">Manage <ArrowRight className="ml-1 h-3 w-3" /></Link>
+            <Link to="/connections">{t("dashboard.common.manage")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
           </Button>
         }
       >
         {connectedPlayers.length === 0 ? (
           <div className="py-4 text-center">
-            <p className="text-sm text-muted-foreground">No connected players yet. Send a request to start following a player.</p>
+            <p className="text-sm text-muted-foreground">{t("dashboard.observer.connectedPlayers.empty")}</p>
             <Button size="sm" variant="outline" className="mt-3" asChild>
-              <Link to="/connections">Send Request</Link>
+              <Link to="/connections">{t("dashboard.observer.connectedPlayers.sendRequest")}</Link>
             </Button>
           </div>
         ) : (
@@ -151,7 +153,7 @@ export default function ObserverDashboard() {
                     {player.firstName} {player.lastName}
                   </p>
                   <p className="font-mono text-xs text-muted-foreground">{player.playerPublicId}</p>
-                  <p className="text-xs text-muted-foreground">Connected since {formatDate(player.connectedSince)}</p>
+                  <p className="text-xs text-muted-foreground">{t("dashboard.observer.connectedPlayers.connectedSince", { date: formatDate(player.connectedSince) })}</p>
                 </div>
               </div>
             ))}
@@ -162,19 +164,19 @@ export default function ObserverDashboard() {
       {/* Calendar + Tournaments */}
       <div className="grid gap-6 lg:grid-cols-2">
         <DashboardCard
-          title="Player Schedule"
-          description="Upcoming events on the player's calendar"
+          title={t("dashboard.observer.schedule.title")}
+          description={t("dashboard.observer.schedule.description")}
           icon={<Calendar className="h-4 w-4" />}
           badge={<ReadOnlyBadge />}
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/calendar">Full calendar <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/calendar">{t("dashboard.common.fullCalendar")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           <div className="space-y-3">
             {upcomingEvents.length === 0 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">No upcoming events yet.</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">{t("dashboard.common.noUpcomingEvents")}</p>
             )}
             {upcomingEvents.map((event) => (
               <div key={event.id} className="flex items-start gap-3">
@@ -198,19 +200,19 @@ export default function ObserverDashboard() {
         </DashboardCard>
 
         <DashboardCard
-          title="Player Tournaments"
-          description="Planned and registered tournaments"
+          title={t("dashboard.observer.playerTournaments.title")}
+          description={t("dashboard.observer.playerTournaments.description")}
           icon={<Trophy className="h-4 w-4" />}
           badge={<ReadOnlyBadge />}
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/tournaments">View all <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/tournaments">{t("dashboard.common.viewAll")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           <div className="space-y-3">
             {playerTournaments.length === 0 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">No tournaments yet.</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">{t("dashboard.common.noTournamentsYet")}</p>
             )}
             {playerTournaments.map((pt) => (
               <div key={pt.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/30 px-4 py-3">
@@ -233,35 +235,35 @@ export default function ObserverDashboard() {
       {/* Finance + Notifications */}
       <div className="grid gap-6 lg:grid-cols-2">
         <DashboardCard
-          title="Player Finance"
-          description="Season cost breakdown"
+          title={t("dashboard.observer.finance.title")}
+          description={t("dashboard.common.financeDescription")}
           icon={<Wallet className="h-4 w-4" />}
           badge={<ReadOnlyBadge />}
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/finance">Details <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/finance">{t("dashboard.common.details")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           {connectedPlayers.length === 0 ? (
             <EmptyState
               icon={<Wallet className="h-6 w-6 text-muted-foreground" />}
-              title="No connected players"
-              description="Connect with a player to view their season cost breakdown."
+              title={t("dashboard.observer.finance.emptyTitle")}
+              description={t("dashboard.observer.finance.emptyDescription")}
             />
           ) : (
             <div className="py-4 text-center">
-              <p className="text-sm text-muted-foreground">Select a connected player on the Finance page to view their cost breakdown.</p>
+              <p className="text-sm text-muted-foreground">{t("dashboard.observer.finance.selectPrompt")}</p>
               <Button size="sm" variant="outline" className="mt-3" asChild>
-                <Link to="/finance">Open Finance</Link>
+                <Link to="/finance">{t("dashboard.observer.finance.open")}</Link>
               </Button>
             </div>
           )}
         </DashboardCard>
 
         <DashboardCard
-          title="Recent Notifications"
-          description={`${unreadNotifications.length} unread`}
+          title={t("dashboard.common.recentNotifications")}
+          description={t("dashboard.common.unreadCount", { count: unreadNotifications.length })}
           icon={<Bell className="h-4 w-4" />}
           badge={
             unreadNotifications.length > 0 ? (
@@ -272,13 +274,13 @@ export default function ObserverDashboard() {
           }
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/notifications">View all <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/notifications">{t("dashboard.common.viewAll")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           <div className="space-y-3">
             {notifications.length === 0 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">No notifications yet.</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">{t("dashboard.common.noNotificationsYet")}</p>
             )}
             {notifications.slice(0, 3).map((notif) => (
               <div key={notif.id} className="flex items-start gap-3">
