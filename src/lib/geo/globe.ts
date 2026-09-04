@@ -79,3 +79,62 @@ export function rotationToFace(lat: number, lon: number): { x: number; y: number
     y: -lon * (Math.PI / 180) - Math.PI / 2,
   };
 }
+
+// ── Where the sun is ────────────────────────────────────────────────────────
+
+/**
+ * The point on Earth with the sun directly overhead, for a given moment.
+ *
+ * Deliberately the simple astronomical model: declination from the day of the
+ * year, and longitude from UTC. It is accurate to roughly a degree, which is
+ * far inside the width of the line it draws — this lights a globe, it does not
+ * navigate a ship. The equation of time is the term being skipped, and it is
+ * worth at most a quarter of a degree here.
+ */
+export function subsolarPoint(when: Date = new Date()): { lat: number; lon: number } {
+  const startOfYear = Date.UTC(when.getUTCFullYear(), 0, 0);
+  const dayOfYear = Math.floor((when.getTime() - startOfYear) / 86_400_000);
+
+  // Earth's tilt, projected onto the year. Peaks at the solstices.
+  const lat = -23.44 * Math.cos(((2 * Math.PI) / 365) * (dayOfYear + 10));
+
+  // Noon is at 0° longitude at 12:00 UTC, and the sun tracks 15° west an hour.
+  const utcHours =
+    when.getUTCHours() + when.getUTCMinutes() / 60 + when.getUTCSeconds() / 3600;
+  let lon = 180 - utcHours * 15;
+  // Keep it in -180..180 so callers can use it as a plain coordinate.
+  while (lon > 180) lon -= 360;
+  while (lon < -180) lon += 360;
+
+  return { lat, lon };
+}
+
+/**
+ * A unit vector pointing from the globe's centre toward the sun, in the same
+ * frame `latLonToVector3` uses. Used as the light's position, so the day/night
+ * terminator falls where it actually is right now.
+ */
+export function sunDirection(when: Date = new Date()): Vec3 {
+  const { lat, lon } = subsolarPoint(when);
+  return latLonToVector3(lat, lon, 1);
+}
+
+/**
+ * The 24 hour meridians, as longitudes.
+ *
+ * One line per hour of the day: this is what makes the sphere read as time
+ * zones rather than an abstract grid. Real zone borders follow politics and
+ * coastlines, and drawing those would need a boundary dataset for very little
+ * gain — the honest version is the solar hour lines.
+ */
+export function hourMeridians(): number[] {
+  return Array.from({ length: 24 }, (_, i) => -180 + i * 15);
+}
+
+/** Local solar time at a longitude, in hours (0–24), for the given moment. */
+export function solarHourAt(lon: number, when: Date = new Date()): number {
+  const utcHours =
+    when.getUTCHours() + when.getUTCMinutes() / 60 + when.getUTCSeconds() / 3600;
+  const local = utcHours + lon / 15;
+  return ((local % 24) + 24) % 24;
+}

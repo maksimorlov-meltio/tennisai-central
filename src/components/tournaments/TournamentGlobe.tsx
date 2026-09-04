@@ -8,57 +8,81 @@
 // which is why there is no land texture here. Nothing is fetched; the whole
 // thing is geometry.
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { GLOBE_RADIUS, PIN_ALTITUDE, toPointCloud } from "@/lib/geo/globe";
+import {
+  GLOBE_RADIUS,
+  PIN_ALTITUDE,
+  hourMeridians,
+  solarHourAt,
+  subsolarPoint,
+  sunDirection,
+  toPointCloud,
+} from "@/lib/geo/globe";
 import type { Tournament } from "@/types";
 
-/** Lines of latitude and longitude, so the sphere reads as a globe. */
-function Graticule() {
-  const geometry = useMemo(() => {
-    const points: THREE.Vector3[] = [];
+/** Builds a line-segment geometry from a list of points, pairwise. */
+function segmentsFrom(points: THREE.Vector3[]): THREE.BufferGeometry {
+  return new THREE.BufferGeometry().setFromPoints(points);
+}
+
+function onSphere(lat: number, lon: number, r: number): THREE.Vector3 {
+  const phi = (90 - lat) * (Math.PI / 180);
+  const theta = lon * (Math.PI / 180);
+  return new THREE.Vector3(
+    r * Math.sin(phi) * Math.sin(theta),
+    r * Math.cos(phi),
+    r * Math.sin(phi) * Math.cos(theta),
+  );
+}
+
+/**
+ * Parallels, and one meridian per hour of the day.
+ *
+ * Twenty-four meridians rather than a decorative grid: that is what makes the
+ * sphere read as time zones. Real zone borders follow politics and coastlines
+ * and would need a boundary dataset — these are the solar hour lines, which is
+ * the honest version and the one that lines up with the daylight.
+ */
+function Graticule({ noonLon }: { noonLon: number }) {
+  const { grid, noon } = useMemo(() => {
     const r = GLOBE_RADIUS + 0.001;
     const seg = 64;
+    const gridPoints: THREE.Vector3[] = [];
 
-    // Parallels every 30°, meridians every 30°.
     for (let lat = -60; lat <= 60; lat += 30) {
-      const phi = (90 - lat) * (Math.PI / 180);
       for (let i = 0; i < seg; i++) {
-        for (const t of [i, i + 1]) {
-          const theta = (t / seg) * Math.PI * 2;
-          points.push(
-            new THREE.Vector3(
-              r * Math.sin(phi) * Math.sin(theta),
-              r * Math.cos(phi),
-              r * Math.sin(phi) * Math.cos(theta),
-            ),
-          );
-        }
+        for (const t of [i, i + 1]) gridPoints.push(onSphere(lat, (t / seg) * 360, r));
       }
     }
-    for (let lon = 0; lon < 360; lon += 30) {
-      const theta = lon * (Math.PI / 180);
+
+    // Nearest hour line to the subsolar longitude, drawn brighter as "noon".
+    const nearestNoon = hourMeridians().reduce((best, lon) =>
+      Math.abs(lon - noonLon) < Math.abs(best - noonLon) ? lon : best,
+    );
+
+    const noonPoints: THREE.Vector3[] = [];
+    for (const lon of hourMeridians()) {
+      const target = lon === nearestNoon ? noonPoints : gridPoints;
       for (let i = 0; i < seg; i++) {
-        for (const t of [i, i + 1]) {
-          const phi = (t / seg) * Math.PI;
-          points.push(
-            new THREE.Vector3(
-              r * Math.sin(phi) * Math.sin(theta),
-              r * Math.cos(phi),
-              r * Math.sin(phi) * Math.cos(theta),
-            ),
-          );
-        }
+        for (const t of [i, i + 1]) target.push(onSphere(-90 + (t / seg) * 180, lon, r));
       }
     }
-    return new THREE.BufferGeometry().setFromPoints(points);
-  }, []);
+
+    return { grid: segmentsFrom(gridPoints), noon: segmentsFrom(noonPoints) };
+  }, [noonLon]);
 
   return (
-    <lineSegments geometry={geometry}>
-      <lineBasicMaterial color="#3f5b6b" transparent opacity={0.35} />
-    </lineSegments>
+    <>
+      <lineSegments geometry={grid}>
+        <lineBasicMaterial color="#3f5b6b" transparent opacity={0.3} />
+      </lineSegments>
+      {/* The hour line where it is currently midday. */}
+      <lineSegments geometry={noon}>
+        <lineBasicMaterial color="#ffd9a0" transparent opacity={0.75} />
+      </lineSegments>
+    </>
   );
 }
 
@@ -92,8 +116,18 @@ function Pins({ tournaments }: { tournaments: Tournament[] }) {
   );
 }
 
-/** The sphere, its pins, and the idle spin. */
-function Scene({ tournaments, spinning }: { tournaments: Tournament[]; spinning: boolean }) {
+/** The sphere, its pins, the daylight, and the idle spin. */
+function Scene({
+  tournaments,
+  spinning,
+  sun,
+  noonLon,
+}: {
+  tournaments: Tournament[];
+  spinning: boolean;
+  sun: { x: number; y: number; z: number };
+  noonLon: number;
+}) {
   const group = useRef<THREE.Group>(null);
 
   // Start looking at Europe. Facing 0°,0° means opening on the empty Atlantic
@@ -113,7 +147,7 @@ function Scene({ tournaments, spinning }: { tournaments: Tournament[]; spinning:
             and the globe read as a flat scatter of dots rather than a sphere. */}
         <meshPhongMaterial color="#0f2a38" shininess={6} />
       </mesh>
-      <Graticule />
+      <Graticule noonLon={noonLon} />
       <Pins tournaments={tournaments} />
     </group>
   );
@@ -133,6 +167,19 @@ export function TournamentGlobe({ tournaments, className }: TournamentGlobeProps
     [tournaments],
   );
 
+  // Daylight, recomputed every minute. The terminator moves a quarter of a
+  // degree in that time — far less than the width of the line — so anything
+  // more frequent is work nobody can see.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const sun = useMemo(() => sunDirection(now), [now]);
+  const noon = useMemo(() => subsolarPoint(now), [now]);
+  const utcLabel = now.toISOString().slice(11, 16);
+
   return (
     <div
       className={className ?? "relative h-[60vh] min-h-[360px] w-full border border-border bg-[#071720]"}
@@ -150,16 +197,27 @@ export function TournamentGlobe({ tournaments, className }: TournamentGlobeProps
             : "always"
         }
       >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[3, 2, 4]} intensity={1.1} />
-        <Scene tournaments={plotted} spinning={spinning} />
+        {/* Night is dim, not black — the pins on the dark side still have to be
+            findable, and a coach looking at 3am in Tokyo still wants to see it. */}
+        <ambientLight intensity={0.28} />
+        {/* The sun, where it actually is right now. Positioned in world space
+            rather than inside the rotating group, so the terminator stays put
+            while the globe turns under it — which is what the real thing does. */}
+        <directionalLight position={[sun.x * 5, sun.y * 5, sun.z * 5]} intensity={1.5} />
+        <Scene tournaments={plotted} spinning={spinning} sun={sun} noonLon={noon.lon} />
       </Canvas>
 
-      <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-background/85 px-2.5 py-1.5 text-xs text-muted-foreground">
-        {plotted.length.toLocaleString()} tournament{plotted.length === 1 ? "" : "s"} plotted
-        {plotted.length !== tournaments.length && (
-          <> · {(tournaments.length - plotted.length).toLocaleString()} without coordinates</>
-        )}
+      <div className="pointer-events-none absolute bottom-3 left-3 space-y-1">
+        <div className="rounded-md bg-background/85 px-2.5 py-1.5 text-xs text-muted-foreground">
+          {plotted.length.toLocaleString()} tournament{plotted.length === 1 ? "" : "s"} plotted
+          {plotted.length !== tournaments.length && (
+            <> · {(tournaments.length - plotted.length).toLocaleString()} without coordinates</>
+          )}
+        </div>
+        <div className="flex items-center gap-2 rounded-md bg-background/85 px-2.5 py-1.5 text-xs text-muted-foreground">
+          <span className="h-2 w-2 rounded-full bg-[#ffd9a0]" />
+          Midday on the lit meridian · {utcLabel} UTC
+        </div>
       </div>
     </div>
   );
