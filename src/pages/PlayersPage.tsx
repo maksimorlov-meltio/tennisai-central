@@ -4,16 +4,19 @@ import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { EmptyState, StatusBadge } from "@/components/ui/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Search, UserPlus, BarChart3 } from "lucide-react";
+import { Users, Search, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { PlayerStatsDrawer } from "@/components/players/PlayerStatsDrawer";
+import { PlayerEquipmentDrawer } from "@/components/equipment/PlayerEquipmentDrawer";
+import { PlayerActionsMenu } from "@/components/coach/EntityActionsMenu";
 import type { ConnectedPlayer } from "@/types";
 
 export default function PlayersPage() {
   const { connectedPlayers } = useConnections();
   const [search, setSearch] = useState("");
   const [statsPlayer, setStatsPlayer] = useState<ConnectedPlayer | null>(null);
+  const [equipmentPlayer, setEquipmentPlayer] = useState<ConnectedPlayer | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Deep link: /players?player=<id> opens that player's stats drawer. The coach
@@ -78,19 +81,18 @@ export default function PlayersPage() {
                 </div>
               </div>
               {/*
-                One real action per card. The old ghost "View" button had no
-                handler and duplicated this one, so it is gone.
+                Everything a coach can do with one player sits behind one menu.
+                Schedule and Calendar leave for pages pre-filtered to this
+                player; Stats and Equipment open drawers over this page.
               */}
               <div className="mt-3 flex items-center gap-2">
                 <StatusBadge status="active" />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="ml-auto gap-1 text-xs"
-                  onClick={() => setStatsPlayer(player)}
-                >
-                  <BarChart3 className="h-3 w-3" /> View stats
-                </Button>
+                <PlayerActionsMenu
+                  player={player}
+                  className="ml-auto"
+                  onViewStats={setStatsPlayer}
+                  onViewEquipment={setEquipmentPlayer}
+                />
               </div>
             </DashboardCard>
           ))}
@@ -98,6 +100,7 @@ export default function PlayersPage() {
       )}
 
       <PlayerStatsDrawer player={statsPlayer} open={!!statsPlayer} onOpenChange={(o) => { if (!o) closeStats(); }} />
+      <PlayerEquipmentDrawer player={equipmentPlayer} open={!!equipmentPlayer} onOpenChange={(o) => { if (!o) setEquipmentPlayer(null); }} />
     </div>
   );
 }
