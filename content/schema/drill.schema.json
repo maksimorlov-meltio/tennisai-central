@@ -1,0 +1,672 @@
+{
+  "$ref": "#/definitions/Drill",
+  "definitions": {
+    "Drill": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "title": {
+          "type": "object",
+          "properties": {
+            "en": {
+              "type": "string",
+              "minLength": 1
+            },
+            "es": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "en",
+            "es"
+          ],
+          "additionalProperties": false
+        },
+        "version": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "reviewed",
+            "approved",
+            "retired"
+          ]
+        },
+        "taxonomy": {
+          "type": "object",
+          "properties": {
+            "domain": {
+              "type": "string",
+              "enum": [
+                "technique",
+                "tactics",
+                "footwork",
+                "serve_return",
+                "physical",
+                "mental",
+                "warmup_cooldown",
+                "games_kids"
+              ]
+            },
+            "skills": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            },
+            "patterns": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "default": []
+            }
+          },
+          "required": [
+            "domain",
+            "skills"
+          ],
+          "additionalProperties": false
+        },
+        "blockKinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "warmup",
+              "technical",
+              "tactical",
+              "live",
+              "cooldown"
+            ]
+          },
+          "minItems": 1
+        },
+        "levelBands": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "beginner",
+              "intermediate",
+              "advanced",
+              "high_performance"
+            ]
+          },
+          "minItems": 1
+        },
+        "ageBands": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "u10",
+              "u12",
+              "u14",
+              "u16",
+              "u18",
+              "adult"
+            ]
+          },
+          "minItems": 1
+        },
+        "players": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "max": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "min",
+            "max"
+          ],
+          "additionalProperties": false
+        },
+        "courts": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "max": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "min",
+            "max"
+          ],
+          "additionalProperties": false
+        },
+        "equipment": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "defaults": {
+          "type": "object",
+          "properties": {
+            "durationMin": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "reps": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sets": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "restSec": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "intensity": {
+              "type": "string",
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ]
+            }
+          },
+          "required": [
+            "durationMin",
+            "reps",
+            "sets",
+            "restSec",
+            "intensity"
+          ],
+          "additionalProperties": false
+        },
+        "ranges": {
+          "type": "object",
+          "properties": {
+            "durationMin": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "reps": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "sets": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            }
+          },
+          "required": [
+            "durationMin",
+            "reps",
+            "sets"
+          ],
+          "additionalProperties": false
+        },
+        "requiresQualifiedSupervision": {
+          "type": "boolean",
+          "default": false
+        },
+        "objective": {
+          "type": "object",
+          "properties": {
+            "en": {
+              "type": "string",
+              "minLength": 1
+            },
+            "es": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "en",
+            "es"
+          ],
+          "additionalProperties": false
+        },
+        "setup": {
+          "type": "object",
+          "properties": {
+            "en": {
+              "type": "string",
+              "minLength": 1
+            },
+            "es": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "en",
+            "es"
+          ],
+          "additionalProperties": false
+        },
+        "progression": {
+          "type": "object",
+          "properties": {
+            "en": {
+              "type": "string",
+              "minLength": 1
+            },
+            "es": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "en",
+            "es"
+          ],
+          "additionalProperties": false
+        },
+        "regression": {
+          "type": "object",
+          "properties": {
+            "en": {
+              "type": "string",
+              "minLength": 1
+            },
+            "es": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "en",
+            "es"
+          ],
+          "additionalProperties": false
+        },
+        "successCriteria": {
+          "type": "object",
+          "properties": {
+            "en": {
+              "type": "string",
+              "minLength": 1
+            },
+            "es": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "en",
+            "es"
+          ],
+          "additionalProperties": false
+        },
+        "diagram": {
+          "type": "object",
+          "properties": {
+            "court": {
+              "type": "string",
+              "enum": [
+                "full",
+                "half",
+                "doubles_full",
+                "doubles_half"
+              ]
+            },
+            "markers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "cone",
+                      "target",
+                      "player",
+                      "feeder",
+                      "ball_path",
+                      "hoop",
+                      "line"
+                    ]
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "type"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            },
+            "paths": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "style": {
+                    "type": "string",
+                    "enum": [
+                      "shot",
+                      "movement"
+                    ]
+                  },
+                  "points": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 2
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "style",
+                  "points"
+                ],
+                "additionalProperties": false
+              },
+              "default": []
+            }
+          },
+          "required": [
+            "court",
+            "markers"
+          ],
+          "additionalProperties": false
+        },
+        "steps": {
+          "type": "object",
+          "properties": {
+            "en": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            },
+            "es": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "en",
+            "es"
+          ],
+          "additionalProperties": false
+        },
+        "cues": {
+          "type": "object",
+          "properties": {
+            "en": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "quote": {
+                        "type": "boolean"
+                      },
+                      "attribution": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "minItems": 3
+            },
+            "es": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "quote": {
+                        "type": "boolean"
+                      },
+                      "attribution": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "minItems": 3
+            }
+          },
+          "required": [
+            "en",
+            "es"
+          ],
+          "additionalProperties": false
+        },
+        "commonErrors": {
+          "type": "object",
+          "properties": {
+            "en": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            },
+            "es": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "en",
+            "es"
+          ],
+          "additionalProperties": false
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "coachOrBody": {
+                "type": "string",
+                "minLength": 1
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "medium": {
+                "type": "string",
+                "enum": [
+                  "video",
+                  "book",
+                  "article",
+                  "course",
+                  "clip",
+                  "conference",
+                  "curriculum"
+                ]
+              },
+              "publisherOrChannel": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "year": {
+                "type": "integer",
+                "minimum": 1900,
+                "maximum": 2100
+              },
+              "timestamp": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              },
+              "fetchedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "coachOrBody",
+              "title",
+              "medium"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "licence": {
+          "type": "string",
+          "const": "none"
+        },
+        "authorAgent": {
+          "type": "string",
+          "enum": [
+            "researcher",
+            "fullstack",
+            "db"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "version",
+        "status",
+        "taxonomy",
+        "blockKinds",
+        "levelBands",
+        "ageBands",
+        "players",
+        "courts",
+        "defaults",
+        "ranges",
+        "objective",
+        "setup",
+        "progression",
+        "regression",
+        "successCriteria",
+        "diagram",
+        "steps",
+        "cues",
+        "commonErrors",
+        "sources",
+        "licence",
+        "authorAgent"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

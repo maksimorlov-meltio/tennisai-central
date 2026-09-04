@@ -1,0 +1,101 @@
+# TennisAI coaching library — controlled skill vocabulary.
+#
+# Every `taxonomy.skills` entry in a drill document must appear here; the
+# validator rejects anything else. Tags are grouped by the domain they most
+# naturally belong to, but a drill in ANY domain may use ANY tag — a footwork
+# drill legitimately trains `split_step` and `recovery_step` at once, and a
+# games_kids drill trains `racket_control` while it trains `cooperative_rallying`.
+#
+# Adding a tag is a deliberate act: prefer reusing an existing one. A vocabulary
+# that grows a synonym per drill stops being a vocabulary.
+
+technique:
+  - forehand_drive
+  - forehand_topspin
+  - forehand_slice
+  - backhand_drive
+  - backhand_topspin
+  - one_handed_backhand
+  - two_handed_backhand
+  - slice_backhand
+  - volley_forehand
+  - volley_backhand
+  - half_volley
+  - overhead_smash
+  - drop_shot
+  - topspin_lob
+  - contact_point_consistency
+
+serve_return:
+  - first_serve_flat
+  - first_serve_slice
+  - second_serve_kick
+  - serve_placement
+  - serve_toss
+  - serve_rhythm
+  - return_block
+  - return_drive
+  - return_position
+  - return_anticipation
+
+tactics:
+  - court_positioning
+  - depth_control
+  - direction_change
+  - height_over_net
+  - shot_tolerance
+  - point_construction
+  - pattern_recognition
+  - opponent_profiling
+  - score_management
+  - transition_to_net
+
+footwork:
+  - split_step
+  - recovery_step
+  - crossover_step
+  - side_shuffle
+  - open_stance
+  - closed_stance
+  - first_step_speed
+  - deceleration
+  - lateral_balance
+  - sliding_on_clay
+
+physical:
+  - aerobic_base
+  - repeated_sprint
+  - lower_body_strength
+  - core_stability
+  - shoulder_stability
+  - hip_mobility
+  - thoracic_mobility
+  - plyometric_landing
+  - coordination
+  - change_of_direction
+
+mental:
+  - pre_point_routine
+  - between_point_routine
+  - self_talk
+  - attentional_focus
+  - arousal_regulation
+  - emotional_control
+  - goal_setting
+  - resilience_after_error
+
+warmup_cooldown:
+  - dynamic_mobility
+  - progressive_rally_warmup
+  - glute_activation
+  - rotator_cuff_activation
+  - light_aerobic_cooldown
+  - post_session_stretch
+
+games_kids:
+  - hand_eye_coordination
+  - racket_control
+  - tracking_and_catching
+  - cooperative_rallying
+  - basic_scoring
+  - spatial_awareness
