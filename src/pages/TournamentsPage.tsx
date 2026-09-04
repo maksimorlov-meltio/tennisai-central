@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Search, MapPin, Calendar, Sun, Warehouse, Mountain, X, Users, Trophy, RefreshCw, Plus, Trash2, Check,
-  Eye, EyeOff, LocateFixed, Loader2, Lock, Globe,
+  Eye, EyeOff, LocateFixed, Loader2, Lock,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
@@ -29,10 +29,6 @@ import { useCalendarPreferences, useSaveCalendarPreferences } from "@/hooks/api/
 // them, so they must not ship with the rest of this page.
 const TournamentMap = lazy(() =>
   import("@/components/tournaments/TournamentMap").then((m) => ({ default: m.TournamentMap })),
-);
-// three.js is heavier again than Leaflet, and only the Globe tab needs it.
-const TournamentGlobe = lazy(() =>
-  import("@/components/tournaments/TournamentGlobe").then((m) => ({ default: m.TournamentGlobe })),
 );
 import {
   useTournaments, usePlayerTournaments, useUpdatePlayerTournament, useAddPlayerTournament, useRemovePlayerTournament, useTeams,
@@ -162,7 +158,7 @@ export default function TournamentsPage() {
   const [playerFilter, setPlayerFilter] = useState(ALL);
   const [teamFilter, setTeamFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
-  const [viewMode, setViewMode] = useState<"tournaments" | "players" | "map" | "globe">(showPlayerTournaments || isPlayer ? "players" : "tournaments");
+  const [viewMode, setViewMode] = useState<"tournaments" | "players" | "map">(showPlayerTournaments || isPlayer ? "players" : "tournaments");
 
   // The tournament awaiting the add dialog, or null when it is closed.
   const [addTarget, setAddTarget] = useState<Tournament | null>(null);
@@ -301,7 +297,6 @@ export default function TournamentsPage() {
             )}
             <TabsTrigger value="tournaments" className="gap-1.5"><Trophy className="h-3.5 w-3.5" /> {isPlayer ? "Add Tournaments" : "Browse All"}</TabsTrigger>
             <TabsTrigger value="map" className="gap-1.5"><MapPin className="h-3.5 w-3.5" /> Map</TabsTrigger>
-            <TabsTrigger value="globe" className="gap-1.5"><Globe className="h-3.5 w-3.5" /> Globe</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -578,26 +573,6 @@ export default function TournamentsPage() {
           <Button variant="outline" onClick={() => setShown((n) => n + PAGE)}>
             Show more
           </Button>
-        </div>
-      )}
-
-      {viewMode === "globe" && (
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Every tournament that matches your filters, on one sphere. Drag to turn it; it spins
-            again when you let go.
-          </p>
-          {mapVisibleTournaments.length === 0 ? (
-            <EmptyState
-              icon={<Globe className="h-6 w-6 text-muted-foreground" />}
-              title="No tournaments found"
-              description="No tournaments match your filters."
-            />
-          ) : (
-            <Suspense fallback={<LoadingState message="Loading globe…" />}>
-              <TournamentGlobe tournaments={mapVisibleTournaments} />
-            </Suspense>
-          )}
         </div>
       )}
 

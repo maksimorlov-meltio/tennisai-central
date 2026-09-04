@@ -118,3 +118,68 @@ export function plottableCount(items: Pinnable[]): number {
       Number.isFinite(i.longitude),
   ).length;
 }
+
+// ── Viewport culling ────────────────────────────────────────────────────────
+//
+// Clustering alone was not enough. Every plotted tournament became a marker
+// whatever the map was actually showing, so panning around Europe still carried
+// the cost of three thousand pins in Australia — and each zoom rebuilt all of
+// them. Culling to the visible box first is the difference between the map
+// being usable and not.
+//
+// The pad is deliberate: cull to exactly the viewport and a pin one pixel off
+// the edge pops in as you pan, which reads as the map being broken. A third of
+// a screen in each direction keeps the edges honest.
+
+export interface Bounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
+/** Grow a box by a fraction of its own size, clamped to real latitudes. */
+export function padBounds(b: Bounds, factor: number): Bounds {
+  const latSpan = (b.north - b.south) * factor;
+  // A box that already wraps the globe cannot be widened further.
+  const lonSpan = crossesAntimeridian(b)
+    ? (360 - (b.west - b.east)) * factor
+    : (b.east - b.west) * factor;
+
+  return {
+    north: Math.min(90, b.north + latSpan),
+    south: Math.max(-90, b.south - latSpan),
+    east: normaliseLongitude(b.east + lonSpan),
+    west: normaliseLongitude(b.west - lonSpan),
+  };
+}
+
+/**
+ * True when the box spans the 180th meridian.
+ *
+ * Leaflet reports such a viewport with west > east, and the naive
+ * `lon >= west && lon <= east` test then matches nothing — the map would go
+ * blank over the Pacific rather than merely wrong, which is why this is worth
+ * the branch.
+ */
+export function crossesAntimeridian(b: Bounds): boolean {
+  return b.west > b.east;
+}
+
+/** Only the points inside the box. Anything unplottable is dropped. */
+export function withinBounds<T extends Pinnable>(items: T[], b: Bounds | null): T[] {
+  if (!b) return items;
+
+  const wraps = crossesAntimeridian(b);
+
+  return items.filter((i) => {
+    const lat = i.latitude;
+    const lon = i.longitude;
+    if (lat == null || lon == null) return false;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+    if (lat < b.south || lat > b.north) return false;
+
+    const x = normaliseLongitude(lon);
+    return wraps ? x >= b.west || x <= b.east : x >= b.west && x <= b.east;
+  });
+}
