@@ -1,0 +1,127 @@
+id: cross-court-battle-first-change
+title:
+  en: "Cross-court battle, first change wins"
+  es: "Duelo cruzado: gana el primer cambio"
+version: 1
+status: reviewed
+taxonomy:
+  domain: tactics
+  skills:
+    - shot_tolerance
+    - direction_change
+    - depth_control
+    - pattern_recognition
+  patterns:
+    - cross_court_rally_battle
+    - down_the_line_change
+blockKinds:
+  - tactical
+  - live
+levelBands:
+  - intermediate
+  - advanced
+  - high_performance
+ageBands:
+  - u14
+  - u16
+  - u18
+  - adult
+players:
+  min: 2
+  max: 4
+courts:
+  min: 1
+  max: 1
+equipment:
+  - balls
+  - cones
+defaults:
+  durationMin: 14
+  reps: 12
+  sets: 2
+  restSec: 60
+  intensity: high
+ranges:
+  durationMin: [10, 24]
+  reps: [6, 24]
+  sets: [1, 4]
+requiresQualifiedSupervision: false
+objective:
+  en: "Sustain a cross-court rally of at least four balls before changing direction, and win the point after the change 5 times in 12 rallies."
+  es: "Mantener un peloteo cruzado de al menos cuatro bolas antes de cambiar de dirección y ganar el punto tras el cambio 5 veces en 12 peloteos."
+setup:
+  en: "Both players rally cross-court from the baseline. A cone on each side marks the down-the-line corridor: the change of direction only scores if the ball lands beyond the service line inside that corridor."
+  es: "Ambos jugadores pelotean en cruzado desde el fondo. Un cono en cada lado marca el pasillo paralelo: el cambio de dirección solo puntúa si la bola cae más allá de la línea de saque dentro de ese pasillo."
+progression:
+  en: "Raise the minimum to six cross-court balls, and allow the opponent to change first — whoever changes must then win the point."
+  es: "Sube el mínimo a seis bolas cruzadas y permite que el rival cambie primero: quien cambie debe ganar el punto."
+regression:
+  en: "Drop the minimum to two balls and let the change be a rally ball rather than an attacking one."
+  es: "Baja el mínimo a dos bolas y permite que el cambio sea una bola de peloteo, no de ataque."
+successCriteria:
+  en: "5 of 12 rallies are won by the player who changed direction, with no change attempted before the fourth ball."
+  es: "5 de cada 12 peloteos los gana quien cambia de dirección, sin intentar el cambio antes de la cuarta bola."
+diagram:
+  court: full
+  markers:
+    - { type: player, x: 3.2, y: -10.8, label: "Player A" }
+    - { type: player, x: 3.2, y: 10.8, label: "Player B" }
+    - { type: cone, x: -3.4, y: 7.5, label: "Line corridor" }
+    - { type: cone, x: -3.4, y: -7.5, label: "Line corridor" }
+    - { type: target, x: -3.6, y: 10.2 }
+  paths:
+    - style: shot
+      points: [{ x: 3.2, y: -10.8 }, { x: 2.6, y: 0.0 }, { x: 3.2, y: 10.4 }]
+      label: "Cross-court rally"
+    - style: shot
+      points: [{ x: 3.2, y: -10.8 }, { x: -3.5, y: 9.8 }]
+      label: "Change of direction"
+    - style: movement
+      points: [{ x: 3.2, y: -10.8 }, { x: 0.5, y: -11.0 }, { x: -3.0, y: -10.6 }]
+      label: "Recovery and cover"
+steps:
+  en:
+    - "Start each rally with a cooperative cross-court feed."
+    - "Rally cross-court; count the balls out loud."
+    - "From the fourth ball on, either player may change down the line."
+    - "Play the point out; the changer must win it for the rally to score."
+  es:
+    - "Empieza cada peloteo con un lanzamiento cruzado cooperativo."
+    - "Pelotea en cruzado y cuenta las bolas en voz alta."
+    - "A partir de la cuarta bola, cualquiera puede cambiar en paralelo."
+    - "Juega el punto: quien cambia debe ganarlo para que el peloteo puntúe."
+cues:
+  en:
+    - "Change on a ball inside the baseline"
+    - "Height and depth keep you neutral"
+    - "Change once, then cover the line"
+    - "Wait for the short one"
+  es:
+    - "Cambia con una bola dentro del fondo"
+    - "Altura y profundidad te mantienen neutral"
+    - "Cambia una vez y cubre el paralelo"
+    - "Espera la bola corta"
+commonErrors:
+  en:
+    - "Changing direction on a low, deep ball and handing over the attack."
+    - "Dropping the height over the net during the cross-court exchange."
+    - "Standing still after the change instead of covering the new angle."
+  es:
+    - "Cambiar de dirección con una bola baja y profunda y regalar el ataque."
+    - "Bajar la altura sobre la red durante el intercambio cruzado."
+    - "Quedarse parado tras el cambio en lugar de cubrir el nuevo ángulo."
+sources:
+  - coachOrBody: "TennisAI coaching library"
+    title: "Cross-court battle, first change wins — written from standard coaching curricula"
+    medium: curriculum
+    note: "written from standard coaching curricula"
+  - coachOrBody: "Prieto-Lage, Paramés-González, Torres-Santos, Argibay-González, Reguera-López-de-la-Osa, Gutiérrez-Santiago"
+    title: "Match analysis and probability of winning a point in elite men's singles tennis"
+    medium: article
+    publisherOrChannel: "PLOS ONE"
+    url: "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0286076"
+    year: 2023
+    note: "Reports rally-length distributions and where finishing shots land, which sets the four-ball threshold used here."
+    fetchedAt: "2026-09-04"
+licence: none
+authorAgent: db

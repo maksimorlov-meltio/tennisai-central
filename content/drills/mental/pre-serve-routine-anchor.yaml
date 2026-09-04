@@ -1,0 +1,119 @@
+id: pre-serve-routine-anchor
+title:
+  en: "Pre-serve routine anchor"
+  es: "Ancla de rutina antes del saque"
+version: 1
+status: reviewed
+taxonomy:
+  domain: mental
+  skills:
+    - pre_point_routine
+    - between_point_routine
+    - self_talk
+    - attentional_focus
+  patterns: []
+blockKinds:
+  - technical
+  - live
+  - cooldown
+levelBands:
+  - beginner
+  - intermediate
+  - advanced
+  - high_performance
+ageBands:
+  - u14
+  - u16
+  - u18
+  - adult
+players:
+  min: 1
+  max: 4
+courts:
+  min: 0.5
+  max: 1
+equipment:
+  - balls
+defaults:
+  durationMin: 10
+  reps: 25
+  sets: 2
+  restSec: 45
+  intensity: low
+ranges:
+  durationMin: [6, 15]
+  reps: [15, 40]
+  sets: [1, 3]
+requiresQualifiedSupervision: false
+objective:
+  en: "Run the same four-step routine before 23 of 25 serves, and keep the first-serve landing rate above the player's own baseline."
+  es: "Ejecutar la misma rutina de cuatro pasos antes de 23 de cada 25 saques y mantener el porcentaje de primeros saques por encima de tu propia referencia."
+setup:
+  en: "Player serves from one side with a basket of balls. The routine is fixed and written on a card at the fence: position the feet, bounce the ball a set number of times, picture the ball landing on the target, then one short phrase to yourself."
+  es: "Sacas desde un lado con un cesto de bolas. La rutina es fija y está escrita en una tarjeta en la valla: coloca los pies, bota la bola un número fijo de veces, visualiza la bola cayendo en el objetivo y dite una frase corta."
+progression:
+  en: "Run the routine inside a tie-break, and keep it identical after a double fault."
+  es: "Ejecuta la rutina dentro de un tie-break y mantenla idéntica después de una doble falta."
+regression:
+  en: "Practise the four steps without hitting: feet, bounces, picture, phrase — then add the serve."
+  es: "Practica los cuatro pasos sin golpear: pies, botes, imagen y frase; después añade el saque."
+successCriteria:
+  en: "23 of 25 serves preceded by the complete routine in the same order, verified by a partner counting."
+  es: "23 de cada 25 saques precedidos por la rutina completa en el mismo orden, verificado por un compañero que cuenta."
+diagram:
+  court: half
+  markers:
+    - { type: player, x: 1.6, y: -11.6, label: "Server" }
+    - { type: target, x: 3.6, y: -5.4, label: "Wide target" }
+    - { type: target, x: 0.6, y: -5.4, label: "T target" }
+    - { type: cone, x: 2.2, y: -11.885, label: "Routine start" }
+  paths:
+    - style: shot
+      points: [{ x: 1.6, y: -11.6 }, { x: 3.4, y: -5.6 }]
+      label: "Serve to the wide target"
+steps:
+  en:
+    - "Stand behind the baseline and set the feet in the same position every time."
+    - "Bounce the ball the same number of times, at the same tempo."
+    - "Picture the ball landing on the chosen target."
+    - "Say one short phrase to yourself, then serve without pausing."
+  es:
+    - "Colócate detrás del fondo y sitúa los pies siempre igual."
+    - "Bota la bola el mismo número de veces y al mismo ritmo."
+    - "Visualiza la bola cayendo en el objetivo elegido."
+    - "Dite una frase corta y saca sin pararte."
+cues:
+  en:
+    - "Same feet, same bounces, every time"
+    - "See the ball land first"
+    - "One phrase, then go"
+    - "Routine does not change after a miss"
+  es:
+    - "Mismos pies, mismos botes, siempre"
+    - "Primero ve caer la bola"
+    - "Una frase y adelante"
+    - "La rutina no cambia tras fallar"
+commonErrors:
+  en:
+    - "Speeding the routine up after a double fault, which is when it matters most."
+    - "Changing the number of bounces with the score."
+    - "Adding new thoughts between the phrase and the toss."
+  es:
+    - "Acelerar la rutina después de una doble falta, justo cuando más importa."
+    - "Cambiar el número de botes según el marcador."
+    - "Añadir pensamientos nuevos entre la frase y el lanzamiento."
+sources:
+  - coachOrBody: "TennisAI coaching library"
+    title: "Pre-serve routine anchor — written from standard coaching curricula"
+    medium: curriculum
+    note: "written from standard coaching curricula"
+  - coachOrBody: "Robin, Dominique, Guillet-Descas, Hue"
+    title: "Beneficial Effects of Motor Imagery and Self-Talk on Service Performance in Skilled Tennis Players"
+    medium: article
+    publisherOrChannel: "Frontiers in Psychology"
+    url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC9120369/"
+    year: 2022
+    note: "Studies imagery of the ball's path plus a short self-directed phrase before serving, and reports gains in accuracy rather than speed — which is why this drill scores landing rate, not pace."
+    fetchedAt: "2026-09-04"
+licence: none
+authorAgent: db

@@ -1,0 +1,126 @@
+id: bodyweight-court-circuit-u14
+title:
+  en: "Bodyweight court circuit (under-14)"
+  es: "Circuito en pista con peso corporal (sub-14)"
+version: 1
+status: reviewed
+taxonomy:
+  domain: physical
+  skills:
+    - lower_body_strength
+    - core_stability
+    - coordination
+    - change_of_direction
+  patterns: []
+blockKinds:
+  - warmup
+  - technical
+levelBands:
+  - beginner
+  - intermediate
+ageBands:
+  - u12
+  - u14
+players:
+  min: 1
+  max: 8
+courts:
+  min: 0.5
+  max: 1
+equipment:
+  - cones
+defaults:
+  durationMin: 12
+  reps: 8
+  sets: 3
+  restSec: 60
+  intensity: medium
+ranges:
+  durationMin: [8, 18]
+  reps: [6, 12]
+  sets: [2, 4]
+requiresQualifiedSupervision: true
+objective:
+  en: "Complete three rounds of five bodyweight movements with controlled technique and a quiet, balanced landing on every repetition."
+  es: "Completar tres rondas de cinco movimientos con peso corporal manteniendo la técnica controlada y una caída silenciosa y equilibrada en cada repetición."
+setup:
+  en: "Four cones mark a 6 m square inside one half of the court. No added load of any kind: this circuit is bodyweight only, and it runs under the supervision of a qualified strength and conditioning professional. Technique first, repetitions second."
+  es: "Cuatro conos marcan un cuadrado de 6 m dentro de media pista. Sin carga añadida de ningún tipo: este circuito es solo con peso corporal y se realiza bajo la supervisión de un profesional cualificado de preparación física. Primero la técnica, después las repeticiones."
+progression:
+  en: "Add one round, or slow the lowering phase to three seconds — never added load at this age band."
+  es: "Añade una ronda o alarga la fase de bajada a tres segundos; nunca carga añadida en esta franja de edad."
+regression:
+  en: "Halve the repetitions, shorten the square to 4 m, and hold a cone for balance during the single-leg movement."
+  es: "Reduce las repeticiones a la mitad, acorta el cuadrado a 4 m y apóyate en un cono para equilibrarte en el movimiento a una pierna."
+successCriteria:
+  en: "All three rounds completed with knees tracking over the toes and no repetition finished out of balance."
+  es: "Las tres rondas completadas con las rodillas alineadas sobre los pies y sin ninguna repetición terminada en desequilibrio."
+diagram:
+  court: half
+  markers:
+    - { type: cone, x: -3.0, y: -4.0, label: "Station 1" }
+    - { type: cone, x: 3.0, y: -4.0, label: "Station 2" }
+    - { type: cone, x: 3.0, y: -10.0, label: "Station 3" }
+    - { type: cone, x: -3.0, y: -10.0, label: "Station 4" }
+    - { type: player, x: 0.0, y: -7.0, label: "Coach" }
+  paths:
+    - style: movement
+      points:
+        [{ x: -3.0, y: -4.0 }, { x: 3.0, y: -4.0 }, { x: 3.0, y: -10.0 }, { x: -3.0, y: -10.0 }, { x: -3.0, y: -4.0 }]
+      label: "Circuit order"
+steps:
+  en:
+    - "Station 1: 8 bodyweight squats, slow down, stand tall."
+    - "Station 2: 8 split squats each leg, knee tracking over the toes."
+    - "Station 3: 20 seconds front plank with a steady breath."
+    - "Station 4: 8 low skater hops, landing quietly on one leg."
+    - "Jog the square back to station 1; rest 60 seconds between rounds."
+  es:
+    - "Estación 1: 8 sentadillas con peso corporal, baja despacio y estírate al subir."
+    - "Estación 2: 8 zancadas por pierna, con la rodilla alineada sobre el pie."
+    - "Estación 3: 20 segundos de plancha frontal respirando con calma."
+    - "Estación 4: 8 saltos laterales bajos, cayendo en silencio sobre una pierna."
+    - "Trota el cuadrado hasta la estación 1; descansa 60 segundos entre rondas."
+cues:
+  en:
+    - "Quiet landings, bend to absorb"
+    - "Knee over the middle toe"
+    - "Ribs down, breathe in the plank"
+    - "Stop the set if technique slips"
+  es:
+    - "Caídas silenciosas, flexiona para amortiguar"
+    - "Rodilla sobre el dedo medio"
+    - "Costillas abajo, respira en la plancha"
+    - "Para la serie si falla la técnica"
+commonErrors:
+  en:
+    - "Chasing repetitions once the movement quality has gone."
+    - "Landing stiff-legged on the skater hop."
+    - "Letting the hips drop in the plank and holding the breath."
+  es:
+    - "Perseguir repeticiones cuando la calidad del movimiento ya se ha perdido."
+    - "Caer con la pierna rígida en el salto lateral."
+    - "Dejar caer la cadera en la plancha y aguantar la respiración."
+sources:
+  - coachOrBody: "TennisAI coaching library"
+    title: "Bodyweight court circuit (under-14) — written from standard coaching curricula"
+    medium: curriculum
+    note: "written from standard coaching curricula"
+  - coachOrBody: "Granacher, Lesinski, Büsch, Muehlbauer, Prieske, Puta, Gollhofer, Behm"
+    title: "Effects of Resistance Training in Youth Athletes on Muscular Fitness and Athletic Performance: A Conceptual Model for Long-Term Athlete Development"
+    medium: article
+    publisherOrChannel: "Frontiers in Physiology"
+    url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC4861005/"
+    year: 2016
+    note: "Documents qualified supervision, technique before intensity, and balance and coordination work before loaded strength work in youth athletes."
+    fetchedAt: "2026-09-04"
+  - coachOrBody: "Amor-Salamanca, Rodríguez-González, Rosselló, de Lluc-Bauza, Hermosilla-Perona, Martín-Castellanos, Herrera-Peco"
+    title: "Risk Factors and Prevention of Musculoskeletal Injuries in Adolescent and Adult High-Performance Tennis Players: A Systematic Review"
+    medium: article
+    publisherOrChannel: "Sports (Basel)"
+    url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC12568103/"
+    year: 2025
+    note: "Documents workload spikes as a leading injury risk factor, which is why this circuit adds rounds rather than load."
+    fetchedAt: "2026-09-04"
+licence: none
+authorAgent: db

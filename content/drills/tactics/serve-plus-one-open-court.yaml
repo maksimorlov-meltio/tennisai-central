@@ -1,0 +1,132 @@
+id: serve-plus-one-open-court
+title:
+  en: "Serve plus one into the open court"
+  es: "Saque más uno a la pista abierta"
+version: 1
+status: reviewed
+taxonomy:
+  domain: tactics
+  skills:
+    - serve_placement
+    - point_construction
+    - court_positioning
+    - forehand_drive
+  patterns:
+    - serve_plus_one_forehand
+    - serve_wide_open_court
+blockKinds:
+  - tactical
+  - live
+levelBands:
+  - intermediate
+  - advanced
+  - high_performance
+ageBands:
+  - u14
+  - u16
+  - u18
+  - adult
+players:
+  min: 2
+  max: 4
+courts:
+  min: 1
+  max: 1
+equipment:
+  - balls
+  - cones
+  - targets
+defaults:
+  durationMin: 15
+  reps: 24
+  sets: 2
+  restSec: 60
+  intensity: high
+ranges:
+  durationMin: [10, 25]
+  reps: [12, 40]
+  sets: [1, 4]
+requiresQualifiedSupervision: false
+objective:
+  en: "Win or command 6 of 10 two-shot sequences by serving wide and driving the next ball into the open court."
+  es: "Ganar o dominar 6 de cada 10 secuencias de dos golpes sacando abierto y atacando la siguiente bola a la pista abierta."
+setup:
+  en: "Server plays from the deuce court. A cone marks the wide serve target in the service box; two cones mark an open-court zone in the opposite corner behind the service line. The returner blocks the serve back cross-court."
+  es: "El sacador juega desde el lado de iguales. Un cono marca el objetivo del saque abierto dentro del cuadro; dos conos marcan la zona de pista abierta en el rincón contrario detrás de la línea de saque. El restador bloquea el saque en cruzado."
+progression:
+  en: "Play the sequence live to the end of the point, then repeat from the advantage court with a serve into the body."
+  es: "Juega la secuencia en vivo hasta terminar el punto y repítela desde el lado de ventaja con un saque al cuerpo."
+regression:
+  en: "Start from a hand feed that copies the wide return, so the player rehearses only the second ball."
+  es: "Empieza con un lanzamiento con la mano que imite el resto abierto, para ensayar solo la segunda bola."
+successCriteria:
+  en: "6 of 10 second balls land in the open-court zone without the server crossing the baseline early."
+  es: "6 de cada 10 segundas bolas caen en la zona de pista abierta sin que el sacador cruce el fondo antes de tiempo."
+diagram:
+  court: full
+  markers:
+    - { type: player, x: 1.6, y: -11.6, label: "Server" }
+    - { type: player, x: 2.6, y: 11.0, label: "Returner" }
+    - { type: cone, x: 3.9, y: 5.2, label: "Wide serve target" }
+    - { type: target, x: -3.2, y: 8.5, label: "Open court" }
+    - { type: cone, x: -1.8, y: 7.0 }
+    - { type: cone, x: -4.0, y: 10.5 }
+  paths:
+    - style: shot
+      points: [{ x: 1.6, y: -11.6 }, { x: 3.9, y: 5.2 }]
+      label: "Wide serve"
+    - style: shot
+      points: [{ x: 3.9, y: 5.2 }, { x: 1.0, y: -8.0 }]
+      label: "Cross-court return"
+    - style: movement
+      points: [{ x: 1.6, y: -11.6 }, { x: 0.6, y: -10.2 }]
+      label: "Server recovery"
+    - style: shot
+      points: [{ x: 0.6, y: -10.2 }, { x: -3.0, y: 8.8 }]
+      label: "Plus-one to the open court"
+steps:
+  en:
+    - "Server hits a wide serve at the cone in the deuce service box."
+    - "Returner blocks the serve back cross-court, deliberately, not competitively."
+    - "Server steps in and drives the second ball into the marked open-court zone."
+    - "Play 10 sequences, count the successful second balls, then swap roles."
+  es:
+    - "El sacador golpea un saque abierto al cono del cuadro de iguales."
+    - "El restador bloquea el saque en cruzado, de forma controlada y no competitiva."
+    - "El sacador entra y ataca la segunda bola a la zona marcada de pista abierta."
+    - "Juega 10 secuencias, cuenta las segundas bolas buenas y cambia los papeles."
+cues:
+  en:
+    - "Serve wide, then step inside the baseline"
+    - "Second ball goes where they are not"
+    - "Turn early, hit through the open space"
+    - "One decision, made before the serve"
+  es:
+    - "Saca abierto y entra dentro del fondo"
+    - "La segunda bola va al espacio libre"
+    - "Gira pronto y atraviesa el hueco"
+    - "Una decisión, tomada antes de sacar"
+commonErrors:
+  en:
+    - "Aiming the serve at the line, so the wide angle is lost to errors."
+    - "Waiting behind the baseline for the return and losing the attacking position."
+    - "Changing the plan mid-point instead of committing to the second ball."
+  es:
+    - "Apuntar el saque a la línea y perder el ángulo abierto por errores."
+    - "Esperar el resto detrás del fondo y perder la posición de ataque."
+    - "Cambiar el plan a mitad del punto en lugar de comprometerse con la segunda bola."
+sources:
+  - coachOrBody: "TennisAI coaching library"
+    title: "Serve plus one into the open court — written from standard coaching curricula"
+    medium: curriculum
+    note: "written from standard coaching curricula"
+  - coachOrBody: "Prieto-Lage, Paramés-González, Torres-Santos, Argibay-González, Reguera-López-de-la-Osa, Gutiérrez-Santiago"
+    title: "Match analysis and probability of winning a point in elite men's singles tennis"
+    medium: article
+    publisherOrChannel: "PLOS ONE"
+    url: "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0286076"
+    year: 2023
+    note: "Reports that most points end within the first four shots and that first serves dominate them — the reason this drill rehearses two shots, not a rally."
+    fetchedAt: "2026-09-04"
+licence: none
+authorAgent: db

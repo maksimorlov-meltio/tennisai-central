@@ -1,0 +1,136 @@
+id: short-ball-attack-and-close
+title:
+  en: "Short ball: attack and close"
+  es: "Bola corta: ataca y sube"
+version: 1
+status: reviewed
+taxonomy:
+  domain: tactics
+  skills:
+    - transition_to_net
+    - court_positioning
+    - volley_forehand
+    - volley_backhand
+  patterns:
+    - short_ball_attack
+    - approach_and_volley
+blockKinds:
+  - tactical
+  - live
+levelBands:
+  - intermediate
+  - advanced
+  - high_performance
+ageBands:
+  - u14
+  - u16
+  - u18
+  - adult
+players:
+  min: 2
+  max: 4
+courts:
+  min: 0.5
+  max: 1
+equipment:
+  - balls
+  - cones
+  - targets
+defaults:
+  durationMin: 12
+  reps: 20
+  sets: 2
+  restSec: 60
+  intensity: high
+ranges:
+  durationMin: [8, 20]
+  reps: [10, 40]
+  sets: [1, 4]
+requiresQualifiedSupervision: false
+objective:
+  en: "Convert 6 of 10 short balls into an approach plus a first volley played from inside the service box."
+  es: "Convertir 6 de cada 10 bolas cortas en una aproximación y una primera volea jugada desde dentro del cuadro de saque."
+setup:
+  en: "Feeder alternates one deep ball and one short ball. A cone marks the recognition line at the service line; the player may only attack a ball that bounces in front of it."
+  es: "El lanzador alterna una bola profunda y una bola corta. Un cono marca la línea de reconocimiento en la línea de saque; solo puedes atacar una bola que bote por delante de ella."
+progression:
+  en: "Make the feed random, then play the point out live after the first volley."
+  es: "Haz el lanzamiento aleatorio y después juega el punto en vivo tras la primera volea."
+regression:
+  en: "Announce the short ball before feeding it, and allow the approach to land anywhere deep."
+  es: "Anuncia la bola corta antes de lanzarla y permite que la aproximación caiga en cualquier zona profunda."
+successCriteria:
+  en: "6 of 10 attacks end with the first volley played from inside the service box, feet split before contact."
+  es: "6 de cada 10 ataques terminan con la primera volea jugada desde dentro del cuadro de saque, con paso de ajuste antes del impacto."
+diagram:
+  court: half
+  markers:
+    - { type: player, x: 0.4, y: 10.8, label: "Player" }
+    - { type: feeder, x: 0.0, y: 0.6, label: "Feeder at the net" }
+    - { type: cone, x: 0.0, y: 6.4, label: "Recognition line" }
+    - { type: target, x: 3.2, y: 3.2, label: "First-volley zone" }
+    - { type: cone, x: -3.2, y: 3.2 }
+  paths:
+    - style: movement
+      points: [{ x: 0.4, y: 10.8 }, { x: 2.0, y: 6.0 }, { x: 1.2, y: 3.4 }]
+      label: "Approach and close"
+    - style: shot
+      points: [{ x: 2.0, y: 6.0 }, { x: 0.6, y: 0.4 }]
+      label: "Approach shot"
+    - style: shot
+      points: [{ x: 1.2, y: 3.4 }, { x: 3.0, y: 0.5 }]
+      label: "First volley"
+steps:
+  en:
+    - "Feeder alternates a deep ball and a short ball inside the recognition line."
+    - "Player rallies the deep ball and attacks only the short one."
+    - "Player approaches, splits before the opponent's contact, and volleys into the target zone."
+    - "Reset behind the baseline and repeat for 10 attacks."
+  es:
+    - "El lanzador alterna una bola profunda y una corta dentro de la línea de reconocimiento."
+    - "Peloteas la bola profunda y solo atacas la corta."
+    - "Aproxima, haz el paso de ajuste antes del impacto rival y volea a la zona objetivo."
+    - "Vuelve detrás del fondo y repite hasta 10 ataques."
+cues:
+  en:
+    - "Read the short ball off the bounce"
+    - "Approach through the ball, not around it"
+    - "Split step before their contact"
+    - "First volley deep, then close"
+  es:
+    - "Lee la bola corta desde el bote"
+    - "Aproxima a través de la bola, no rodeándola"
+    - "Paso de ajuste antes de su impacto"
+    - "Primera volea profunda y después sube"
+commonErrors:
+  en:
+    - "Attacking a ball that bounced behind the service line and arriving late at the net."
+    - "Running through the split step and being caught moving at contact."
+    - "Hitting the approach flat and short, which invites the passing shot."
+  es:
+    - "Atacar una bola que botó detrás de la línea de saque y llegar tarde a la red."
+    - "Saltarse el paso de ajuste y quedar en movimiento en el impacto."
+    - "Golpear la aproximación plana y corta, lo que invita al passing."
+sources:
+  - coachOrBody: "TennisAI coaching library"
+    title: "Short ball: attack and close — written from standard coaching curricula"
+    medium: curriculum
+    note: "written from standard coaching curricula"
+  - coachOrBody: "Prieto-Lage, Paramés-González, Torres-Santos, Argibay-González, Reguera-López-de-la-Osa, Gutiérrez-Santiago"
+    title: "Match analysis and probability of winning a point in elite men's singles tennis"
+    medium: article
+    publisherOrChannel: "PLOS ONE"
+    url: "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0286076"
+    year: 2023
+    note: "Documents how many points finish in the service-box area, which is why the first volley is scored from inside that box."
+    fetchedAt: "2026-09-04"
+  - coachOrBody: "Filipčič, Leskošek, Munivrana, Ochiana, Filipčič"
+    title: "Differences in Movement Speed Before and After a Split-Step Between Professional and Junior Tennis Players"
+    medium: article
+    publisherOrChannel: "Journal of Human Kinetics"
+    url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC5304280/"
+    year: 2017
+    note: "Documents split-step speeds by game situation, including net play — the basis for the split-before-contact requirement."
+    fetchedAt: "2026-09-04"
+licence: none
+authorAgent: db

@@ -1,6 +1,8 @@
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { importTournaments, tournamentSlug } from "../src/tournaments/feed";
+import { importDrills } from "../src/library/importDrills";
+import { validateContent } from "../src/library/validate";
 
 const prisma = new PrismaClient();
 
@@ -212,6 +214,20 @@ function seedingAllowed(): { ok: boolean; reason?: string } {
   };
 }
 
+// The default session shape. Shares sum to 100; the assembler turns them into
+// minutes for whatever total the coach asks for.
+const DEFAULT_SESSION_TEMPLATE = {
+  name: "Standard session",
+  levelBands: ["beginner", "intermediate", "advanced", "high_performance"],
+  blocks: [
+    { kind: "warmup", sharePct: 15, minMin: 8, maxMin: 20 },
+    { kind: "technical", sharePct: 30, minMin: 10, maxMin: 40 },
+    { kind: "tactical", sharePct: 25, minMin: 10, maxMin: 35 },
+    { kind: "live", sharePct: 20, minMin: 8, maxMin: 30 },
+    { kind: "cooldown", sharePct: 10, minMin: 5, maxMin: 15 },
+  ],
+};
+
 async function main() {
   const allowed = seedingAllowed();
   if (!allowed.ok) {
@@ -363,6 +379,31 @@ async function main() {
   console.log(`✅ Seeded ${DEMO_FINANCE.length} finance + ${DEMO_EQUIPMENT.length} equipment + ${DEMO_NOTIFICATIONS.length} notification for p1.`);
   console.log(`✅ Seeded 1 academy + ${DEMO_ACADEMY_MEMBERSHIPS.length} memberships + ${DEMO_COACH_ASSIGNMENTS.length} coach assignment + ${DEMO_GUARDIANSHIPS.length} guardianship (consented).`);
   console.log(`✅ Seeded ${DEMO_SUBSCRIPTIONS.length} subscription + ${DEMO_OPPONENTS.length} opponents + ${DEMO_MATCHES.length} matches for p1.`);
+
+  // The default session shape: the five blocks in order, with the share of the
+  // session each takes. Pinned id so re-seeding updates it rather than adding a
+  // second "default" template — two defaults is an assembler bug waiting to be
+  // written.
+  await prisma.sessionTemplate.upsert({
+    where: { id: "tmpl-default" },
+    update: { name: DEFAULT_SESSION_TEMPLATE.name, blocks: DEFAULT_SESSION_TEMPLATE.blocks, isDefault: true },
+    create: { id: "tmpl-default", ...DEFAULT_SESSION_TEMPLATE, isDefault: true },
+  });
+  console.log(`✅ Seeded 1 default session template (${DEFAULT_SESSION_TEMPLATE.blocks.map((b) => b.kind).join(" → ")}).`);
+
+  // The coaching library. Reviewed drills are included so a fresh demo database
+  // is not an empty library on p1 / c1's screens; invalid content refuses to
+  // import rather than half-filling the table.
+  const content = validateContent();
+  if (content.issues.length > 0) {
+    console.log(`⏭️  Library import skipped: ${content.issues.length} content problem(s) — run npm run content:validate.`);
+  } else {
+    const imported = await importDrills(prisma, content.drills, { includeReviewed: true });
+    console.log(
+      `✅ Imported ${imported.created} + updated ${imported.updated} library drills ` +
+        `(${imported.unchanged} unchanged, ${imported.skipped} skipped).`,
+    );
+  }
 }
 
 main()
