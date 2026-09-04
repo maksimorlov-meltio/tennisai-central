@@ -2,10 +2,33 @@ import { Link, useLocation } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useT, SUPPORTED_LOCALES } from "@/lib/i18n";
+
+/** Small icon-button toggle between the two supported locales — the signed-out
+ * landing page has no account menu to hang a fuller switcher off of, so this
+ * stays a single tap rather than a dropdown. */
+function LanguageToggle() {
+  const { t, locale, setLocale } = useT();
+  const nextLocale = SUPPORTED_LOCALES[(SUPPORTED_LOCALES.indexOf(locale) + 1) % SUPPORTED_LOCALES.length];
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setLocale(nextLocale)}
+      aria-label={t("language.switchAria")}
+      title={t("language.switchAria")}
+      className="text-xs font-bold uppercase"
+    >
+      {locale}
+    </Button>
+  );
+}
 
 export function Navbar() {
   const location = useLocation();
   const isLanding = location.pathname === "/";
+  const { t } = useT();
 
   return (
     <header
@@ -20,24 +43,25 @@ export function Navbar() {
             <span className="text-sm font-bold text-primary-foreground">T</span>
           </div>
           <span className="text-base font-bold tracking-tight text-foreground">
-            Tennis AI
+            {t("navbar.brand")}
           </span>
         </Link>
 
         {isLanding && (
           <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
-            <a href="#how-it-works" className="hover:text-foreground">How it works</a>
-            <a href="#pricing" className="hover:text-foreground">Access</a>
+            <a href="#how-it-works" className="hover:text-foreground">{t("navbar.howItWorks")}</a>
+            <a href="#pricing" className="hover:text-foreground">{t("navbar.access")}</a>
           </nav>
         )}
 
         <div className="flex items-center gap-2">
+          <LanguageToggle />
           <ThemeToggle />
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/login">Sign In</Link>
+            <Link to="/login">{t("navbar.signIn")}</Link>
           </Button>
           <Button size="sm" asChild>
-            <Link to="/signup">Get Started</Link>
+            <Link to="/signup">{t("navbar.getStarted")}</Link>
           </Button>
         </div>
       </div>

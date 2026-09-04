@@ -1,0 +1,299 @@
+{
+  "language": {
+    "switchAria": "Idioma",
+    "english": "Inglés",
+    "spanish": "Español"
+  },
+  "navbar": {
+    "brand": "Tennis AI",
+    "howItWorks": "Cómo funciona",
+    "access": "Acceso",
+    "signIn": "Iniciar sesión",
+    "getStarted": "Empezar"
+  },
+  "nav": {
+    "trainings": {
+      "unreviewedBadge": "{count}",
+      "unreviewedAria": "{count, plural, one {# sesión pendiente de revisión} other {# sesiones pendientes de revisión}}"
+    },
+    "notifications": {
+      "unreadBadge": "{count}",
+      "unreadAria": "{count, plural, one {# notificación sin leer} other {# notificaciones sin leer}}"
+    }
+  },
+  "dashboard": {
+    "nav": {
+      "dashboard": "Panel",
+      "profile": "Mi perfil",
+      "calendar": "Calendario",
+      "tournaments": "Torneos",
+      "matches": "Partidos",
+      "stats": "Estadísticas",
+      "equipment": "Equipamiento",
+      "finance": "Finanzas",
+      "players": "Jugadores",
+      "teams": "Equipos",
+      "trainings": "Entrenamientos",
+      "sessionBuilder": "Creador de sesiones",
+      "trainingPlans": "Planes de entrenamiento",
+      "trainingRequests": "Solicitudes de entrenamiento",
+      "connections": "Conexiones",
+      "aiInsights": "Análisis con IA",
+      "notifications": "Notificaciones",
+      "adminUsers": "Usuarios",
+      "adminRelationships": "Relaciones",
+      "adminAlerts": "Alertas del sistema",
+      "collapse": "Ocultar menú",
+      "close": "Cerrar menú",
+      "expand": "Mostrar menú",
+      "menu": "Menú"
+    },
+    "actions": {
+      "logout": "Cerrar sesión"
+    },
+    "role": {
+      "player": "jugador",
+      "coach": "entrenador",
+      "observer": "familiar",
+      "admin": "administrador"
+    },
+    "account": {
+      "menuAria": "Menú de la cuenta",
+      "notificationSettings": "Ajustes de notificaciones",
+      "language": "Idioma"
+    },
+    "common": {
+      "loadError": "No se pudieron cargar los datos del panel",
+      "manage": "Gestionar",
+      "viewAll": "Ver todo",
+      "fullCalendar": "Calendario completo",
+      "explore": "Explorar",
+      "details": "Detalles",
+      "open": "Abrir",
+      "upcomingEvents": "Próximos eventos",
+      "unreadNotifications": "Notificaciones sin leer",
+      "noUpcomingEvents": "Aún no hay próximos eventos.",
+      "noTournamentsYet": "Aún no hay torneos.",
+      "noNotificationsYet": "Aún no hay notificaciones.",
+      "recentNotifications": "Notificaciones recientes",
+      "unreadCount": "{count} sin leer",
+      "finance": "Finanzas",
+      "financeDescription": "Desglose de gastos de la temporada",
+      "financeTraining": "Entrenamiento",
+      "financeTravel": "Viajes",
+      "financeTournaments": "Torneos",
+      "financeEquipment": "Equipamiento",
+      "financeTotal": "Total",
+      "playerTournamentsTitle": "Torneos del jugador"
+    },
+    "player": {
+      "header": {
+        "title": "Hola de nuevo, {name}",
+        "subtitle": "Este es tu resumen de tenis de hoy."
+      },
+      "loading": "Cargando tu panel…",
+      "getStarted": {
+        "connectCoach": {
+          "label": "Conecta con tu entrenador",
+          "description": "Aprueba o envía una solicitud para que tu entrenador pueda planificar contigo.",
+          "action": "Conexiones"
+        },
+        "logMatch": {
+          "label": "Registra tu primer partido",
+          "description": "Las estadísticas se calculan a partir de los partidos que registras.",
+          "action": "Registrar partido"
+        },
+        "addTournament": {
+          "label": "Añade un torneo",
+          "description": "Planifica tu temporada y controla juntos los viajes y los gastos.",
+          "action": "Torneos"
+        }
+      },
+      "stats": {
+        "tournaments": "Torneos",
+        "registeredTrend": "{count} inscritos"
+      },
+      "schedule": {
+        "title": "Próximo calendario",
+        "description": "Los próximos eventos de tu calendario"
+      },
+      "myTournaments": {
+        "title": "Mis torneos",
+        "description": "Tus torneos planificados e inscritos"
+      },
+      "equipment": {
+        "title": "Equipamiento",
+        "itemsTracked": "{count, plural, one {# artículo registrado} other {# artículos registrados}}",
+        "empty": "Aún no hay equipamiento registrado."
+      },
+      "matchConditions": {
+        "title": "Condiciones del partido",
+        "description": "Superficie, pelota y clima, por torneo",
+        "cardTitle": "Consulta cómo se jugará un torneo",
+        "cardBody": "Abre cualquier torneo para ver su superficie, la pelota oficial, la temperatura y humedad previstas, y cómo afecta eso a la pelota.",
+        "browse": "Explorar torneos"
+      }
+    },
+    "coach": {
+      "header": {
+        "title": "Hola de nuevo, coach {lastName}",
+        "subtitle": "Gestiona tus jugadores, equipos y calendario de entrenamientos."
+      },
+      "loading": "Cargando tu panel…",
+      "createTeam": "Crear equipo",
+      "newTraining": "Nuevo entrenamiento",
+      "getStarted": {
+        "connectPlayer": {
+          "label": "Conecta a tu primer jugador",
+          "description": "Envía una solicitud con el ID público del jugador, o aprueba una que hayas recibido.",
+          "action": "Conexiones"
+        },
+        "buildSession": {
+          "label": "Crea una sesión",
+          "description": "Combina ejercicios en el Creador de sesiones y guárdala como plan.",
+          "action": "Creador de sesiones"
+        },
+        "scheduleTraining": {
+          "label": "Programa un entrenamiento",
+          "description": "Añade una sesión al calendario para que tus jugadores la vean.",
+          "action": "Entrenamientos"
+        }
+      },
+      "stats": {
+        "connectedPlayers": "Jugadores conectados",
+        "pendingRequests": "Solicitudes pendientes",
+        "teams": "Equipos"
+      },
+      "connectedPlayers": {
+        "title": "Jugadores conectados",
+        "description": "{count, plural, one {# jugador en tu red} other {# jugadores en tu red}}",
+        "empty": "Aún no tienes jugadores conectados",
+        "connectPlayer": "Conectar jugador",
+        "view": "Ver"
+      },
+      "pendingRequests": {
+        "title": "Solicitudes pendientes",
+        "description": "Solicitudes de conexión que has enviado",
+        "empty": "No hay solicitudes pendientes",
+        "sendRequest": "Enviar solicitud",
+        "sentOn": "Enviada el {date}"
+      },
+      "teamsCard": {
+        "title": "Mis equipos",
+        "description": "{count, plural, one {# equipo} other {# equipos}}",
+        "playersCount": "{count, plural, one {# jugador} other {# jugadores}}",
+        "createNew": "Crear nuevo equipo"
+      },
+      "needsReview": {
+        "title": "Pendiente de revisión",
+        "description": "{count, plural, one {# sesión pasada sin revisar} other {# sesiones pasadas sin revisar}}",
+        "pastSessions": "Sesiones pasadas",
+        "allCaughtUp": "¡Todo al día!",
+        "allReviewed": "Todas las sesiones pasadas están revisadas",
+        "review": "Revisar"
+      },
+      "schedule": {
+        "title": "Próximo calendario",
+        "description": "Tus sesiones de entrenamiento y eventos",
+        "scheduleTraining": "Programar un entrenamiento"
+      },
+      "playerTournaments": {
+        "description": "Torneos en los que participan tus jugadores conectados",
+        "empty": "No hay datos de torneos de tus jugadores conectados"
+      },
+      "quickActions": {
+        "title": "Acciones rápidas",
+        "connectPlayer": "Conectar jugador",
+        "manageTeams": "Gestionar equipos",
+        "scheduleTraining": "Programar entrenamiento",
+        "matchConditions": "Condiciones del partido"
+      }
+    },
+    "observer": {
+      "header": {
+        "title": "Hola, {name}",
+        "subtitle": "Viendo el progreso del jugador conectado."
+      },
+      "loading": "Cargando panel…",
+      "stats": {
+        "connectedPlayers": "Jugadores conectados",
+        "pendingRequests": "Solicitudes pendientes"
+      },
+      "connectedPlayers": {
+        "title": "Jugadores conectados",
+        "description": "{count, plural, one {# jugador que sigue} other {# jugadores que sigue}}",
+        "empty": "Aún no hay jugadores conectados. Envíe una solicitud para empezar a seguir a un jugador.",
+        "sendRequest": "Enviar solicitud",
+        "connectedSince": "Conectado desde {date}"
+      },
+      "schedule": {
+        "title": "Calendario del jugador",
+        "description": "Próximos eventos en el calendario del jugador"
+      },
+      "playerTournaments": {
+        "title": "Torneos del jugador",
+        "description": "Torneos planificados e inscritos"
+      },
+      "finance": {
+        "title": "Finanzas del jugador",
+        "emptyTitle": "Sin jugadores conectados",
+        "emptyDescription": "Conecte con un jugador para ver el desglose de gastos de su temporada.",
+        "selectPrompt": "Seleccione un jugador conectado en la página de Finanzas para ver su desglose de gastos.",
+        "open": "Abrir Finanzas"
+      }
+    },
+    "admin": {
+      "header": {
+        "title": "Panel de administración",
+        "subtitle": "Resumen de la plataforma y herramientas de gestión."
+      },
+      "previewBanner": {
+        "strong": "Vista previa — datos de ejemplo.",
+        "text": "Las cifras de usuarios, torneos y alertas que aparecen abajo son marcadores ilustrativos, no datos reales de la plataforma."
+      },
+      "userCounts": {
+        "total": "Usuarios totales",
+        "totalTrend": "+{count} esta semana",
+        "players": "Jugadores",
+        "coaches": "Entrenadores",
+        "observers": "Familiares",
+        "admins": "Administradores"
+      },
+      "relationships": {
+        "title": "Relaciones",
+        "description": "Todas las conexiones entre roles de la plataforma",
+        "active": "Activas",
+        "pending": "Pendientes",
+        "rejected": "Rechazadas",
+        "revoked": "Revocadas"
+      },
+      "systemAlerts": {
+        "title": "Alertas del sistema",
+        "unresolved": "{count} sin resolver",
+        "resolved": "Resuelta",
+        "resolve": "Resolver"
+      },
+      "recentRegistrations": {
+        "title": "Registros recientes",
+        "description": "Usuarios más nuevos en la plataforma",
+        "searchPlaceholder": "Buscar usuarios...",
+        "columnUser": "Usuario",
+        "columnRole": "Rol",
+        "columnStatus": "Estado",
+        "columnRegistered": "Registrado",
+        "columnActions": "Acciones",
+        "noResults": "No se encontraron usuarios que coincidan con \"{query}\""
+      },
+      "tournamentManagement": {
+        "title": "Gestión de torneos",
+        "description": "{count, plural, one {# torneo} other {# torneos}}",
+        "columnTournament": "Torneo",
+        "columnLocation": "Ubicación",
+        "columnDate": "Fecha",
+        "columnParticipants": "Participantes",
+        "columnStatus": "Estado",
+        "columnActions": "Acciones"
+      }
+    }
+  }
+}

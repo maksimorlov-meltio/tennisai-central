@@ -28,9 +28,10 @@ import {
 } from "@/hooks/api/queries";
 import { useMatchStats } from "@/hooks/api/matches";
 import { isBefore } from "date-fns";
+import { useT, formatDate as formatDateIntl } from "@/lib/i18n";
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatDateIntl(iso, { month: "short", day: "numeric" });
 }
 
 function formatDateRange(start: string, end: string) {
@@ -46,6 +47,7 @@ const eventTypeColor: Record<string, string> = {
 };
 
 export default function PlayerDashboard() {
+  const { t } = useT();
   const { user } = useAuth();
   // Incoming pending requests are rendered by <IncomingRequestsCard />, which
   // reads the same store and hides itself when the inbox is empty.
@@ -82,41 +84,41 @@ export default function PlayerDashboard() {
   const getStartedItems: GetStartedItem[] = [
     {
       id: "connect-coach",
-      label: "Connect your coach",
-      description: "Approve or send a request so your coach can plan with you.",
+      label: t("dashboard.player.getStarted.connectCoach.label"),
+      description: t("dashboard.player.getStarted.connectCoach.description"),
       to: "/connections",
-      actionLabel: "Connections",
+      actionLabel: t("dashboard.player.getStarted.connectCoach.action"),
       done: activeRelationships.length > 0,
     },
     {
       id: "log-match",
-      label: "Log your first match",
-      description: "Statistics are computed from the matches you record.",
+      label: t("dashboard.player.getStarted.logMatch.label"),
+      description: t("dashboard.player.getStarted.logMatch.description"),
       to: "/matches",
-      actionLabel: "Log match",
+      actionLabel: t("dashboard.player.getStarted.logMatch.action"),
       done: (matchStats?.matchesPlayed ?? 0) > 0,
     },
     {
       id: "add-tournament",
-      label: "Add a tournament",
-      description: "Plan your season and keep travel and costs together.",
+      label: t("dashboard.player.getStarted.addTournament.label"),
+      description: t("dashboard.player.getStarted.addTournament.description"),
       to: "/tournaments",
-      actionLabel: "Tournaments",
+      actionLabel: t("dashboard.player.getStarted.addTournament.action"),
       done: playerTournaments.length > 0,
     },
   ];
 
-  if (isLoading) return <LoadingState message="Loading your dashboard…" />;
-  if (hasError) return <ErrorState message="Failed to load dashboard data" onRetry={() => window.location.reload()} />;
+  if (isLoading) return <LoadingState message={t("dashboard.player.loading")} />;
+  if (hasError) return <ErrorState message={t("dashboard.common.loadError")} onRetry={() => window.location.reload()} />;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">
-          Welcome back, {user?.firstName}
+          {t("dashboard.player.header.title", { name: user?.firstName ?? "" })}
         </h1>
-        <p className="text-muted-foreground">Here's your tennis overview for today.</p>
+        <p className="text-muted-foreground">{t("dashboard.player.header.subtitle")}</p>
       </div>
 
       {/* Anything waiting on a decision comes first. */}
@@ -131,7 +133,7 @@ export default function PlayerDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Link to="/calendar" className={statLinkClass}>
           <StatCard
-            label="Upcoming Events"
+            label={t("dashboard.common.upcomingEvents")}
             value={upcomingEvents.length}
             icon={<Calendar className="h-4 w-4" />}
             className={statCardClass}
@@ -139,12 +141,14 @@ export default function PlayerDashboard() {
         </Link>
         <Link to="/tournaments" className={statLinkClass}>
           <StatCard
-            label="Tournaments"
+            label={t("dashboard.player.stats.tournaments")}
             value={playerTournaments.length}
             icon={<Trophy className="h-4 w-4" />}
             trend={
               playerTournaments.length
-                ? `${playerTournaments.filter((t) => t.status === "registered").length} registered`
+                ? t("dashboard.player.stats.registeredTrend", {
+                    count: playerTournaments.filter((pt) => pt.status === "registered").length,
+                  })
                 : undefined
             }
             className={statCardClass}
@@ -152,7 +156,7 @@ export default function PlayerDashboard() {
         </Link>
         <Link to="/notifications" className={statLinkClass}>
           <StatCard
-            label="Unread Notifications"
+            label={t("dashboard.common.unreadNotifications")}
             value={unreadNotifications.length}
             icon={<Bell className="h-4 w-4" />}
             className={statCardClass}
@@ -163,18 +167,18 @@ export default function PlayerDashboard() {
       {/* Calendar + Tournaments row */}
       <div className="grid gap-6 lg:grid-cols-2">
         <DashboardCard
-          title="Upcoming Schedule"
-          description="Next events on your calendar"
+          title={t("dashboard.player.schedule.title")}
+          description={t("dashboard.player.schedule.description")}
           icon={<Calendar className="h-4 w-4" />}
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/calendar">Full calendar <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/calendar">{t("dashboard.common.fullCalendar")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           <div className="space-y-3">
             {upcomingEvents.length === 0 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">No upcoming events yet.</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">{t("dashboard.common.noUpcomingEvents")}</p>
             )}
             {upcomingEvents.map((event) => (
               <div key={event.id} className="flex items-start gap-3">
@@ -198,18 +202,18 @@ export default function PlayerDashboard() {
         </DashboardCard>
 
         <DashboardCard
-          title="My Tournaments"
-          description="Your planned and registered tournaments"
+          title={t("dashboard.player.myTournaments.title")}
+          description={t("dashboard.player.myTournaments.description")}
           icon={<Trophy className="h-4 w-4" />}
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/tournaments">Explore <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/tournaments">{t("dashboard.common.explore")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           <div className="space-y-3">
             {playerTournaments.length === 0 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">No tournaments yet.</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">{t("dashboard.common.noTournamentsYet")}</p>
             )}
             {playerTournaments.map((pt) => (
               <div key={pt.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/30 px-4 py-3">
@@ -234,21 +238,21 @@ export default function PlayerDashboard() {
         <StatisticsSummaryCard />
 
         <DashboardCard
-          title="Finance"
-          description="Season cost breakdown"
+          title={t("dashboard.common.finance")}
+          description={t("dashboard.common.financeDescription")}
           icon={<Wallet className="h-4 w-4" />}
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/finance">Details <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/finance">{t("dashboard.common.details")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           <div className="space-y-3">
             {[
-              { label: "Training", amount: finance.totalTraining },
-              { label: "Travel", amount: finance.totalTravel },
-              { label: "Tournaments", amount: finance.totalTournament },
-              { label: "Equipment", amount: finance.totalEquipment },
+              { label: t("dashboard.common.financeTraining"), amount: finance.totalTraining },
+              { label: t("dashboard.common.financeTravel"), amount: finance.totalTravel },
+              { label: t("dashboard.common.financeTournaments"), amount: finance.totalTournament },
+              { label: t("dashboard.common.financeEquipment"), amount: finance.totalEquipment },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">{item.label}</p>
@@ -257,7 +261,7 @@ export default function PlayerDashboard() {
             ))}
             <div className="border-t border-border pt-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-foreground">Total</p>
+                <p className="text-sm font-medium text-foreground">{t("dashboard.common.financeTotal")}</p>
                 <p className="text-sm font-bold text-foreground">
                   ${(finance.totalTraining + finance.totalTravel + finance.totalTournament + finance.totalEquipment).toLocaleString()}
                 </p>
@@ -267,18 +271,18 @@ export default function PlayerDashboard() {
         </DashboardCard>
 
         <DashboardCard
-          title="Equipment"
-          description={`${equipment.length} item${equipment.length !== 1 ? "s" : ""} tracked`}
+          title={t("dashboard.player.equipment.title")}
+          description={t("dashboard.player.equipment.itemsTracked", { count: equipment.length })}
           icon={<Package className="h-4 w-4" />}
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/equipment">Manage <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/equipment">{t("dashboard.common.manage")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           <div className="space-y-3">
             {equipment.length === 0 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">No equipment tracked yet.</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">{t("dashboard.player.equipment.empty")}</p>
             )}
             {equipment.map((item) => (
               <div key={item.id} className="flex items-center justify-between gap-2">
@@ -303,30 +307,29 @@ export default function PlayerDashboard() {
             ball and weather actually are — rather than asking the player to
             retype all of it into a separate page. */}
         <DashboardCard
-          title="Match Conditions"
-          description="Surface, ball and weather, per tournament"
+          title={t("dashboard.player.matchConditions.title")}
+          description={t("dashboard.player.matchConditions.description")}
           icon={<Brain className="h-4 w-4" />}
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/tournaments">Open <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/tournaments">{t("dashboard.common.open")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
-            <p className="text-sm font-medium text-foreground">Check how a tournament will play</p>
+            <p className="text-sm font-medium text-foreground">{t("dashboard.player.matchConditions.cardTitle")}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Open any tournament to see its surface, official ball, expected temperature and
-              humidity, and what that does to the ball.
+              {t("dashboard.player.matchConditions.cardBody")}
             </p>
             <Button size="sm" variant="outline" className="mt-3" asChild>
-              <Link to="/tournaments">Browse tournaments</Link>
+              <Link to="/tournaments">{t("dashboard.player.matchConditions.browse")}</Link>
             </Button>
           </div>
         </DashboardCard>
 
         <DashboardCard
-          title="Recent Notifications"
-          description={`${unreadNotifications.length} unread`}
+          title={t("dashboard.common.recentNotifications")}
+          description={t("dashboard.common.unreadCount", { count: unreadNotifications.length })}
           icon={<Bell className="h-4 w-4" />}
           badge={
             unreadNotifications.length > 0 ? (
@@ -337,13 +340,13 @@ export default function PlayerDashboard() {
           }
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/notifications">View all <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/notifications">{t("dashboard.common.viewAll")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           <div className="space-y-3">
             {notifications.length === 0 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">No notifications yet.</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">{t("dashboard.common.noNotificationsYet")}</p>
             )}
             {notifications.slice(0, 3).map((notif) => (
               <div key={notif.id} className="flex items-start gap-3">

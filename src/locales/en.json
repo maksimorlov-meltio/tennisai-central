@@ -1,4 +1,16 @@
 {
+  "language": {
+    "switchAria": "Language",
+    "english": "English",
+    "spanish": "Español"
+  },
+  "navbar": {
+    "brand": "Tennis AI",
+    "howItWorks": "How it works",
+    "access": "Access",
+    "signIn": "Sign In",
+    "getStarted": "Get Started"
+  },
   "nav": {
     "trainings": {
       "unreviewedBadge": "{count}",
@@ -47,7 +59,241 @@
     },
     "account": {
       "menuAria": "Account menu",
-      "notificationSettings": "Notification settings"
+      "notificationSettings": "Notification settings",
+      "language": "Language"
+    },
+    "common": {
+      "loadError": "Failed to load dashboard data",
+      "manage": "Manage",
+      "viewAll": "View all",
+      "fullCalendar": "Full calendar",
+      "explore": "Explore",
+      "details": "Details",
+      "open": "Open",
+      "upcomingEvents": "Upcoming Events",
+      "unreadNotifications": "Unread Notifications",
+      "noUpcomingEvents": "No upcoming events yet.",
+      "noTournamentsYet": "No tournaments yet.",
+      "noNotificationsYet": "No notifications yet.",
+      "recentNotifications": "Recent Notifications",
+      "unreadCount": "{count} unread",
+      "finance": "Finance",
+      "financeDescription": "Season cost breakdown",
+      "financeTraining": "Training",
+      "financeTravel": "Travel",
+      "financeTournaments": "Tournaments",
+      "financeEquipment": "Equipment",
+      "financeTotal": "Total",
+      "playerTournamentsTitle": "Player Tournaments"
+    },
+    "player": {
+      "header": {
+        "title": "Welcome back, {name}",
+        "subtitle": "Here's your tennis overview for today."
+      },
+      "loading": "Loading your dashboard…",
+      "getStarted": {
+        "connectCoach": {
+          "label": "Connect your coach",
+          "description": "Approve or send a request so your coach can plan with you.",
+          "action": "Connections"
+        },
+        "logMatch": {
+          "label": "Log your first match",
+          "description": "Statistics are computed from the matches you record.",
+          "action": "Log match"
+        },
+        "addTournament": {
+          "label": "Add a tournament",
+          "description": "Plan your season and keep travel and costs together.",
+          "action": "Tournaments"
+        }
+      },
+      "stats": {
+        "tournaments": "Tournaments",
+        "registeredTrend": "{count} registered"
+      },
+      "schedule": {
+        "title": "Upcoming Schedule",
+        "description": "Next events on your calendar"
+      },
+      "myTournaments": {
+        "title": "My Tournaments",
+        "description": "Your planned and registered tournaments"
+      },
+      "equipment": {
+        "title": "Equipment",
+        "itemsTracked": "{count, plural, one {# item tracked} other {# items tracked}}",
+        "empty": "No equipment tracked yet."
+      },
+      "matchConditions": {
+        "title": "Match Conditions",
+        "description": "Surface, ball and weather, per tournament",
+        "cardTitle": "Check how a tournament will play",
+        "cardBody": "Open any tournament to see its surface, official ball, expected temperature and humidity, and what that does to the ball.",
+        "browse": "Browse tournaments"
+      }
+    },
+    "coach": {
+      "header": {
+        "title": "Welcome back, Coach {lastName}",
+        "subtitle": "Manage your players, teams, and training schedule."
+      },
+      "loading": "Loading your dashboard…",
+      "createTeam": "Create Team",
+      "newTraining": "New Training",
+      "getStarted": {
+        "connectPlayer": {
+          "label": "Connect your first player",
+          "description": "Send a request with the player's public ID, or approve an incoming one.",
+          "action": "Connections"
+        },
+        "buildSession": {
+          "label": "Build a session",
+          "description": "Assemble drills in the Session Builder and save it as a plan.",
+          "action": "Session Builder"
+        },
+        "scheduleTraining": {
+          "label": "Schedule a training",
+          "description": "Put a session on the calendar so your players can see it.",
+          "action": "Trainings"
+        }
+      },
+      "stats": {
+        "connectedPlayers": "Connected Players",
+        "pendingRequests": "Pending Requests",
+        "teams": "Teams"
+      },
+      "connectedPlayers": {
+        "title": "Connected Players",
+        "description": "{count, plural, one {# player in your network} other {# players in your network}}",
+        "empty": "No connected players yet",
+        "connectPlayer": "Connect Player",
+        "view": "View"
+      },
+      "pendingRequests": {
+        "title": "Pending Requests",
+        "description": "Connection requests you've sent",
+        "empty": "No pending requests",
+        "sendRequest": "Send Request",
+        "sentOn": "Sent {date}"
+      },
+      "teamsCard": {
+        "title": "My Teams",
+        "description": "{count, plural, one {# team} other {# teams}}",
+        "playersCount": "{count, plural, one {# player} other {# players}}",
+        "createNew": "Create New Team"
+      },
+      "needsReview": {
+        "title": "Needs Review",
+        "description": "{count, plural, one {# past session without a review} other {# past sessions without a review}}",
+        "pastSessions": "Past sessions",
+        "allCaughtUp": "All caught up!",
+        "allReviewed": "Every past session has been reviewed",
+        "review": "Review"
+      },
+      "schedule": {
+        "title": "Upcoming Schedule",
+        "description": "Your training sessions and events",
+        "scheduleTraining": "Schedule a training"
+      },
+      "playerTournaments": {
+        "description": "Tournaments your connected players are in",
+        "empty": "No tournament data for connected players"
+      },
+      "quickActions": {
+        "title": "Quick Actions",
+        "connectPlayer": "Connect Player",
+        "manageTeams": "Manage Teams",
+        "scheduleTraining": "Schedule Training",
+        "matchConditions": "Match Conditions"
+      }
+    },
+    "observer": {
+      "header": {
+        "title": "Welcome, {name}",
+        "subtitle": "Viewing connected player's progress."
+      },
+      "loading": "Loading dashboard…",
+      "stats": {
+        "connectedPlayers": "Connected Players",
+        "pendingRequests": "Pending Requests"
+      },
+      "connectedPlayers": {
+        "title": "Connected Players",
+        "description": "{count, plural, one {# player you follow} other {# players you follow}}",
+        "empty": "No connected players yet. Send a request to start following a player.",
+        "sendRequest": "Send Request",
+        "connectedSince": "Connected since {date}"
+      },
+      "schedule": {
+        "title": "Player Schedule",
+        "description": "Upcoming events on the player's calendar"
+      },
+      "playerTournaments": {
+        "title": "Player Tournaments",
+        "description": "Planned and registered tournaments"
+      },
+      "finance": {
+        "title": "Player Finance",
+        "emptyTitle": "No connected players",
+        "emptyDescription": "Connect with a player to view their season cost breakdown.",
+        "selectPrompt": "Select a connected player on the Finance page to view their cost breakdown.",
+        "open": "Open Finance"
+      }
+    },
+    "admin": {
+      "header": {
+        "title": "Admin Dashboard",
+        "subtitle": "Platform overview and management tools."
+      },
+      "previewBanner": {
+        "strong": "Preview — sample data.",
+        "text": "The user, tournament and alert figures below are illustrative placeholders, not live platform data."
+      },
+      "userCounts": {
+        "total": "Total Users",
+        "totalTrend": "+{count} this week",
+        "players": "Players",
+        "coaches": "Coaches",
+        "observers": "Observers",
+        "admins": "Admins"
+      },
+      "relationships": {
+        "title": "Relationships",
+        "description": "All role connections across the platform",
+        "active": "Active",
+        "pending": "Pending",
+        "rejected": "Rejected",
+        "revoked": "Revoked"
+      },
+      "systemAlerts": {
+        "title": "System Alerts",
+        "unresolved": "{count} unresolved",
+        "resolved": "Resolved",
+        "resolve": "Resolve"
+      },
+      "recentRegistrations": {
+        "title": "Recent Registrations",
+        "description": "Newest users on the platform",
+        "searchPlaceholder": "Search users...",
+        "columnUser": "User",
+        "columnRole": "Role",
+        "columnStatus": "Status",
+        "columnRegistered": "Registered",
+        "columnActions": "Actions",
+        "noResults": "No users found matching \"{query}\""
+      },
+      "tournamentManagement": {
+        "title": "Tournament Management",
+        "description": "{count, plural, one {# tournament} other {# tournaments}}",
+        "columnTournament": "Tournament",
+        "columnLocation": "Location",
+        "columnDate": "Date",
+        "columnParticipants": "Participants",
+        "columnStatus": "Status",
+        "columnActions": "Actions"
+      }
     }
   }
 }

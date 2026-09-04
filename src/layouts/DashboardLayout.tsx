@@ -4,6 +4,8 @@ import { AmbientCourt } from "@/components/motion/AmbientCourt";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuRadioGroup, DropdownMenuRadioItem,
+  DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -17,6 +19,7 @@ import {
   ChevronsUpDown,
   PanelLeftClose,
   PanelLeftOpen,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 // The nav array moved to the search registry so the sidebar and the command
@@ -27,13 +30,20 @@ import { SearchTrigger, SearchTriggerIcon } from "@/components/search/SearchTrig
 
 /** Remembers the collapsed nav across reloads. */
 const NAV_COLLAPSED_KEY = "tennisai:navCollapsed";
+
+/** Display-name key per supported locale, for the account-menu language switcher. */
+const LOCALE_LABEL_KEY: Record<Locale, string> = {
+  en: "language.english",
+  es: "language.spanish",
+};
 import { Button } from "@/components/ui/button";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNotifications, useTrainings } from "@/hooks/api/queries";
 import { isBefore } from "date-fns";
-import { t, formatBadgeCount } from "@/lib/i18n";
+import { useT, SUPPORTED_LOCALES, type Locale } from "@/lib/i18n";
 
 export function DashboardLayout() {
+  const { t, formatBadgeCount, locale, setLocale } = useT();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -283,6 +293,20 @@ export function DashboardLayout() {
               <DropdownMenuItem onSelect={() => { setMobileMenuOpen(false); navigate("/notifications/settings"); }} className="gap-2">
                 <Bell className="h-4 w-4" /> {t("dashboard.account.notificationSettings")}
               </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="gap-2">
+                  <Globe className="h-4 w-4" /> {t("dashboard.account.language")}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuRadioGroup value={locale} onValueChange={(next) => setLocale(next as Locale)}>
+                    {SUPPORTED_LOCALES.map((code) => (
+                      <DropdownMenuRadioItem key={code} value={code}>
+                        {t(LOCALE_LABEL_KEY[code])}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={handleLogout} className="gap-2">
                 <LogOut className="h-4 w-4" /> {t("dashboard.actions.logout")}

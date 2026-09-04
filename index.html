@@ -11,17 +11,23 @@
     <meta property="og:description" content="One workspace for coaches, players and parents: a shared colour-coded season calendar, structured session planning, tournament entries and a player kit log." />
     <meta property="og:site_name" content="Tennis AI" />
     <meta property="og:type" content="website" />
-    <!-- No og:image yet. A real 1200x630 card is a follow-up; an invented or
-         borrowed image URL is worse than none. -->
+    <meta property="og:url" content="https://46-225-83-85.sslip.io/" />
+    <!-- Plain brand card generated from the existing brand assets (icon-512.png
+         on --primary, matte forest green) — no photos, no invented claims. -->
+    <meta property="og:image" content="https://46-225-83-85.sslip.io/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
 
-    <!-- "summary" (not summary_large_image) because there is no share image. -->
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Tennis AI — run the tennis season with your coach" />
+    <meta name="twitter:description" content="One workspace for coaches, players and parents: a shared colour-coded season calendar, structured session planning, tournament entries and a player kit log." />
+    <meta name="twitter:image" content="https://46-225-83-85.sslip.io/og-image.png" />
 
-    <!-- Installable. public/sw.js was already registered on demand for web
-         push, so the only missing piece was a manifest; with it the browser
-         offers "Add to Home Screen" and the app opens without browser chrome.
-         The service worker is untouched — it is push-only and caches nothing,
-         so this is an installable app, not an offline one. -->
+    <!-- Installable. With the manifest below, the browser offers "Add to
+         Home Screen" and the app opens without browser chrome. public/sw.js
+         now also registers at app start (see src/lib/sw/register.ts) to
+         cache-first the app shell (HTML shell + hashed /assets/*) — network
+         requests to /api/* are never intercepted. Web push is unaffected. -->
     <!-- Explicit, because the implicit /favicon.ico fallback is still the
          Lovable scaffolding logo this project was generated from — a gradient
          heart, i.e. another product's brand in every TennisAI browser tab.

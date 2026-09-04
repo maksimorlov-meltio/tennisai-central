@@ -29,9 +29,10 @@ import { PlayerStatsDrawer } from "@/components/players/PlayerStatsDrawer";
 import { PlayerEquipmentDrawer } from "@/components/equipment/PlayerEquipmentDrawer";
 import type { ConnectedPlayer } from "@/types";
 import { isBefore } from "date-fns";
+import { useT, formatDate as formatDateIntl } from "@/lib/i18n";
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatDateIntl(iso, { month: "short", day: "numeric" });
 }
 
 const eventTypeColor: Record<string, string> = {
@@ -43,6 +44,7 @@ const eventTypeColor: Record<string, string> = {
 };
 
 export default function CoachDashboard() {
+  const { t } = useT();
   const { user } = useAuth();
   const { connectedPlayers, requests } = useConnections();
   // Drawers opened from the player menus below; one of each for the page.
@@ -78,32 +80,32 @@ export default function CoachDashboard() {
   const getStartedItems: GetStartedItem[] = [
     {
       id: "connect-player",
-      label: "Connect your first player",
-      description: "Send a request with the player's public ID, or approve an incoming one.",
+      label: t("dashboard.coach.getStarted.connectPlayer.label"),
+      description: t("dashboard.coach.getStarted.connectPlayer.description"),
       to: "/connections",
-      actionLabel: "Connections",
+      actionLabel: t("dashboard.coach.getStarted.connectPlayer.action"),
       done: connectedPlayers.length > 0,
     },
     {
       id: "build-session",
-      label: "Build a session",
-      description: "Assemble drills in the Session Builder and save it as a plan.",
+      label: t("dashboard.coach.getStarted.buildSession.label"),
+      description: t("dashboard.coach.getStarted.buildSession.description"),
       to: "/session-builder",
-      actionLabel: "Session Builder",
+      actionLabel: t("dashboard.coach.getStarted.buildSession.action"),
       done: trainingPlans.length > 0,
     },
     {
       id: "schedule-training",
-      label: "Schedule a training",
-      description: "Put a session on the calendar so your players can see it.",
+      label: t("dashboard.coach.getStarted.scheduleTraining.label"),
+      description: t("dashboard.coach.getStarted.scheduleTraining.description"),
       to: "/trainings",
-      actionLabel: "Trainings",
+      actionLabel: t("dashboard.coach.getStarted.scheduleTraining.action"),
       done: trainings.length > 0,
     },
   ];
 
-  if (isLoading) return <LoadingState message="Loading your dashboard…" />;
-  if (hasError) return <ErrorState message="Failed to load dashboard data" onRetry={() => window.location.reload()} />;
+  if (isLoading) return <LoadingState message={t("dashboard.coach.loading")} />;
+  if (hasError) return <ErrorState message={t("dashboard.common.loadError")} onRetry={() => window.location.reload()} />;
 
   return (
     <div className="space-y-6">
@@ -111,16 +113,16 @@ export default function CoachDashboard() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            Welcome back, Coach {user?.lastName}
+            {t("dashboard.coach.header.title", { lastName: user?.lastName ?? "" })}
           </h1>
-          <p className="text-muted-foreground">Manage your players, teams, and training schedule.</p>
+          <p className="text-muted-foreground">{t("dashboard.coach.header.subtitle")}</p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" asChild>
-            <Link to="/teams"><Plus className="mr-1.5 h-3.5 w-3.5" /> Create Team</Link>
+            <Link to="/teams"><Plus className="mr-1.5 h-3.5 w-3.5" /> {t("dashboard.coach.createTeam")}</Link>
           </Button>
           <Button size="sm" variant="outline" asChild>
-            <Link to="/trainings"><Plus className="mr-1.5 h-3.5 w-3.5" /> New Training</Link>
+            <Link to="/trainings"><Plus className="mr-1.5 h-3.5 w-3.5" /> {t("dashboard.coach.newTraining")}</Link>
           </Button>
         </div>
       </div>
@@ -134,36 +136,36 @@ export default function CoachDashboard() {
       {/* Top stats — every figure links to the page that owns it. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link to="/players" className={statLinkClass}>
-          <StatCard label="Connected Players" value={connectedPlayers.length} icon={<Users className="h-4 w-4" />} className={statCardClass} />
+          <StatCard label={t("dashboard.coach.stats.connectedPlayers")} value={connectedPlayers.length} icon={<Users className="h-4 w-4" />} className={statCardClass} />
         </Link>
         <Link to="/connections" className={statLinkClass}>
-          <StatCard label="Pending Requests" value={pendingRequests.length} icon={<UserPlus className="h-4 w-4" />} className={statCardClass} />
+          <StatCard label={t("dashboard.coach.stats.pendingRequests")} value={pendingRequests.length} icon={<UserPlus className="h-4 w-4" />} className={statCardClass} />
         </Link>
         <Link to="/teams" className={statLinkClass}>
-          <StatCard label="Teams" value={teams.length} icon={<Shield className="h-4 w-4" />} className={statCardClass} />
+          <StatCard label={t("dashboard.coach.stats.teams")} value={teams.length} icon={<Shield className="h-4 w-4" />} className={statCardClass} />
         </Link>
         <Link to="/calendar" className={statLinkClass}>
-          <StatCard label="Upcoming Events" value={upcomingEvents.length} icon={<Calendar className="h-4 w-4" />} className={statCardClass} />
+          <StatCard label={t("dashboard.common.upcomingEvents")} value={upcomingEvents.length} icon={<Calendar className="h-4 w-4" />} className={statCardClass} />
         </Link>
       </div>
 
       {/* Connected Players + Pending Requests */}
       <div className="grid gap-6 lg:grid-cols-2">
         <DashboardCard
-          title="Connected Players"
-          description={`${connectedPlayers.length} players in your network`}
+          title={t("dashboard.coach.connectedPlayers.title")}
+          description={t("dashboard.coach.connectedPlayers.description", { count: connectedPlayers.length })}
           icon={<Users className="h-4 w-4" />}
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/players">Manage <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/players">{t("dashboard.common.manage")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           {connectedPlayers.length === 0 ? (
             <div className="py-4 text-center">
-              <p className="text-sm text-muted-foreground">No connected players yet</p>
+              <p className="text-sm text-muted-foreground">{t("dashboard.coach.connectedPlayers.empty")}</p>
               <Button size="sm" variant="outline" className="mt-3" asChild>
-                <Link to="/connections"><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Connect Player</Link>
+                <Link to="/connections"><UserPlus className="mr-1.5 h-3.5 w-3.5" /> {t("dashboard.coach.connectedPlayers.connectPlayer")}</Link>
               </Button>
             </div>
           ) : (
@@ -177,7 +179,12 @@ export default function CoachDashboard() {
                     <p className="text-sm font-medium text-foreground">{player.firstName} {player.lastName}</p>
                     <p className="font-mono text-xs text-muted-foreground">{player.playerPublicId}</p>
                   </div>
-                  <PlayerActionsMenu player={player} compact onViewStats={setStatsPlayer} onViewEquipment={setEquipmentPlayer} />
+                  {/* ?player=<id> opens that player's stats drawer on /players. */}
+                  <Button size="sm" variant="ghost" className="text-xs" asChild>
+                    <Link to={`/players?player=${encodeURIComponent(player.id)}`}>
+                      {t("dashboard.coach.connectedPlayers.view")} <ArrowRight className="ml-1 h-3 w-3" />
+                    </Link>
+                  </Button>
                 </div>
               ))}
             </div>
@@ -188,20 +195,20 @@ export default function CoachDashboard() {
         <PlayerEquipmentDrawer player={equipmentPlayer} open={!!equipmentPlayer} onOpenChange={(o) => { if (!o) setEquipmentPlayer(null); }} />
 
         <DashboardCard
-          title="Pending Requests"
-          description="Connection requests you've sent"
+          title={t("dashboard.coach.pendingRequests.title")}
+          description={t("dashboard.coach.pendingRequests.description")}
           icon={<UserPlus className="h-4 w-4" />}
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/connections">View all <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/connections">{t("dashboard.common.viewAll")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           {pendingRequests.length === 0 ? (
             <div className="py-4 text-center">
-              <p className="text-sm text-muted-foreground">No pending requests</p>
+              <p className="text-sm text-muted-foreground">{t("dashboard.coach.pendingRequests.empty")}</p>
               <Button size="sm" variant="outline" className="mt-3" asChild>
-                <Link to="/connections"><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Send Request</Link>
+                <Link to="/connections"><UserPlus className="mr-1.5 h-3.5 w-3.5" /> {t("dashboard.coach.pendingRequests.sendRequest")}</Link>
               </Button>
             </div>
           ) : (
@@ -210,7 +217,7 @@ export default function CoachDashboard() {
                 <div key={req.id} className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{req.toUserName}</p>
-                    <p className="text-xs text-muted-foreground">Sent {formatDate(req.createdAt)}</p>
+                    <p className="text-xs text-muted-foreground">{t("dashboard.coach.pendingRequests.sentOn", { date: formatDate(req.createdAt) })}</p>
                   </div>
                   <StatusBadge status={req.status} />
                 </div>
@@ -222,12 +229,12 @@ export default function CoachDashboard() {
 
       {/* Teams */}
       <DashboardCard
-        title="My Teams"
-        description={`${teams.length} team${teams.length !== 1 ? "s" : ""}`}
+        title={t("dashboard.coach.teamsCard.title")}
+        description={t("dashboard.coach.teamsCard.description", { count: teams.length })}
         icon={<Shield className="h-4 w-4" />}
         action={
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/teams">Manage <ArrowRight className="ml-1 h-3 w-3" /></Link>
+            <Link to="/teams">{t("dashboard.common.manage")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
           </Button>
         }
       >
@@ -267,27 +274,27 @@ export default function CoachDashboard() {
             className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border p-4 text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
           >
             <Plus className="h-5 w-5" />
-            <span className="text-sm font-medium">Create New Team</span>
+            <span className="text-sm font-medium">{t("dashboard.coach.teamsCard.createNew")}</span>
           </Link>
         </div>
       </DashboardCard>
 
       {/* Unreviewed Training Sessions */}
       <DashboardCard
-        title="Needs Review"
-        description={`${unreviewedSessions.length} past session${unreviewedSessions.length !== 1 ? "s" : ""} without a review`}
+        title={t("dashboard.coach.needsReview.title")}
+        description={t("dashboard.coach.needsReview.description", { count: unreviewedSessions.length })}
         icon={<AlertCircle className="h-4 w-4" />}
         action={
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/trainings?filter=past">Past sessions <ArrowRight className="ml-1 h-3 w-3" /></Link>
+            <Link to="/trainings?filter=past">{t("dashboard.coach.needsReview.pastSessions")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
           </Button>
         }
       >
         {unreviewedSessions.length === 0 ? (
           <div className="py-4 text-center">
             <Star className="mx-auto mb-2 h-8 w-8 text-primary/30" />
-            <p className="text-sm font-medium text-foreground">All caught up!</p>
-            <p className="text-xs text-muted-foreground">Every past session has been reviewed</p>
+            <p className="text-sm font-medium text-foreground">{t("dashboard.coach.needsReview.allCaughtUp")}</p>
+            <p className="text-xs text-muted-foreground">{t("dashboard.coach.needsReview.allReviewed")}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -310,7 +317,7 @@ export default function CoachDashboard() {
                   review for this session.
                 */}
                 <Button size="sm" variant="outline" className="shrink-0 text-xs" asChild>
-                  <Link to={`/trainings?filter=past&review=${encodeURIComponent(session.id)}`}>Review</Link>
+                  <Link to={`/trainings?filter=past&review=${encodeURIComponent(session.id)}`}>{t("dashboard.coach.needsReview.review")}</Link>
                 </Button>
               </div>
             ))}
@@ -321,21 +328,21 @@ export default function CoachDashboard() {
       {/* Calendar + Tournament Visibility + AI Insights */}
       <div className="grid gap-6 lg:grid-cols-2">
         <DashboardCard
-          title="Upcoming Schedule"
-          description="Your training sessions and events"
+          title={t("dashboard.coach.schedule.title")}
+          description={t("dashboard.coach.schedule.description")}
           icon={<Calendar className="h-4 w-4" />}
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/calendar">Full calendar <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/calendar">{t("dashboard.common.fullCalendar")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           <div className="space-y-3">
             {upcomingEvents.length === 0 && (
               <div className="py-4 text-center">
-                <p className="text-sm text-muted-foreground">No upcoming events yet.</p>
+                <p className="text-sm text-muted-foreground">{t("dashboard.common.noUpcomingEvents")}</p>
                 <Button size="sm" variant="outline" className="mt-3" asChild>
-                  <Link to="/trainings"><Plus className="mr-1.5 h-3.5 w-3.5" /> Schedule a training</Link>
+                  <Link to="/trainings"><Plus className="mr-1.5 h-3.5 w-3.5" /> {t("dashboard.coach.schedule.scheduleTraining")}</Link>
                 </Button>
               </div>
             )}
@@ -361,17 +368,17 @@ export default function CoachDashboard() {
         </DashboardCard>
 
         <DashboardCard
-          title="Player Tournaments"
-          description="Tournaments your connected players are in"
+          title={t("dashboard.common.playerTournamentsTitle")}
+          description={t("dashboard.coach.playerTournaments.description")}
           icon={<Trophy className="h-4 w-4" />}
           action={
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/tournaments">Explore <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/tournaments">{t("dashboard.common.explore")} <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           }
         >
           {playerTournaments.length === 0 ? (
-            <p className="py-4 text-center text-sm text-muted-foreground">No tournament data for connected players</p>
+            <p className="py-4 text-center text-sm text-muted-foreground">{t("dashboard.coach.playerTournaments.empty")}</p>
           ) : (
             <div className="space-y-3">
               {playerTournaments.map((pt) => (
@@ -392,26 +399,26 @@ export default function CoachDashboard() {
 
       {/* Quick actions */}
       <DashboardCard
-        title="Quick Actions"
+        title={t("dashboard.coach.quickActions.title")}
         icon={<Dumbbell className="h-4 w-4" />}
       >
         <div className="grid gap-3 sm:grid-cols-4">
           <Button variant="outline" className="h-auto flex-col gap-2 py-4" asChild>
             <Link to="/connections">
               <UserPlus className="h-5 w-5 text-primary" />
-              <span className="text-sm">Connect Player</span>
+              <span className="text-sm">{t("dashboard.coach.quickActions.connectPlayer")}</span>
             </Link>
           </Button>
           <Button variant="outline" className="h-auto flex-col gap-2 py-4" asChild>
             <Link to="/teams">
               <Shield className="h-5 w-5 text-primary" />
-              <span className="text-sm">Manage Teams</span>
+              <span className="text-sm">{t("dashboard.coach.quickActions.manageTeams")}</span>
             </Link>
           </Button>
           <Button variant="outline" className="h-auto flex-col gap-2 py-4" asChild>
             <Link to="/trainings">
               <Dumbbell className="h-5 w-5 text-primary" />
-              <span className="text-sm">Schedule Training</span>
+              <span className="text-sm">{t("dashboard.coach.quickActions.scheduleTraining")}</span>
             </Link>
           </Button>
           <Button variant="outline" className="h-auto flex-col gap-2 py-4" asChild>
@@ -419,7 +426,7 @@ export default function CoachDashboard() {
                 to see its surface, ball, weather and how it will play. */}
             <Link to="/tournaments">
               <Brain className="h-5 w-5 text-primary" />
-              <span className="text-sm">Match Conditions</span>
+              <span className="text-sm">{t("dashboard.coach.quickActions.matchConditions")}</span>
             </Link>
           </Button>
         </div>
