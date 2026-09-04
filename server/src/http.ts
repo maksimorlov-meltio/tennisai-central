@@ -51,6 +51,18 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   if (err instanceof ZodError) {
     return res.status(400).json({ message: "Invalid request data", issues: err.flatten() });
   }
+  // body-parser failures. Without this they fall through to the generic 500
+  // below, so a client that posts a 5 MB CSV to a 1 MB endpoint is told the
+  // server broke rather than that their upload was too large.
+  if (err && typeof err === "object" && "type" in err) {
+    const type = (err as { type?: string }).type;
+    if (type === "entity.too.large") {
+      return res.status(413).json({ message: "Request body too large" });
+    }
+    if (type === "entity.parse.failed") {
+      return res.status(400).json({ message: "Malformed request body" });
+    }
+  }
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === "P2002") return res.status(409).json({ message: "That record already exists" });
     if (err.code === "P2025") return res.status(404).json({ message: "Not found" });
