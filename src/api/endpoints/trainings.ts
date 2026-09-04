@@ -2,7 +2,7 @@
 // absolute API base is configured (production, or local dev pointed at the API),
 // calls go live; otherwise they fall back to the in-memory mock for offline
 // frontend work and tests.
-import type { TrainingSession, ApiResponse, TrainingAnalysis } from "@/types";
+import type { TrainingSession, ApiResponse, TrainingAnalysis, PlayerSessionFeedback } from "@/types";
 import { apiClient } from "@/api/client";
 import { mockStore } from "@/mock/store";
 
@@ -38,6 +38,23 @@ export const trainingsApi = {
   async deleteTraining(id: string): Promise<ApiResponse<null>> {
     if (USE_MOCK) { await delay(); mockStore.deleteTraining(id); return { data: null, message: "Training deleted" }; }
     return apiClient.delete(`/trainings/${id}`);
+  },
+
+  // A player's own feedback on a session they played in.
+  //
+  // Its own route, not `updateTraining`: PATCH /trainings/:id is coach-only on
+  // the server, so saving feedback through it 403d for every player against
+  // the real backend and only ever appeared to work here in mock mode.
+  // PATCH /trainings/:id/feedback admits a participant player and accepts that
+  // one field alone. `submittedAt` / `submittedBy` are stamped server-side, so
+  // they are not sent — the strict schema there rejects the request if they are.
+  async saveFeedback(id: string, feedback: PlayerSessionFeedback): Promise<ApiResponse<TrainingSession>> {
+    if (USE_MOCK) {
+      await delay();
+      return { data: mockStore.updateTraining(id, { playerSessionFeedback: feedback }), message: "Feedback saved" };
+    }
+    const { submittedAt: _at, submittedBy: _by, ...body } = feedback;
+    return apiClient.patch(`/trainings/${id}/feedback`, body);
   },
 
   // AI-powered performance summary for a completed session.

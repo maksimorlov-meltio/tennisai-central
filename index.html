@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Tennis AI — run the tennis season with your coach</title>
     <meta name="description" content="One workspace for coaches, players and parents: a shared colour-coded season calendar, structured session planning, tournament entries and a player kit log." />
     <meta name="author" content="Tennis AI" />
@@ -16,6 +16,30 @@
 
     <!-- "summary" (not summary_large_image) because there is no share image. -->
     <meta name="twitter:card" content="summary" />
+
+    <!-- Installable. public/sw.js was already registered on demand for web
+         push, so the only missing piece was a manifest; with it the browser
+         offers "Add to Home Screen" and the app opens without browser chrome.
+         The service worker is untouched — it is push-only and caches nothing,
+         so this is an installable app, not an offline one. -->
+    <!-- Explicit, because the implicit /favicon.ico fallback is still the
+         Lovable scaffolding logo this project was generated from — a gradient
+         heart, i.e. another product's brand in every TennisAI browser tab.
+         The PNG below is placeholder brand art and wants replacing with a
+         designed mark, but anything on-brand beats a competitor's logo. -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Matches theme_color in the manifest: --primary, matte forest green. -->
+    <meta name="theme-color" content="#406851" />
+
+    <!-- iOS ignores the manifest for standalone mode and reads these instead. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="TennisAI" />
+    <!-- black-translucent puts the page under the status bar, which is the
+         point of viewport-fit=cover above and the safe-area insets in the CSS. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
   </head>
 
   <body>

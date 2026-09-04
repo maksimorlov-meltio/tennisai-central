@@ -39,6 +39,7 @@ const SignUpPage = lazy(() => import("./pages/auth/SignUpPage"));
 const VerifyEmailPage = lazy(() => import("./pages/auth/VerifyEmailPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
+const GuardianConsentPage = lazy(() => import("./pages/auth/GuardianConsentPage"));
 
 // Dashboards
 const DashboardRedirect = lazy(() => import("./pages/DashboardRedirect"));
@@ -125,6 +126,10 @@ const App = () => (
                 <Route path="/verify-email" element={<Page><VerifyEmailPage /></Page>} />
                 <Route path="/forgot-password" element={<GuestGuard><Page><ForgotPasswordPage /></Page></GuestGuard>} />
                 <Route path="/reset-password" element={<Page><ResetPasswordPage /></Page>} />
+                {/* Reached from an email by a PARENT, who may well already be
+                    signed in as a coach here — so no GuestGuard, same as
+                    /verify-email. */}
+                <Route path="/guardian-consent" element={<Page><GuardianConsentPage /></Page>} />
               </Route>
 
               {/* Protected dashboard routes */}

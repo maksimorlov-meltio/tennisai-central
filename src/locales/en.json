@@ -32,6 +32,7 @@
       "adminRelationships": "Relationships",
       "adminAlerts": "System Alerts",
       "collapse": "Hide menu",
+      "close": "Close menu",
       "expand": "Show menu",
       "menu": "Menu"
     },

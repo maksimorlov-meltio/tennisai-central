@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 
 export default {
   darkMode: ["class"],
@@ -137,5 +138,25 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    /**
+     * Pointer-capability variants.
+     *
+     * `coarse:` = `@media (pointer: coarse)` — a finger, a stylus, a TV
+     * remote. It is how the primitives below reach the 44x44 minimum tap
+     * target on phones and tablets WITHOUT inflating the desktop UI, where a
+     * mouse is precise and 40px rows are the right density.
+     *
+     * Deliberately a plugin variant rather than a `screens: { coarse: { raw }}`
+     * entry: a raw screen joins the responsive sort order and would then
+     * interleave with sm/md/lg in ways that depend on declaration order.
+     *
+     * Companion `fine:` for the rare rule that must apply to mice only.
+     */
+    plugin(({ addVariant }) => {
+      addVariant("coarse", "@media (pointer: coarse)");
+      addVariant("fine", "@media (pointer: fine)");
+    }),
+  ],
 } satisfies Config;

@@ -15,7 +15,7 @@ import { equipmentApi } from "@/api/endpoints/equipment";
 import { notificationsApi } from "@/api/endpoints/notifications";
 import { profileApi, calendarPreferencesApi, type CalendarPreferences } from "@/api/endpoints/profile";
 import { trainingPlansApi } from "@/api/endpoints/trainingPlans";
-import type { TrainingSession, TrainingRequest, Team, CalendarEvent, PlayerTournament, FinanceEntry, EquipmentItem, Notification, NotificationSettings, ConnectedPlayer, User, TrainingPlanCreateInput } from "@/types";
+import type { TrainingSession, TrainingRequest, Team, CalendarEvent, PlayerTournament, FinanceEntry, EquipmentItem, Notification, NotificationSettings, ConnectedPlayer, User, TrainingPlanCreateInput, PlayerSessionFeedback } from "@/types";
 import { toast } from "sonner";
 
 // ─── Query Keys ───
@@ -104,6 +104,22 @@ export function useDeleteTraining() {
     mutationFn: (id: string) => trainingsApi.deleteTraining(id),
     onSuccess: () => { inv.training(); toast.success("Training deleted"); },
     onError: (e: any) => toast.error(e?.message ?? "Failed to delete training"),
+  });
+}
+
+/**
+ * A player saving their own feedback. Separate from `useUpdateTraining`
+ * because it hits a separate, player-scoped route — the general training PATCH
+ * is coach-only server-side, and routing feedback through it 403d for the one
+ * role that writes it.
+ */
+export function useSaveTrainingFeedback() {
+  const inv = useInvalidateRelated();
+  return useMutation({
+    mutationFn: ({ id, feedback }: { id: string; feedback: PlayerSessionFeedback }) =>
+      trainingsApi.saveFeedback(id, feedback),
+    onSuccess: () => { inv.training(); toast.success("Feedback saved"); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to save feedback"),
   });
 }
 

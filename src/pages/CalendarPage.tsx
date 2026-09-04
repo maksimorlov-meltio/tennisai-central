@@ -22,10 +22,13 @@ import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Dumbbell, Trophy, Swords,
   Plane, Heart, MapPin, Clock, Plus, Pencil, Trash2, User, Users, Filter, StickyNote,
   LayoutGrid, List, Columns, PanelLeftClose, PanelLeftOpen, Repeat, Globe, CheckCircle2,
-  RefreshCw,
+  RefreshCw, Download,
 } from "lucide-react";
 import { MiniMonthCalendar } from "@/components/calendar/MiniMonthCalendar";
 import { DayEventsSheet } from "@/components/calendar/DayEventsSheet";
+import { AgendaView } from "@/components/calendar/AgendaView";
+import { CalendarFiltersSheet } from "@/components/calendar/CalendarFiltersSheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { MultiFilterMenu, SingleFilterMenu, LocationFilterMenu, ReassignDropStrip } from "@/components/calendar/CalendarFilterMenus";
 import { CalendarLegendPanel } from "@/components/calendar/CalendarLegend";
 import type { CalendarEvent, CalendarEventType, CalendarEventState, ConnectedPlayer, RecurrenceFrequency, RecurrenceEndType, RecurrenceRule, Tournament, TournamentFederation } from "@/types";
@@ -39,6 +42,10 @@ import {
 import {
   eventBaseColor, entityColor, EVENT_TYPE_COLOR, CIRCUIT_COLOR, STATE_VISUAL, STATE_LABEL, withAlpha,
 } from "@/lib/calendar/colors";
+// Every line of the .ics writer lives in @/lib/ics and none of it imports this
+// page — src/pages/__tests__/calendarProjection.test.ts imports CalendarPage
+// directly, so a cycle here would only surface at test time.
+import { buildIcs, periodRange, eventsInRange, icsFileName, downloadTextFile } from "@/lib/ics";
 
 /** Events shown in a month cell before collapsing to "+N more". */
 const MONTH_CELL_EVENT_LIMIT = 4;
@@ -566,6 +573,17 @@ function DayView({ currentDate, events, onSelectEvent, showPlayerLabel, register
 // ─── Main Page ───
 
 type ViewMode = "month" | "week" | "day";
+/**
+ * What is actually rendered.
+ *
+ * "agenda" is the phone's stand-in for the month and week grids — seven
+ * columns at 375px give each day ~50px, which is not enough for a title. It is
+ * derived from the view and the viewport rather than stored, so a phone never
+ * writes a view a desktop can select: `view` stays "month"/"week"/"day"
+ * everywhere, and with it the date arrows, the heading, and every desktop code
+ * path below.
+ */
+type RenderView = ViewMode | "agenda";
 const VIEW_ICONS: Record<ViewMode, React.ReactNode> = {
   month: <LayoutGrid className="h-3.5 w-3.5" />,
   week: <Columns className="h-3.5 w-3.5" />,
@@ -598,6 +616,9 @@ export default function CalendarPage() {
   const isCoach = role === "coach";
   const isObserver = role === "observer";
   const canEdit = isPlayer || isCoach;
+  // Phone-sized viewport (< md). Read synchronously on first render so the
+  // grid is never painted at 375px, even for one frame.
+  const isCompact = useIsMobile();
 
   const { data: events = [], isLoading, error } = useCalendarEvents();
   const { data: teams = [] } = useTeams();
@@ -627,6 +648,8 @@ export default function CalendarPage() {
   const [isDraggingEvent, setIsDraggingEvent] = useState(false);
   // The mini-calendar column; collapsing it hands its 260px + gap to the grid.
   const [miniOpen, setMiniOpen] = useState(true);
+  // Every filter, behind one button — on a phone only. See CalendarFiltersSheet.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   // Subscribed calendars, from the account. EMPTY IS THE DEFAULT and means
   // "just my sessions" — the old behaviour started with everything on, which
   // buried a coach's week under 1,458 September tournaments on first open.
@@ -927,6 +950,23 @@ export default function CalendarPage() {
     ? `Week of ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), "MMM d")} – ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), "MMM d, yyyy")}`
     : format(currentDate, "EEEE, MMMM d, yyyy");
 
+  // Month and week become the agenda list on a phone; day already is a list.
+  const renderView: RenderView = isCompact && view !== "day" ? "agenda" : view;
+
+  /** The same date, short enough for a 375px toolbar. Phone branch only. */
+  const compactHeading = view === "month"
+    ? format(currentDate, "MMMM yyyy")
+    : view === "week"
+    ? `${format(startOfWeek(currentDate, { weekStartsOn: 1 }), "d MMM")} – ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), "d MMM")}`
+    : format(currentDate, "EEE d MMM yyyy");
+
+  /** Filters differing from their default, for the count on the Filters button. */
+  const activeFilterCount =
+    (activeFilters.size === EVENT_TYPES.length ? 0 : 1) +
+    (activeCountries.size > 0 ? 1 : 0) +
+    (playerScope === "all" ? 0 : 1) +
+    (teamScope === "__all__" ? 0 : 1);
+
   const showPlayerLabels = isCoach && playerScope === "all";
   const playerOptions = isCoach ? connectedPlayers.map((p) => ({ id: p.id, name: `${p.firstName} ${p.lastName}` })) : undefined;
 
@@ -954,19 +994,51 @@ export default function CalendarPage() {
     return counts;
   }, [tournaments]);
 
+  // ── Export (.ics) ────────────────────────────────────────────────────────
+  // Scoped to the period on screen, not to the whole filtered list. With the
+  // ITF and UTR calendars subscribed `scopedEvents` runs to thousands of
+  // tournaments across the season; a coach asked for next month's schedule and
+  // must not accidentally send a parent all of it. `view` (not `renderView`)
+  // is the range, so the phone's agenda exports the month or week its arrows
+  // are stepping.
+  const exportRange = useMemo(() => periodRange(view, currentDate), [view, currentDate]);
+  const exportEvents = useMemo(() => eventsInRange(scopedEvents, exportRange), [scopedEvents, exportRange]);
+  // The button below sm is icon-only, so the scope has to live somewhere a
+  // screen reader and a hover both reach.
+  const exportDescription = `Export the ${exportEvents.length} event${exportEvents.length === 1 ? "" : "s"} shown for ${heading} as a calendar file (.ics)`;
+
+  const handleExportIcs = () => {
+    if (exportEvents.length === 0) return;
+    const ics = buildIcs(exportEvents, {
+      calendarName: `TennisAI — ${heading}`,
+      // Mirrors the on-screen chips: a coach looking at every player gets the
+      // names in the file too, otherwise six "Morning drill" entries land in
+      // the parent's calendar indistinguishable from one another.
+      includePlayerName: showPlayerLabels,
+    });
+    downloadTextFile(icsFileName(view, currentDate), ics);
+    // Names what actually left the app, so a wrong scope is caught here rather
+    // than in somebody's inbox.
+    toast.success(`Exported ${exportEvents.length} event${exportEvents.length === 1 ? "" : "s"} — ${heading}`);
+  };
+
   if (isLoading) return <LoadingState message="Loading calendar…" />;
   if (error) return <ErrorState message="Failed to load calendar" onRetry={() => window.location.reload()} />;
 
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Base is now a row rather than a stack, and the strapline is hidden,
+          below `sm` only: on a phone those two cost ~90px above a calendar the
+          whole complaint was about having to scroll to reach. Everything from
+          `sm` up is exactly as it was. */}
+      <div className="flex flex-row items-center justify-between gap-4 sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Calendar</h1>
             {isObserver && <ReadOnlyBadge />}
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="hidden text-sm text-muted-foreground sm:block">
             {isPlayer ? "Your unified schedule — trainings, matches, tournaments & more." : isCoach ? "Manage your schedule and connected player events." : isObserver ? "Read-only view of the connected player's schedule." : "Platform-wide calendar overview."}
           </p>
         </div>
@@ -975,19 +1047,88 @@ export default function CalendarPage() {
           <div className="hidden items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground md:flex">
             <span className="font-semibold text-foreground">{scopedEvents.length}</span> events
           </div>
+          {/* Export. The label names the scope rather than saying "Export",
+              because the one thing that must not happen is a coach believing
+              they sent next month and having sent the whole season.
+              No h-* override: `size="sm"` already carries coarse:min-h-11.
+              coarse:min-w-11 is added by hand because only `size="icon"`
+              carries a min-width, and below sm this button is icon-only — 42px
+              wide without it. */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportIcs}
+            disabled={exportEvents.length === 0}
+            title={exportDescription}
+            aria-label={exportDescription}
+            className="gap-1.5 coarse:min-w-11"
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Export this {view}</span>
+          </Button>
           {canEdit && <Button size="sm" onClick={handleAdd} className="gap-1.5 shadow-sm"><Plus className="h-4 w-4" />Add Event</Button>}
         </div>
       </div>
 
       {isObserver && <ReadOnlyBanner />}
 
-      {/* ── Single toolbar row ──────────────────────────────────────────────
+      {/* ── Toolbar, phone ──────────────────────────────────────────────────
+          The desktop run of dropdowns wrapped to three rows here, and with the
+          player legend below it the grid began ~450px down a 812px screen. Two
+          fixed rows instead — view + Filters, then the date stepper — and
+          every filter moves into the sheet, which is also the only place the
+          tournament-calendar subscriptions have ever been reachable on a
+          phone. */}
+      {isCompact ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Tabs
+              value={renderView === "day" ? "day" : "agenda"}
+              onValueChange={(v) => setView(v === "day" ? "day" : "month")}
+            >
+              {/* No height overrides here, unlike the desktop row's h-8/h-6:
+                  the shared controls now grow themselves on a coarse pointer
+                  (`coarse:min-h-11`), and a fixed 28px trigger inside a 36px
+                  list would just overflow it on the one device this branch is
+                  for. */}
+              <TabsList>
+                <TabsTrigger value="agenda" className="gap-1.5 px-3 text-xs"><List className="h-3.5 w-3.5" />Agenda</TabsTrigger>
+                <TabsTrigger value="day" className="gap-1.5 px-3 text-xs"><CalendarIcon className="h-3.5 w-3.5" />Day</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto gap-1.5 text-xs"
+              onClick={() => setFiltersOpen(true)}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="shrink-0" aria-label={`Previous ${view}`} onClick={() => navigate(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+            {/* The full heading ("Friday, September 4, 2026") truncates in the
+                ~180px left between the two arrows and Today, so the phone gets
+                a shorter one rather than an ellipsis. */}
+            <span className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-foreground">{compactHeading}</span>
+            <Button variant="outline" size="icon" className="shrink-0" aria-label={`Next ${view}`} onClick={() => navigate(1)}><ChevronRight className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="sm" className="shrink-0 text-xs text-muted-foreground" onClick={() => setCurrentDate(new Date())}>Today</Button>
+          </div>
+        </div>
+      ) : (
+      /* ── Single toolbar row ──────────────────────────────────────────────
           One left-aligned run: view tabs, date nav, then every filter as a
           dropdown. This replaced four stacked chip rows (source, federation,
           coach scope, event types) that between them pushed the grid ~100px
           down the page. The filters were briefly right-aligned; keeping the
           whole run on the left holds the controls together and matches
-          reading order. */}
+          reading order. */
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Tabs value={view} onValueChange={(v) => setView(v as ViewMode)}>
@@ -1069,6 +1210,7 @@ export default function CalendarPage() {
           )}
         </div>
       </div>
+      )}
 
       {/* Reassign drop targets — only while an event is mid-drag. Replaces the
           permanent player chips, which doubled as drop targets before scope
@@ -1083,7 +1225,9 @@ export default function CalendarPage() {
         />
       )}
 
-      {showPlayerLabels && connectedPlayers.length > 0 && (
+      {/* The colour key wrapped to two rows on a phone for the sake of six
+          names. It moves into the Filters sheet there; unchanged on desktop. */}
+      {showPlayerLabels && !isCompact && connectedPlayers.length > 0 && (
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-[11px] font-medium text-muted-foreground">Players:</span>
           {connectedPlayers.map((p) => (
@@ -1153,15 +1297,68 @@ export default function CalendarPage() {
         </div>
 
         <div className="min-w-0 flex-1">
-          {scopedEvents.length === 0 && view !== "day" && <EmptyState icon={<CalendarIcon className="h-6 w-6 text-muted-foreground" />} title="No events found" description="No events match your current filters." />}
+          {scopedEvents.length === 0 && renderView !== "day" && <EmptyState icon={<CalendarIcon className="h-6 w-6 text-muted-foreground" />} title="No events found" description="No events match your current filters." />}
 
-          {view === "month" && scopedEvents.length > 0 && <MonthlyView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} onDayClick={handleDayClick} onOpenDay={openDay} showPlayerLabel={showPlayerLabels} onDropEvent={canEdit ? handleDropEvent : undefined} canDrag={canEdit} registeredIntlIds={registeredIntlIds} />}
-          {view === "week" && scopedEvents.length > 0 && <WeeklyView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} onDayClick={handleDayClick} showPlayerLabel={showPlayerLabels} onDropEvent={canEdit ? handleDropEvent : undefined} canDrag={canEdit} registeredIntlIds={registeredIntlIds} />}
-          {view === "day" && <DayView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} showPlayerLabel={showPlayerLabels} registeredIntlIds={registeredIntlIds} />}
+          {/* The phone's month/week. `range` follows `view`, so the arrows and
+              the heading above keep stepping whatever the user was on. */}
+          {renderView === "agenda" && scopedEvents.length > 0 && (
+            <AgendaView
+              currentDate={currentDate}
+              range={view === "week" ? "week" : "month"}
+              events={scopedEvents}
+              onSelectEvent={handleSelectEvent}
+              onOpenDay={openDay}
+              onDayClick={handleDayClick}
+              showPlayerLabel={showPlayerLabels}
+              registeredIntlIds={registeredIntlIds}
+            />
+          )}
+
+          {renderView === "month" && scopedEvents.length > 0 && <MonthlyView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} onDayClick={handleDayClick} onOpenDay={openDay} showPlayerLabel={showPlayerLabels} onDropEvent={canEdit ? handleDropEvent : undefined} canDrag={canEdit} registeredIntlIds={registeredIntlIds} />}
+          {renderView === "week" && scopedEvents.length > 0 && <WeeklyView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} onDayClick={handleDayClick} showPlayerLabel={showPlayerLabels} onDropEvent={canEdit ? handleDropEvent : undefined} canDrag={canEdit} registeredIntlIds={registeredIntlIds} />}
+          {renderView === "day" && <DayView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} showPlayerLabel={showPlayerLabels} registeredIntlIds={registeredIntlIds} />}
         </div>
       </div>
 
       {/* Drawers & dialogs */}
+      {/* Phone only — on desktop these same controls are the toolbar run and
+          the mini-calendar column, so mounting it there would duplicate them. */}
+      {isCompact && (
+        <CalendarFiltersSheet
+          open={filtersOpen}
+          onOpenChange={setFiltersOpen}
+          typeOptions={EVENT_TYPES.map((t) => ({ value: t, label: EVENT_CONFIG[t].label, color: EVENT_TYPE_COLOR[t], count: eventCounts[t] ?? 0 }))}
+          activeTypes={activeFilters as Set<string>}
+          onToggleType={(v) => toggleFilter(v as CalendarEventType)}
+          onAllTypes={() => setActiveFilters(new Set(EVENT_TYPES))}
+          onNoTypes={() => setActiveFilters(new Set())}
+          circuitOptions={ALL_CIRCUITS.map((f) => ({ value: f, label: f, color: CIRCUIT_COLOR[f], count: circuitCounts[f] ?? 0 }))}
+          activeCircuits={activeFederations as Set<string>}
+          onToggleCircuit={(v) => toggleFederation(v as TournamentCircuit)}
+          savingCircuits={saveCalendarPrefs.isPending}
+          countryOptions={countryOptions}
+          activeCountries={activeCountries}
+          onToggleCountry={toggleCountry}
+          onClearCountries={() => setActiveCountries(new Set())}
+          scopeOptions={isCoach && connectedPlayers.length > 0 ? [
+            { value: "all", label: "All players" },
+            { value: "mine", label: "My schedule" },
+            ...visiblePlayers.map((p) => ({ value: p.id, label: `${p.firstName} ${p.lastName}`, color: entityColor(p.id) })),
+          ] : undefined}
+          scopeValue={playerScope}
+          onScopeChange={isCoach ? setPlayerScope : undefined}
+          teamOptions={isCoach && teams.length > 0 ? [
+            { value: "__all__", label: "All teams" },
+            ...teams.map((t) => ({ value: t.id, label: t.name })),
+          ] : undefined}
+          teamValue={teamScope}
+          onTeamChange={isCoach ? (v) => { setTeamScope(v); setPlayerScope("all"); } : undefined}
+          playerLegend={showPlayerLabels ? connectedPlayers.map((p) => ({ id: p.id, name: `${p.firstName} ${p.lastName}`, color: entityColor(p.id) })) : undefined}
+          onRefreshTournaments={handleRefreshTournaments}
+          refreshing={isRefetchingTournaments}
+        />
+      )}
+
       <DayEventsSheet
         day={daySheet?.day ?? null}
         events={daySheet?.events ?? []}

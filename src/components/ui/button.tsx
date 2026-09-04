@@ -9,7 +9,7 @@ const buttonVariants = cva(
   // 100ms — enough to feel, too small to look bouncy against a matte brand.
   // transition-[colors,transform], not transition-all, so a button whose label
   // changes ("Save" → "Saving…") doesn't animate its own width.
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-[color,background-color,border-color,transform] duration-100 active:scale-[0.97] motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-[color,background-color,border-color,transform] duration-100 active:scale-[0.97] motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation",
   {
     variants: {
       variant: {
@@ -20,11 +20,20 @@ const buttonVariants = cva(
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
+      // Touch sizing rule: `coarse:min-h-11` (44px), never `coarse:h-11`.
+      //
+      // min-height beats height in the cascade no matter which rule wins on
+      // specificity, so a caller that hard-codes `className="h-8 w-8"` — and
+      // dozens across the app do — still gets a 44px finger target on a phone
+      // while keeping its 32px look on a mouse. tailwind-merge treats
+      // `h-8` and `coarse:min-h-11` as different modifier sets, so neither
+      // deduplicates the other away.
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
+        default: "h-10 px-4 py-2 coarse:min-h-11",
+        sm: "h-9 rounded-md px-3 coarse:min-h-11",
+        // Already 44px — nothing to raise.
         lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
+        icon: "h-10 w-10 coarse:min-h-11 coarse:min-w-11",
       },
     },
     defaultVariants: {

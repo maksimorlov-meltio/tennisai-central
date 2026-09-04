@@ -35,6 +35,69 @@ const createSchema = z.object({
 
 const updateSchema = createSchema.partial();
 
+const ATTENDANCE_STATUSES = ["present", "absent", "late", "excused"] as const;
+
+/**
+ * Taking the register. `marks` is a PARTIAL set — a coach who taps one player
+ * sends one mark and everyone left out keeps whatever they had, including
+ * nothing at all. There is deliberately no way to send a null status:
+ * "not yet marked" is the state a row starts in, not something a coach
+ * reports, and allowing an unmark would blur the two in the audit columns.
+ */
+const attendanceSchema = z.object({
+  marks: z
+    .array(
+      z.object({
+        playerId: z.string().min(1),
+        status: z.enum(ATTENDANCE_STATUSES),
+        note: z.string().max(200).optional(),
+      }),
+    )
+    .min(1),
+});
+
+const PLAYER_FEELINGS = ["awful", "bad", "okay", "good", "great"] as const;
+
+const PLAYER_FEEDBACK_TAGS = [
+  "Too easy",
+  "Too hard",
+  "Good pace",
+  "Learned a lot",
+  "Need more practice",
+  "Fun session",
+  "Felt tired",
+  "Great coaching",
+  "Too long",
+  "Too short",
+  "Want more of this",
+  "Felt confused",
+] as const;
+
+/**
+ * A player's own word on how the session went.
+ *
+ * `.strict()` is the point of this schema, not decoration. The whole reason
+ * this route exists is that the general PATCH accepts the entire training
+ * shape, so a player saving feedback through it could also move the date or
+ * rewrite the coach's notes. A silently-dropped unknown key would leave that
+ * same request looking like it succeeded; rejecting it with a 400 means an
+ * attempt to write anything else is visibly refused rather than quietly
+ * ignored.
+ *
+ * `submittedAt` and `submittedBy` are deliberately NOT accepted from the
+ * client — the server stamps both, exactly as the register stamps
+ * `attendanceAt` / `attendanceBy`. A timestamp the sender chooses is not
+ * evidence of anything.
+ */
+const feedbackSchema = z
+  .object({
+    feeling: z.enum(PLAYER_FEELINGS),
+    energyLevel: z.number().int().min(1).max(5),
+    tags: z.array(z.enum(PLAYER_FEEDBACK_TAGS)).max(PLAYER_FEEDBACK_TAGS.length).default([]),
+    note: z.string().max(200).optional(),
+  })
+  .strict();
+
 type TrainingWithParticipants = Training & { participants: TrainingParticipant[] };
 
 /** Map a DB row to the front-end `TrainingSession` shape. */
@@ -57,8 +120,32 @@ function present(t: TrainingWithParticipants) {
     review: t.review ?? undefined,
     playerSessionFeedback: t.playerSessionFeedback ?? undefined,
     analysis: t.analysis ?? undefined,
+    attendance: presentAttendance(t.participants),
     createdAt: t.createdAt.toISOString(),
   };
+}
+
+/**
+ * Two different "nothing" states, and the client has to be able to tell them
+ * apart:
+ *
+ *  - `undefined` for the whole array — nobody has ever taken this register.
+ *  - an entry with no `status` — the register HAS been taken, but this one
+ *    player was not marked.
+ *
+ * Neither is "absent". A coach who has not opened the session yet is not a
+ * coach reporting an empty court, so the array is withheld entirely until at
+ * least one mark exists rather than being sent full of blanks.
+ */
+function presentAttendance(participants: TrainingParticipant[]) {
+  if (!participants.some((p) => p.attendance != null)) return undefined;
+  return participants.map((p) => ({
+    playerId: p.playerId,
+    status: (p.attendance ?? undefined) as (typeof ATTENDANCE_STATUSES)[number] | undefined,
+    markedAt: p.attendanceAt?.toISOString(),
+    markedBy: p.attendanceBy ?? undefined,
+    note: p.attendanceNote ?? undefined,
+  }));
 }
 
 /** Scope: a user sees trainings they coach OR participate in. */
@@ -209,8 +296,14 @@ trainingsRouter.patch(
 );
 
 // DELETE /api/trainings/:id — owner (coach) only.
+//
+// `requireRole("coach")` matches POST and PATCH. It was the odd one out: the
+// ownership check below already made it unreachable for anyone else (a
+// non-coach cannot own a training), so this closes no hole today — it stops
+// the route from depending on that coincidence continuing to hold.
 trainingsRouter.delete(
   "/:id",
+  requireRole("coach"),
   asyncHandler(async (req: AuthedRequest, res) => {
     // One read, not two: ownership and the details needed to tell the players
     // it is off come from the same row, and the cascade takes the participants
@@ -232,6 +325,124 @@ trainingsRouter.delete(
     });
 
     return ok(res, null, "Training deleted");
+  }),
+);
+
+// PATCH /api/trainings/:id/attendance — take the register. Owner (coach) only.
+//
+// AUTHORISATION, in order, all server-side:
+//   1. `requireAuth` (router-level) — no token, no route.
+//   2. `requireRole("coach")` — a player or parent is refused here, including
+//      for their OWN attendance. Attendance is a coach's statement about who
+//      turned up; a player marking themselves present is the one thing this
+//      must never allow, or the record is worthless for billing or no-shows.
+//   3. Ownership — `coachId === req.userId`. Another coach seeing the session
+//      (they might be a participant in it) still cannot mark it.
+//   4. Membership — every playerId in the body must already be a participant
+//      of THIS training, so a valid mark cannot be aimed at someone else's
+//      session. Checked before any write: the request is all-or-nothing.
+trainingsRouter.patch(
+  "/:id/attendance",
+  requireRole("coach"),
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const { marks } = attendanceSchema.parse(req.body);
+
+    const training = await prisma.training.findUnique({
+      where: { id: req.params.id },
+      include: { participants: true },
+    });
+    if (!training) throw new HttpError(404, "Training not found");
+    if (training.coachId !== req.userId) throw new HttpError(403, "You do not own this training");
+
+    const participantIds = new Set(training.participants.map((p) => p.playerId));
+    for (const mark of marks) {
+      if (!participantIds.has(mark.playerId)) {
+        throw new HttpError(404, "That player is not in this training");
+      }
+    }
+
+    // One transaction, not a loop of awaits. Taking a register is a single act:
+    // if the third of five rows fails, the coach is left with a partly-saved
+    // register and no way to tell which rows landed — and the not-marked vs
+    // absent distinction this whole feature rests on becomes unreadable.
+    const markedAt = new Date();
+    await prisma.$transaction(
+      dedupeMarks(marks).map((mark) =>
+        prisma.trainingParticipant.update({
+          where: { trainingId_playerId: { trainingId: training.id, playerId: mark.playerId } },
+          data: {
+            attendance: mark.status,
+            attendanceAt: markedAt,
+            attendanceBy: req.userId!,
+            // An omitted note leaves any existing one alone; an empty string
+            // clears it, which is how the UI removes a note it no longer means.
+            attendanceNote: mark.note === undefined ? undefined : mark.note || null,
+          },
+        }),
+      ),
+    );
+
+    const updated = await prisma.training.findUnique({
+      where: { id: training.id },
+      include: { participants: true },
+    });
+    return ok(res, present(updated ?? training), "Attendance saved");
+  }),
+);
+
+// PATCH /api/trainings/:id/feedback — a player's own feedback on a session
+// they took part in.
+//
+// WHY A SEPARATE ROUTE. Feedback used to be saved through the general
+// PATCH /api/trainings/:id, which is `requireRole("coach")` — so against the
+// real backend every player submitting feedback got a 403, and the feature
+// only ever appeared to work in mock mode. Widening that route to admit
+// players was the wrong fix: it accepts the whole training shape, so the
+// carve-out would have had to be re-argued every time a field was added there.
+// A player writes ONE field, so they get one route that can write one field.
+//
+// AUTHORISATION, in order, all server-side:
+//   1. `requireAuth` (router-level) — no token, no route.
+//   2. `requireRole("player")` — the coach who OWNS the session writes through
+//      the general PATCH; an observer (parent) has no feedback of their own to
+//      give, and is not a proxy for their junior's opinion of a session. One
+//      gap this leaves: a coach who is a PARTICIPANT in another coach's session
+//      (coach-to-coach connections exist) has no route for their own feedback.
+//      Rare enough to leave, but it is a gap and not a decision.
+//   3. Membership — the caller must be a participant of THIS training. Not
+//      "can see it": a coach's own player who happens to be visible on someone
+//      else's session was not there and has nothing to report about it.
+// And the field gate: `feedbackSchema` is `.strict()`, and the update writes
+// the single literal `playerSessionFeedback` key, so there is no path from
+// this route to any other column even if the schema were widened by mistake.
+trainingsRouter.patch(
+  "/:id/feedback",
+  requireRole("player"),
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const data = feedbackSchema.parse(req.body);
+
+    const training = await prisma.training.findUnique({
+      where: { id: req.params.id },
+      include: { participants: true },
+    });
+    if (!training) throw new HttpError(404, "Training not found");
+    if (!training.participants.some((p) => p.playerId === req.userId)) {
+      throw new HttpError(403, "You are not a participant in this training");
+    }
+
+    const updated = await prisma.training.update({
+      where: { id: training.id },
+      data: {
+        playerSessionFeedback: {
+          ...data,
+          // Stamped here, never taken from the body — see `feedbackSchema`.
+          submittedBy: req.userId!,
+          submittedAt: new Date().toISOString(),
+        },
+      },
+      include: { participants: true },
+    });
+    return ok(res, present(updated), "Feedback saved");
   }),
 );
 
@@ -267,6 +478,13 @@ async function assertOwner(id: string, userId: string) {
 
 function dedupe(ids: string[]): string[] {
   return Array.from(new Set(ids));
+}
+
+/** Last mark wins if a client sends the same player twice — one write per player. */
+function dedupeMarks<T extends { playerId: string }>(marks: T[]): T[] {
+  const byPlayer = new Map<string, T>();
+  for (const mark of marks) byPlayer.set(mark.playerId, mark);
+  return Array.from(byPlayer.values());
 }
 
 // ── Telling people ──────────────────────────────────────────────────────────

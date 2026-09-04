@@ -7,6 +7,7 @@ import { asyncHandler, requireAuth, ok, HttpError, type AuthedRequest } from "..
 import { sendVerificationEmail } from "../email/mailer";
 import { verifyUrlFor } from "../auth/routes";
 import { onboardingToPlayerProfile } from "./onboardingProfile";
+import { publicUser } from "../lib/publicUser";
 
 // Mounted at /api/me.
 export const profileRouter = Router();
@@ -20,10 +21,7 @@ const updateSchema = z
   })
   .partial();
 
-function publicUser(u: User) {
-  const { passwordHash, ...rest } = u;
-  return rest;
-}
+
 
 // GET /api/me/profile
 profileRouter.get(

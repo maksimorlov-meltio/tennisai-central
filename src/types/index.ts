@@ -302,12 +302,37 @@ export interface PlayerSessionFeedback {
   tags: PlayerFeedbackTag[];
   note?: string; // max 200 chars, optional
   submittedAt: string;
+  /**
+   * Who left it. Stamped server-side from the bearer token and never sent by
+   * the client — it exists because the feedback is one blob on the training,
+   * so on a team session the last player to submit is the one on record, and
+   * without a name there is no way to tell whose word it is.
+   */
+  submittedBy?: string;
 }
 
 export interface TrainingAnalysis {
   summary: string;
   generatedAt: string;
   model?: string;
+}
+
+/**
+ * Whether a player turned up.
+ *
+ * `undefined` is a fourth state and the most important one: it means the
+ * register has not been taken. A coach who has not marked a session yet is not
+ * a coach reporting an empty court, and the two must never render alike.
+ */
+export type AttendanceStatus = "present" | "absent" | "late" | "excused";
+
+/** One player's attendance on one session. */
+export interface TrainingAttendance {
+  playerId: string;
+  status?: AttendanceStatus;
+  markedAt?: string;
+  markedBy?: string;
+  note?: string;
 }
 
 export interface TrainingSession {
@@ -317,6 +342,11 @@ export interface TrainingSession {
   trainingType: TrainingType;
   coachId: string;
   playerIds: string[];
+  /**
+   * Present only once the register has been taken at least once. Absent on a
+   * session nobody has marked, so `attendance?.length` is not a head count.
+   */
+  attendance?: TrainingAttendance[];
   teamId?: string;
   startDate: string;
   endDate: string;
@@ -420,9 +450,17 @@ export interface SignUpRequest {
   role: UserRole;
   firstName: string;
   lastName: string;
+  /**
+   * Retained for accounts at or above the age of digital consent. Below it the
+   * flag is meaningless and the guardian fields below carry the consent
+   * instead — see MINOR_AGE_THRESHOLD on the server.
+   */
   ageConfirmed: boolean;
   termsAccepted: boolean;
   dateOfBirth?: string;
+  /** Set only when the date of birth puts the applicant below the threshold. */
+  guardianName?: string;
+  guardianEmail?: string;
   country?: string;
   dominantHand?: "left" | "right";
   organization?: string;
