@@ -1,5 +1,6 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "tennisai-web",
+  "description": "TennisAI web app — the shared workspace for coaches, players and parents.",
   "private": true,
   "version": "0.0.0",
   "type": "module",
