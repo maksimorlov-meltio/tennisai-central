@@ -26,6 +26,9 @@ import { matchesRouter } from "./matches/routes";
 import { opponentsRouter } from "./opponents/routes";
 import { aiRouter } from "./ai/routes";
 import { conditionsRouter } from "./conditions/routes";
+import { feedRouter } from "./tournaments/feedRoutes";
+import { startTournamentSchedule } from "./tournaments/schedule";
+import { importStatus, lastImportAt } from "./tournaments/importStatus";
 import { errorHandler } from "./http";
 import { verifyMailTransport } from "./email/mailer";
 
@@ -73,6 +76,10 @@ app.get("/api/health", async (_req, res) => {
       // the two facts you need to explain "nobody can register" without SSH.
       mailTransport,
       signupOpen: !(env.requireEmailVerification && !emailEnabled),
+      // A calendar feed that has silently stopped looks exactly like one that
+      // is working, until a coach plans a season against stale data. Reporting
+      // it here makes a dead source visible without opening a shell.
+      calendar: { lastImportAt: lastImportAt(), sources: importStatus() },
       time: new Date().toISOString(),
     });
   } catch {
@@ -82,6 +89,14 @@ app.get("/api/health", async (_req, res) => {
 
 // Coarse per-client throttle across every API router (mounted before them).
 app.use("/api", apiLimiter);
+
+// Machine-to-machine calendar ingest. Its own router because it authenticates
+// with a shared token, NOT a user session (see tournaments/feedRoutes.ts) — and
+// mounted HERE, before financeRouter/equipmentRouter/notificationsRouter, which
+// are mounted at "/api" and whose `requireAuth` therefore runs for every /api/*
+// path. Registered after them, this endpoint answered 401 before its own token
+// check was ever reached.
+app.use("/api/feed", feedRouter);
 
 app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/trainings", trainingsRouter);
@@ -117,9 +132,14 @@ const server = app.listen(env.port, () => {
   console.log(`    Mail:           ${emailEnabled ? `${mailTransport} — checking…` : "no transport (console fallback)"}`);
   console.log(`    Signup:         ${env.requireEmailVerification && !emailEnabled ? "CLOSED — verification on, no mail" : "open"}\n`);
 
-  // Prove the credentials before anyone depends on them. A wrong app password
-  // otherwise stays invisible until a real person fails to receive a real link,
-  // by which point nobody thinks to look at the mail configuration.
+  // Daily tournament-calendar refresh. Pull sources only (UTR today); the
+  // browser-driven scrapers post their rows in from CI instead, so nothing on
+  // this box ever starts a Chromium.
+  startTournamentSchedule(prisma, env.feedRefreshHourUtc);
+
+  // Prove the mail credentials before anyone depends on them. A wrong app
+  // password otherwise stays invisible until a real person fails to receive a
+  // real link, by which point nobody thinks to look at the configuration.
   if (emailEnabled) {
     void verifyMailTransport().then(({ ok, error }) => {
       console.log(

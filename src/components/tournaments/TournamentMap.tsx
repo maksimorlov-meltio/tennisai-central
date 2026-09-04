@@ -3,8 +3,8 @@
 // tournament list, not a live feed) with an optional user-location marker,
 // a "within X km" radius circle, and per-tournament Add/Hide actions.
 // ============================================================
-import { useEffect, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
+import { useEffect, useMemo, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { format } from "date-fns";
@@ -12,6 +12,7 @@ import { Plus, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { haversineKm, formatDistanceKm, type LatLng } from "@/lib/geo/distance";
+import { clusterForZoom } from "@/lib/geo/cluster";
 import type { Tournament } from "@/types";
 
 // ─── Vite serves these as hashed asset URLs; Leaflet's default marker icon
@@ -38,6 +39,34 @@ const userLocationIcon = L.divIcon({
   iconSize: [14, 14],
   iconAnchor: [7, 7],
 });
+
+/**
+ * A numbered circle standing in for several tournaments.
+ *
+ * Sized by how many it holds, so density reads at a glance without counting —
+ * with three thousand events the map's shape is the information.
+ */
+function clusterIcon(count: number): L.DivIcon {
+  const size = count < 10 ? 34 : count < 100 ? 42 : 52;
+  return L.divIcon({
+    className: "tai-cluster-marker",
+    html:
+      `<span style="display:flex;align-items:center;justify-content:center;` +
+      `width:${size}px;height:${size}px;border-radius:9999px;` +
+      `background-color:hsl(var(--primary) / 0.85);color:hsl(var(--primary-foreground));` +
+      `border:2px solid hsl(var(--background));box-shadow:0 0 0 4px hsl(var(--primary) / 0.25);` +
+      `font-size:${count < 100 ? 13 : 12}px;font-weight:600;">${count}</span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
+/** Reports the map's zoom so clustering can loosen as you go in. */
+function ZoomWatcher({ onZoom }: { onZoom: (zoom: number) => void }) {
+  const map = useMapEvents({ zoomend: () => onZoom(map.getZoom()) });
+  useEffect(() => { onZoom(map.getZoom()); }, [map, onZoom]);
+  return null;
+}
 
 interface FitBoundsProps {
   points: Array<[number, number]>;
@@ -82,6 +111,16 @@ function hasCoords(t: Tournament): t is PlottableTournament {
 export function TournamentMap({ tournaments, userCoords, radiusKm, onAdd, onHide, canAdd = true, className }: TournamentMapProps) {
   const plotted = useMemo(() => tournaments.filter(hasCoords), [tournaments]);
 
+  // Leaflet renders one DOM node per marker, so three thousand pins is three
+  // thousand nodes and a frozen page. Cluster by grid at the current zoom, and
+  // draw individually only what is already alone.
+  const [zoom, setZoom] = useState(3);
+  const clusters = useMemo(() => clusterForZoom(plotted, zoom), [plotted, zoom]);
+  const singles = useMemo(
+    () => clusters.filter((c) => c.items.length === 1).map((c) => c.items[0]),
+    [clusters],
+  );
+
   const boundsPoints = useMemo<Array<[number, number]>>(() => {
     const pts: Array<[number, number]> = plotted.map((t) => [t.latitude, t.longitude]);
     if (userCoords) pts.push([userCoords.lat, userCoords.lng]);
@@ -122,7 +161,33 @@ export function TournamentMap({ tournaments, userCoords, radiusKm, onAdd, onHide
           </>
         )}
 
-        {plotted.map((t) => {
+        <ZoomWatcher onZoom={setZoom} />
+
+        {clusters.map((cluster) =>
+          cluster.items.length > 1 ? (
+            <Marker
+              key={cluster.id}
+              position={[cluster.latitude, cluster.longitude]}
+              icon={clusterIcon(cluster.items.length)}
+              eventHandlers={{
+                // Zooming in is what a cluster is for; splitting it open in a
+                // popup would just be a list with extra steps.
+                click: (e) => e.target._map?.setView([cluster.latitude, cluster.longitude], Math.min(zoom + 3, 14)),
+              }}
+            >
+              <Popup minWidth={200}>
+                <p className="font-semibold text-foreground">{cluster.items.length} tournaments here</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {cluster.items.slice(0, 4).map((t) => t.city).filter((c, i, a) => a.indexOf(c) === i).join(", ")}
+                  {cluster.items.length > 4 ? "…" : ""}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Zoom in to see them individually.</p>
+              </Popup>
+            </Marker>
+          ) : null,
+        )}
+
+        {singles.map((t) => {
           const distance = userCoords
             ? haversineKm(userCoords, { lat: t.latitude, lng: t.longitude })
             : null;

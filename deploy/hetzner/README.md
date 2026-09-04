@@ -117,6 +117,44 @@ docker compose exec api npm run reset-link -- someone@example.com
 Prints a single-use link. Give it to them directly — anyone holding it can set
 that account's password, which is why it is a shell command and not an endpoint.
 
+## The tournament calendar
+
+Two feeds, refreshed once a day.
+
+**UTR** is pulled by the API itself at 04:00 UTC (`FEED_REFRESH_HOUR_UTC`). It
+needs nothing configured: UTR's event search answers plain HTTPS with no browser
+and no credentials.
+
+**ITF Juniors** (and later ATP/WTA) sit behind bot protection and only render in
+a real browser, so they are collected by a GitHub Actions job and posted to
+`/api/feed/tournaments`. Chromium never runs on this server.
+
+To switch that on, two things:
+
+```bash
+# 1. read the token setup.sh generated
+grep FEED_PUSH_TOKEN /opt/tennisai/deploy/hetzner/.env
+```
+
+2. Add it to the repository's **Settings → Secrets and variables → Actions**:
+
+| Secret | Value |
+| --- | --- |
+| `TENNISAI_API_URL` | `https://46-225-83-85.sslip.io/api` |
+| `TENNISAI_FEED_TOKEN` | the `FEED_PUSH_TOKEN` above |
+
+Leave `FEED_PUSH_TOKEN` blank and the ingest endpoint is switched off entirely,
+which is the right default for a server nobody is posting to.
+
+Check what the feeds last did — no SSH required:
+
+```bash
+curl -s https://46-225-83-85.sslip.io/api/health | jq .calendar
+```
+
+A source that has stopped is otherwise invisible: the app keeps showing last
+week's tournaments and looks perfectly healthy.
+
 ## Everyday commands
 
 ```bash

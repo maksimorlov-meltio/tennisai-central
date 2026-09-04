@@ -78,6 +78,11 @@ SMTP_USER=
 SMTP_PASSWORD=
 MAIL_FROM=
 
+# Shared secret for the CI job that posts the ITF/ATP/WTA calendars in. The UTR
+# calendar needs nothing — this server pulls it directly, every day.
+FEED_PUSH_TOKEN=$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 43)
+FEED_REFRESH_HOUR_UTC=4
+
 # Registration is open; this caps total accounts. Remove for no cap.
 MAX_SIGNUPS=50
 

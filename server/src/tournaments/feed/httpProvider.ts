@@ -18,6 +18,9 @@ import { env } from "../../env";
 
 export const httpProvider: TournamentFeedProvider = {
   name: "http-live",
+  // A licensed feed is expected to cover every tour; ITF is the placeholder
+  // label until one is wired and can report per-source properly.
+  federation: "ITF",
   async fetchTournaments(): Promise<FeedTournament[]> {
     if (!env.feedApiUrl || !env.feedApiKey) {
       throw new Error(

@@ -1,5 +1,6 @@
-import { forwardRef, useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { forwardRef, useMemo, useState } from "react";
+import { Check, ChevronDown, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem,
@@ -109,6 +110,109 @@ export function MultiFilterMenu({
             None
           </DropdownMenuItem>
         </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
+ * Location filter, for a calendar that now spans the world.
+ *
+ * A plain checklist is what the other filters use and it does not survive here:
+ * the feeds cover well over a hundred countries, and a coach looking for Spain
+ * should not scroll past Azerbaijan to find it. So this one is searchable, and
+ * the list is ordered by how many events each place has — the countries a squad
+ * actually plays in rise to the top on their own.
+ *
+ * Nothing selected means everywhere, which is the right default for a filter
+ * you have not opened yet.
+ */
+export function LocationFilterMenu({
+  label = "Location",
+  icon,
+  options,
+  selected,
+  onToggle,
+  onSelectNone,
+}: {
+  label?: string;
+  icon?: React.ReactNode;
+  /** Value, label and how many events are at that location. */
+  options: Array<FilterOption & { count: number }>;
+  selected: Set<string>;
+  onToggle: (value: string) => void;
+  onSelectNone: () => void;
+}) {
+  const [query, setQuery] = useState("");
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const matched = q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
+    // A selected country stays visible even when the search would hide it,
+    // otherwise turning one off means retyping the search to find it again.
+    const selectedOnes = options.filter((o) => selected.has(o.value) && !matched.includes(o));
+    return [...selectedOnes, ...matched].slice(0, 60);
+  }, [options, query, selected]);
+
+  const active = selected.size > 0;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <TriggerButton icon={icon} active={active}>
+          <span>{label}</span>
+          {active && <span className="font-semibold">· {selected.size}</span>}
+        </TriggerButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-64">
+        <div className="p-1.5">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search countries…"
+              className="h-8 pl-7 text-xs"
+              // The menu steals the first keystroke to its own type-ahead
+              // otherwise, and the box appears not to work.
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+        <DropdownMenuSeparator />
+        <div className="max-h-64 overflow-y-auto">
+          {shown.length === 0 ? (
+            <p className="px-2 py-3 text-center text-xs text-muted-foreground">
+              Nowhere matches “{query}”.
+            </p>
+          ) : (
+            shown.map((o) => (
+              <DropdownMenuCheckboxItem
+                key={o.value}
+                checked={selected.has(o.value)}
+                onSelect={(e) => e.preventDefault()}
+                onCheckedChange={() => onToggle(o.value)}
+                className="text-xs"
+              >
+                <span className="flex w-full items-center justify-between gap-2">
+                  <span>{o.label}</span>
+                  <span className="text-muted-foreground">{o.count}</span>
+                </span>
+              </DropdownMenuCheckboxItem>
+            ))
+          )}
+        </div>
+        {active && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={(e) => { e.preventDefault(); onSelectNone(); }}
+              className="justify-center text-xs font-medium"
+            >
+              Show everywhere
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

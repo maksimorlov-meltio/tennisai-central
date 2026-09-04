@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { staticProvider } from "./staticProvider";
-import { getFeedProvider, tournamentSlug } from "./index";
+import { getFeedProvider, getProviders, tournamentSlug } from "./index";
 import { TOURNAMENT_DATASET } from "../data/dataset";
 
 // These tests are pure — they touch no database. The static provider and the
@@ -55,10 +55,20 @@ describe("staticProvider", () => {
   });
 });
 
-describe("getFeedProvider", () => {
-  it("defaults to the static snapshot when no live feed is configured", () => {
-    // FEED_API_URL / FEED_API_KEY are unset in the test env.
-    expect(getFeedProvider().name).toBe("static-snapshot");
+describe("provider selection", () => {
+  it("pulls UTR live, and keeps the curated snapshot behind it", () => {
+    // FEED_API_URL / FEED_API_KEY are unset in the test env, which is the
+    // ordinary case. UTR answers plain HTTPS with no credentials, so it is
+    // pulled by the API itself; the snapshot stays as the fallback that is
+    // always available even with no network at all.
+    expect(getProviders().map((p) => p.name)).toEqual(["utr-events", "static-snapshot"]);
+    expect(getFeedProvider().name).toBe("utr-events");
+  });
+
+  it("names a federation for every provider, so one failure can be reported alone", () => {
+    for (const provider of getProviders()) {
+      expect(provider.federation).toBeTruthy();
+    }
   });
 });
 

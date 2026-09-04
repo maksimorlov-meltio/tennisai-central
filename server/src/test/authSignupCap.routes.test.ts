@@ -15,12 +15,21 @@ vi.mock("../db", async () => ({ prisma: (await import("./harness")).createPrisma
 /** Mutable so each spec picks the cap. `undefined` = no cap configured. */
 const cap = vi.hoisted(() => ({ value: undefined as number | undefined }));
 
-// Everything in env stays real except the one value under test — jwt signing
-// and the verification-email switch still read their genuine config.
+// Everything in env stays real except the cap under test — and the mail state,
+// which has to be pinned for the cap to be reachable at all.
+//
+// Signup refuses outright with a 503 when verification is demanded and no
+// transport is configured, correctly: every account created in that state is
+// permanently locked. That check runs first, so with mail unconfigured it
+// answers every request below before the cap is ever consulted. It passed
+// locally only because a developer's .env sets REQUIRE_EMAIL_VERIFICATION=false;
+// CI has no .env and gets the secure default, which is where it surfaced.
 vi.mock("../env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../env")>();
   return {
     ...actual,
+    emailEnabled: true,
+    mailTransport: "smtp" as const,
     env: {
       ...actual.env,
       get maxSignups() {

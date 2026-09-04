@@ -69,6 +69,15 @@ const schema = z.object({
   // Undefined when unset — missing values do NOT stop the process.
   FEED_API_URL: z.string().url().optional(),
   FEED_API_KEY: z.string().min(1).optional(),
+  // Shared secret for the machine-to-machine calendar ingest (POST
+  // /api/feed/tournaments), used by the CI scrapers that collect the calendars
+  // needing a real browser. Unset = that endpoint is switched off entirely,
+  // which is the right default: an ingest nobody uses should not be reachable.
+  // SERVER-SIDE SECRET — never sent to a browser.
+  FEED_PUSH_TOKEN: blankAsUnset(z.string().min(24, "FEED_PUSH_TOKEN must be at least 24 characters").optional()),
+  // Hour (UTC) of the daily calendar refresh. 4 = 04:00 UTC, chosen to sit well
+  // away from the 03:17 database backup.
+  FEED_REFRESH_HOUR_UTC: blankAsUnset(z.coerce.number().int().min(0).max(23).default(4)),
   // Web-Push (VAPID) keys. Push self-disables when these are unset, so email and
   // in-app notifications keep working. Generate with:
   //   npx web-push generate-vapid-keys
@@ -146,6 +155,8 @@ export const env = {
   // Optional live-feed config (undefined unless explicitly set). Server-side only.
   feedApiUrl: e.FEED_API_URL,
   feedApiKey: e.FEED_API_KEY,
+  feedPushToken: e.FEED_PUSH_TOKEN,
+  feedRefreshHourUtc: e.FEED_REFRESH_HOUR_UTC,
   // Optional Web-Push config (undefined = push disabled). Private key is server-side only.
   vapidPublicKey: e.VAPID_PUBLIC_KEY,
   vapidPrivateKey: e.VAPID_PRIVATE_KEY,

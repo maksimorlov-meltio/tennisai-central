@@ -60,7 +60,9 @@ export type NotificationType =
   | "training_deleted"
   | "calendar_event_created"
   | "calendar_event_updated"
-  | "calendar_event_deleted";
+  | "calendar_event_deleted"
+  // A coach entering one of their players for a tournament.
+  | "tournament_entry_added";
 
 export type TrainingRequestStatus = "pending" | "approved" | "rejected" | "reschedule_proposed" | "cancelled";
 
@@ -202,6 +204,19 @@ export interface Tournament {
   /** Host-city coordinates, used for the map view + distance-from-me. Null/absent when unknown. */
   latitude?: number | null;
   longitude?: number | null;
+  /** When entries close. The only date here you can miss and not get back. */
+  entryDeadline?: string;
+  ageCategory?: string;
+  venue?: string;
+  /** The event's own page, for the detail we do not hold. */
+  website?: string;
+  /** Entries so far — a rough read on field strength. */
+  registeredCount?: number;
+  /** The rating band the event is aimed at, where it publishes one. */
+  utrRangeMin?: number;
+  utrRangeMax?: number;
+  /** Which feed produced this row, shown as provenance. */
+  source?: string;
 }
 
 export interface PlayerTournament {

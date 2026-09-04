@@ -25,7 +25,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { MiniMonthCalendar } from "@/components/calendar/MiniMonthCalendar";
-import { MultiFilterMenu, SingleFilterMenu, ReassignDropStrip } from "@/components/calendar/CalendarFilterMenus";
+import { DayEventsSheet } from "@/components/calendar/DayEventsSheet";
+import { MultiFilterMenu, SingleFilterMenu, LocationFilterMenu, ReassignDropStrip } from "@/components/calendar/CalendarFilterMenus";
 import { CalendarLegendPanel } from "@/components/calendar/CalendarLegend";
 import type { CalendarEvent, CalendarEventType, CalendarEventState, ConnectedPlayer, RecurrenceFrequency, RecurrenceEndType, RecurrenceRule, Tournament, TournamentFederation } from "@/types";
 import { useCalendarEvents, useCreateCalendarEvent, useUpdateCalendarEvent, useDeleteCalendarEvent, useTeams, useTournaments, useAddPlayerTournament, usePlayerTournaments } from "@/hooks/api/queries";
@@ -384,8 +385,10 @@ function EventFormDialog({ open, onOpenChange, initial, onSave, playerOptions, s
 
 // ─── Month View ───
 
-function MonthlyView({ currentDate, events, onSelectEvent, onDayClick, showPlayerLabel, onDropEvent, canDrag, registeredIntlIds }: {
-  currentDate: Date; events: CalendarEvent[]; onSelectEvent: (e: CalendarEvent) => void; onDayClick?: (day: Date) => void; showPlayerLabel?: boolean;
+function MonthlyView({ currentDate, events, onSelectEvent, onDayClick, onOpenDay, showPlayerLabel, onDropEvent, canDrag, registeredIntlIds }: {
+  currentDate: Date; events: CalendarEvent[]; onSelectEvent: (e: CalendarEvent) => void; onDayClick?: (day: Date) => void;
+  /** Opens the full, scrollable list for one day. */
+  onOpenDay?: (day: Date, events: CalendarEvent[]) => void; showPlayerLabel?: boolean;
   onDropEvent?: (eventId: string, oldStart: string, oldEnd: string, targetDay: Date) => void; canDrag?: boolean; registeredIntlIds?: Set<string>;
 }) {
   const monthStart = startOfMonth(currentDate);
@@ -430,7 +433,17 @@ function MonthlyView({ currentDate, events, onSelectEvent, onDayClick, showPlaye
               <div className={`mb-1 flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-colors ${isToday ? "bg-primary text-primary-foreground shadow-sm" : isCurrentMonth ? "text-foreground" : "text-muted-foreground/40"}`}>{format(day, "d")}</div>
               <div className="flex flex-col gap-0.5">
                 {dayEvents.slice(0, MONTH_CELL_EVENT_LIMIT).map((e) => (<EventChip key={e.id} event={e} onClick={() => onSelectEvent(e)} showPlayer={showPlayerLabel} compact draggable={canDrag} registered={registeredIntlIds?.has(e.id)} />))}
-                {dayEvents.length > MONTH_CELL_EVENT_LIMIT && <span className="pl-1 text-[10px] font-medium text-muted-foreground">+{dayEvents.length - MONTH_CELL_EVENT_LIMIT} more</span>}
+                {dayEvents.length > MONTH_CELL_EVENT_LIMIT && (
+                  // Was plain text: it told you 181 events were there and gave
+                  // you no way to reach them.
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onOpenDay?.(day, dayEvents); }}
+                    className="pl-1 text-left text-[10px] font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    +{dayEvents.length - MONTH_CELL_EVENT_LIMIT} more
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -620,6 +633,16 @@ export default function CalendarPage() {
   const [activeFederations, setActiveFederations] = useState<Set<TournamentCircuit>>(
     new Set(ALL_CIRCUITS),
   );
+  // Countries to keep. EMPTY MEANS EVERYWHERE, which is the right default for a
+  // filter nobody has opened — the alternative, starting with all 150 ticked,
+  // makes "clear the filter" mean "tick 150 boxes".
+  const [activeCountries, setActiveCountries] = useState<Set<string>>(new Set());
+  const toggleCountry = (c: string) =>
+    setActiveCountries((prev) => {
+      const next = new Set(prev);
+      next.has(c) ? next.delete(c) : next.add(c);
+      return next;
+    });
   const toggleFederation = (f: TournamentCircuit) => {
     setActiveFederations((prev) => {
       const next = new Set(prev);
@@ -647,6 +670,18 @@ export default function CalendarPage() {
     }
   };
 
+  /** Countries in the loaded catalog, with a count each, busiest first. */
+  const countryOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of tournaments) {
+      if (!t.country) continue;
+      counts.set(t.country, (counts.get(t.country) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([country, count]) => ({ value: country, label: country, count }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  }, [tournaments]);
+
   // Convert international tournaments to calendar events
   const internationalEvents: CalendarEvent[] = useMemo(() => {
     return tournaments
@@ -656,6 +691,8 @@ export default function CalendarPage() {
         const c = circuitOf(t);
         return !c || activeFederations.has(c);
       })
+      // Empty set = everywhere, so an untouched filter hides nothing.
+      .filter((t) => activeCountries.size === 0 || activeCountries.has(t.country))
       .map((t) => {
         const circuit = circuitOf(t);
         return {
@@ -670,7 +707,7 @@ export default function CalendarPage() {
         _isInternational: true,
       };
       }) as (CalendarEvent & { _isInternational?: boolean })[];
-  }, [tournaments, activeFederations]);
+  }, [tournaments, activeFederations, activeCountries]);
 
   const registeredIntlIds = useMemo(() => {
     const ids = new Set<string>();
@@ -810,6 +847,12 @@ export default function CalendarPage() {
     });
     setReassignPending(null);
   }, [reassignPending, updateMut, connectedPlayers, events]);
+
+  // The day whose full list is open, with the events it held when opened.
+  const [daySheet, setDaySheet] = useState<{ day: Date; events: CalendarEvent[] } | null>(null);
+  const openDay = useCallback((day: Date, dayEvents: CalendarEvent[]) => {
+    setDaySheet({ day, events: dayEvents });
+  }, []);
 
   const handleAdd = () => { setEditingEvent(undefined); setFormOpen(true); };
   const handleEdit = () => { if (selectedEvent) { setEditingEvent(selectedEvent); setDrawerOpen(false); setFormOpen(true); } };
@@ -972,6 +1015,16 @@ export default function CalendarPage() {
             />
           )}
 
+          {(calendarSource === "international" || calendarSource === "all") && countryOptions.length > 0 && (
+            <LocationFilterMenu
+              icon={<MapPin className="h-3.5 w-3.5" />}
+              options={countryOptions}
+              selected={activeCountries}
+              onToggle={toggleCountry}
+              onSelectNone={() => setActiveCountries(new Set())}
+            />
+          )}
+
           <MultiFilterMenu
             label="Types"
             icon={<Filter className="h-3.5 w-3.5" />}
@@ -1099,13 +1152,22 @@ export default function CalendarPage() {
         <div className="min-w-0 flex-1">
           {scopedEvents.length === 0 && view !== "day" && <EmptyState icon={<CalendarIcon className="h-6 w-6 text-muted-foreground" />} title="No events found" description="No events match your current filters." />}
 
-          {view === "month" && scopedEvents.length > 0 && <MonthlyView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} onDayClick={handleDayClick} showPlayerLabel={showPlayerLabels} onDropEvent={canEdit ? handleDropEvent : undefined} canDrag={canEdit} registeredIntlIds={registeredIntlIds} />}
+          {view === "month" && scopedEvents.length > 0 && <MonthlyView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} onDayClick={handleDayClick} onOpenDay={openDay} showPlayerLabel={showPlayerLabels} onDropEvent={canEdit ? handleDropEvent : undefined} canDrag={canEdit} registeredIntlIds={registeredIntlIds} />}
           {view === "week" && scopedEvents.length > 0 && <WeeklyView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} onDayClick={handleDayClick} showPlayerLabel={showPlayerLabels} onDropEvent={canEdit ? handleDropEvent : undefined} canDrag={canEdit} registeredIntlIds={registeredIntlIds} />}
           {view === "day" && <DayView currentDate={currentDate} events={scopedEvents} onSelectEvent={handleSelectEvent} showPlayerLabel={showPlayerLabels} registeredIntlIds={registeredIntlIds} />}
         </div>
       </div>
 
       {/* Drawers & dialogs */}
+      <DayEventsSheet
+        day={daySheet?.day ?? null}
+        events={daySheet?.events ?? []}
+        open={!!daySheet}
+        onOpenChange={(o) => { if (!o) setDaySheet(null); }}
+        registeredIds={registeredIntlIds}
+        onSelectEvent={(e) => { setDaySheet(null); handleSelectEvent(e); }}
+      />
+
       <EventDetailDrawer event={selectedEvent} open={drawerOpen} onOpenChange={(o) => { setDrawerOpen(o); if (!o) setSelectedEvent(null); }} onEdit={handleEdit} onDelete={handleDelete} onDeleteSingle={handleDeleteSingle} readOnly={isObserver || (selectedEvent ? isProjected(selectedEvent.id) : false)} hideCoachNotes={isObserver} deleting={deleteMut.isPending} registering={registerMut.isPending} alreadyRegistered={selectedEvent ? registeredIntlIds.has(selectedEvent.id) : false} onRegister={selectedEvent?.id.startsWith("intl-") && isPlayer ? () => {
         const tournamentId = selectedEvent!.id.replace("intl-", "");
         const tournament = tournaments.find(t => t.id === tournamentId);

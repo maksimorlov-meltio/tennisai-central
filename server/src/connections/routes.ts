@@ -30,6 +30,62 @@ function notifyCounterparty(actorId: string, input: DeliverInput): void {
 
 const fullName = (u: Pick<User, "firstName" | "lastName">) => `${u.firstName} ${u.lastName}`;
 
+/**
+ * How many coaches one player may work with at once.
+ *
+ * A player commonly has more than one — a club coach, a fitness coach, a
+ * national-programme coach — so the answer is not one. It is also not
+ * unlimited: every coach on a player sees that player's calendar, sessions,
+ * notes and match history, so the number of people holding a junior's training
+ * record should be a deliberate, small figure rather than however many requests
+ * happen to get approved.
+ *
+ * Counted on ACTIVE connections only. A pending request is not a relationship,
+ * and ending one frees the place immediately.
+ */
+export const MAX_COACHES_PER_PLAYER = 3;
+
+/**
+ * Refuse a coach↔player link that would take the player past the limit.
+ *
+ * Checked on both sides of the flow — when the request is sent and again when
+ * it is approved — because the two can be far apart in time. Three coaches can
+ * each send a request while a player has none active, and without the check at
+ * approval the player ends up with four.
+ *
+ * Any other pairing (player↔parent, coach↔coach) is not this rule's business
+ * and passes straight through.
+ */
+async function assertCoachCapacity(
+  a: Pick<User, "id" | "role" | "firstName" | "lastName">,
+  b: Pick<User, "id" | "role" | "firstName" | "lastName">,
+): Promise<void> {
+  const player = a.role === "player" ? a : b.role === "player" ? b : null;
+  const coach = a.role === "coach" ? a : b.role === "coach" ? b : null;
+  if (!player || !coach) return;
+
+  const active = await prisma.connectionRequest.count({
+    where: {
+      status: "active",
+      OR: [
+        { fromUserId: player.id, toUser: { role: "coach" } },
+        { toUserId: player.id, fromUser: { role: "coach" } },
+      ],
+    },
+  });
+
+  if (active >= MAX_COACHES_PER_PLAYER) {
+    // Named from the reader's side: a player is told about their own limit, a
+    // coach is told about the player they tried to add.
+    throw new HttpError(
+      409,
+      `A player can work with at most ${MAX_COACHES_PER_PLAYER} coaches, and ` +
+        `${fullName(player)} already has ${active}. ` +
+        `One of those connections has to end before another can start.`,
+    );
+  }
+}
+
 const sendSchema = z.object({
   toUserId: z.string().min(1),
   toPublicId: z.string().optional(), // accepted; the server resolves by id
@@ -88,6 +144,12 @@ connectionsRouter.post(
     const target = await prisma.user.findUnique({ where: { id: toUserId } });
     if (!target) throw new HttpError(404, "User not found");
 
+    // Refuse early when the player is already at their coach limit, rather than
+    // letting someone wait on a request that could never be approved.
+    const sender = await prisma.user.findUnique({ where: { id: fromUserId } });
+    if (!sender) throw new HttpError(401, "Not authenticated");
+    await assertCoachCapacity(sender, target);
+
     // Block if an active or pending relationship exists in EITHER direction.
     const blocking = await prisma.connectionRequest.findFirst({
       where: {
@@ -135,13 +197,22 @@ connectionsRouter.patch(
   "/:id",
   asyncHandler(async (req: AuthedRequest, res) => {
     const { status } = updateSchema.parse(req.body);
-    const existing = await prisma.connectionRequest.findUnique({ where: { id: req.params.id } });
+    const existing = await prisma.connectionRequest.findUnique({
+      where: { id: req.params.id },
+      include: withUsers,
+    });
     if (!existing) throw new HttpError(404, "Request not found.");
     if (existing.toUserId !== req.userId) {
       throw new HttpError(403, "Only the recipient can act on this request.");
     }
     if (existing.status !== "pending") {
       throw new HttpError(409, `Request is already ${existing.status}.`);
+    }
+    // Re-checked here, not just when the request was sent: several coaches can
+    // each have a pending request while the player has none active, and only
+    // approval turns one into a relationship.
+    if (status === "active") {
+      await assertCoachCapacity(existing.fromUser, existing.toUser);
     }
     const updated = await prisma.connectionRequest.update({
       where: { id: req.params.id },

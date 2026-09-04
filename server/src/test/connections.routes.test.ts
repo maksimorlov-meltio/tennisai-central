@@ -352,3 +352,101 @@ describe("GET /api/connections — public ids", () => {
     expect(body).not.toContain("sam@example.com");
   });
 });
+
+// ── How many coaches one player may have ────────────────────────────────────
+//
+// There was no limit at all: a player could accumulate coaches indefinitely,
+// and every one of them sees that player's calendar, sessions, notes and match
+// history. Three is the agreed ceiling — enough for a club coach, a fitness
+// coach and a national-programme coach, and a deliberate number rather than
+// however many requests happen to get approved.
+describe("the coach limit", () => {
+  /** An active coach↔player connection, from the count query's point of view. */
+  const atCapacity = (n: number) => db.connectionRequest.count.mockResolvedValue(n);
+
+  const coach = { id: "user-coach", role: "coach", firstName: "Sam", lastName: "Sender" };
+  const player = { id: "user-player", role: "player", firstName: "Rita", lastName: "Recipient" };
+
+  it("lets a coach connect to a player who has two", async () => {
+    db.user.findUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve(where.id === coach.id ? coach : player),
+    );
+    atCapacity(2);
+    db.connectionRequest.findFirst.mockResolvedValue(null);
+    db.connectionRequest.upsert.mockResolvedValue(connRow());
+
+    const res = await request(app)
+      .post("/api/connections")
+      .set("Authorization", bearer(coach.id))
+      .send({ toUserId: player.id });
+
+    expect(res.status).toBe(201);
+  });
+
+  it("refuses the fourth, and never writes the request", async () => {
+    db.user.findUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve(where.id === coach.id ? coach : player),
+    );
+    atCapacity(3);
+
+    const res = await request(app)
+      .post("/api/connections")
+      .set("Authorization", bearer(coach.id))
+      .send({ toUserId: player.id });
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toMatch(/at most 3 coaches/i);
+    expect(db.connectionRequest.upsert).not.toHaveBeenCalled();
+  });
+
+  it("refuses again at APPROVAL, which is where the real limit lives", async () => {
+    // Three coaches can each send a request while the player has none active.
+    // Checking only at send time would let all four through.
+    db.connectionRequest.findUnique.mockResolvedValue(
+      connRow({ fromUser: coach, toUser: player, status: "pending" }),
+    );
+    atCapacity(3);
+
+    const res = await request(app)
+      .patch(`/api/connections/${REQ}`)
+      .set("Authorization", bearer(RECIPIENT))
+      .send({ status: "active" });
+
+    expect(res.status).toBe(409);
+    expect(db.connectionRequest.update).not.toHaveBeenCalled();
+  });
+
+  it("lets a player DECLINE even at the limit", async () => {
+    // Rejecting adds no relationship, so the limit has nothing to say about it.
+    db.connectionRequest.findUnique.mockResolvedValue(
+      connRow({ fromUser: coach, toUser: player, status: "pending" }),
+    );
+    atCapacity(3);
+    db.connectionRequest.update.mockResolvedValue(connRow({ status: "rejected" }));
+
+    const res = await request(app)
+      .patch(`/api/connections/${REQ}`)
+      .set("Authorization", bearer(RECIPIENT))
+      .send({ status: "rejected" });
+
+    expect(res.status).toBe(200);
+  });
+
+  it("says nothing about pairings that are not coach and player", async () => {
+    // A parent following a player, for instance, is not this rule's business.
+    const parent = { id: "user-parent", role: "observer", firstName: "Kim", lastName: "Brooks" };
+    db.user.findUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve(where.id === parent.id ? parent : player),
+    );
+    atCapacity(99);
+    db.connectionRequest.findFirst.mockResolvedValue(null);
+    db.connectionRequest.upsert.mockResolvedValue(connRow());
+
+    const res = await request(app)
+      .post("/api/connections")
+      .set("Authorization", bearer(parent.id))
+      .send({ toUserId: player.id });
+
+    expect(res.status).toBe(201);
+  });
+});

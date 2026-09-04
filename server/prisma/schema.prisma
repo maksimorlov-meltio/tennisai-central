@@ -148,6 +148,36 @@ model Tournament {
   startDate      DateTime
   endDate        DateTime
   description    String?
+
+  // ── What a coach needs before deciding to enter ──────────────────────────
+  // The date entries close: the most time-critical fact about a tournament, and
+  // the one most often missed. A perfect event found two days late is not an
+  // option at all.
+  entryDeadline DateTime?
+  // Age band ("U16", "18 & Under"), the venue, and the event's own page.
+  ageCategory String?
+  venue       String?
+  website     String?
+  // How many players have entered so far — a rough read on field strength, and
+  // on whether the draw will happen at all.
+  registeredCount Int?
+
+  // ── UTR band ─────────────────────────────────────────────────────────────
+  // UTR events advertise the rating range they are aimed at. That is what makes
+  // "will my player get matches at their level here" answerable, so it is kept
+  // as numbers rather than the "1.0 - 16.0" string the feed sends.
+  utrRangeMin Float?
+  utrRangeMax Float?
+
+  // ── Provenance ───────────────────────────────────────────────────────────
+  // Which feed produced this row and when it was last seen there. A stale
+  // lastSeenAt means the source stopped listing the event — cancelled, or the
+  // scraper broke. Either way the app must not present it as current without
+  // saying how old it is.
+  source     String?
+  sourceUrl  String?
+  lastSeenAt DateTime?
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -155,6 +185,7 @@ model Tournament {
   hiddenBy      HiddenTournament[]
 
   @@index([startDate])
+  @@index([federation, startDate])
   @@map("tournaments")
 }
 

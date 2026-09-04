@@ -13,6 +13,17 @@ import request from "supertest";
 
 vi.mock("../db", async () => ({ prisma: (await import("./harness")).createPrismaMock() }));
 
+// Mail is pinned as configured, because signup refuses outright with a 503 when
+// verification is demanded and no transport exists — correctly, since every
+// account created in that state is permanently locked. That check runs before
+// everything these specs are about, so without this they would all receive the
+// refusal instead. It passed locally only because a developer's .env sets
+// REQUIRE_EMAIL_VERIFICATION=false; CI has no .env and gets the secure default.
+vi.mock("../env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../env")>();
+  return { ...actual, emailEnabled: true, mailTransport: "smtp" as const };
+});
+
 // Email is a fire-and-forget side effect; stub the whole module so no transport
 // is touched. Auto-vivifying so an added export in that (concurrently edited)
 // module does not break this spec.

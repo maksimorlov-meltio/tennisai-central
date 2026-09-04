@@ -55,6 +55,9 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-}
       MAX_SIGNUPS: ${MAX_SIGNUPS:-}
+      # Shared secret for the CI calendar ingest. Blank = endpoint switched off.
+      FEED_PUSH_TOKEN: ${FEED_PUSH_TOKEN:-}
+      FEED_REFRESH_HOUR_UTC: ${FEED_REFRESH_HOUR_UTC:-4}
       AI_PROVIDER: ${AI_PROVIDER:-}
       AI_API_KEY: ${AI_API_KEY:-}
     depends_on:

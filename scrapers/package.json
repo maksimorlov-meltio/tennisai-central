@@ -1,0 +1,22 @@
+{
+  "name": "tennisai-scrapers",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Collects the tournament calendars that only render in a real browser, and posts them to the TennisAI API. Runs in CI — never on the application server.",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "scrape": "tsx src/run.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "playwright": "^1.49.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.2.7"
+  }
+}
