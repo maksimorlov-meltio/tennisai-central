@@ -1,23 +1,6 @@
-import { Inbox } from "lucide-react";
-import { cn } from "@/lib/utils";
-
-interface EmptyStateProps {
-  icon?: React.ReactNode;
-  title: string;
-  description?: string;
-  action?: React.ReactNode;
-  className?: string;
-}
-
-export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
-  return (
-    <div className={cn("flex flex-col items-center justify-center py-10 text-center", className)}>
-      <div className="mb-3 text-muted-foreground">
-        {icon || <Inbox className="h-10 w-10" />}
-      </div>
-      <p className="text-sm font-medium text-foreground">{title}</p>
-      {description && <p className="mt-1 max-w-xs text-xs text-muted-foreground">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
-    </div>
-  );
-}
+// The dashboard used to carry its own EmptyState with a slightly different
+// shape (an `action` prop, tighter padding). Nothing imported it, and two
+// components with one name is a standing invitation to drift — so the
+// canonical one in `ui/shared` gained the `action` slot and this file is a
+// re-export kept only so the path stays valid.
+export { EmptyState } from "@/components/ui/shared";
