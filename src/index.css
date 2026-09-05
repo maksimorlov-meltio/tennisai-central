@@ -34,7 +34,7 @@
     --accent: 40 16% 91%;
     --accent-foreground: 0 0% 9%;
 
-    --destructive: 6 78% 47%;
+    --destructive: 6 78% 42%;          /* #bf2818 — white text 5.95:1, as text 5.61:1 */
     --destructive-foreground: 0 0% 100%;
 
     --border: 40 14% 86%;
@@ -94,8 +94,12 @@
     --popover: 0 0% 9%;
     --popover-foreground: 40 20% 92%;
 
-    --primary: 146 22% 46%;            /* matte forest green */
-    --primary-foreground: 0 0% 100%;
+    /* Dark accent: L raised to 50% and the text on it flipped to ink. White on
+       the 46% green measured 3.74:1 — no single lightness lets white text on
+       the fill AND green text on the page both clear 4.5:1, so the fill got
+       lighter and its text darker. Ink on #639c7c: 5.87:1; green on --background: 5.87:1. */
+    --primary: 146 22% 50%;            /* #639c7c — matte forest green */
+    --primary-foreground: 0 0% 7%;
 
     --secondary: 0 0% 15%;
     --secondary-foreground: 40 20% 92%;
@@ -106,24 +110,26 @@
     --accent: 0 0% 16%;
     --accent-foreground: 40 20% 92%;
 
-    --destructive: 6 74% 42%;
-    --destructive-foreground: 40 20% 95%;
+    /* Same reasoning as --primary: the old #ba2c1c read 3.09:1 as error text.
+       Lighter fill, ink text: ink on #e46658 5.66:1; red on --background 5.66:1. */
+    --destructive: 6 72% 62%;
+    --destructive-foreground: 0 0% 7%;
 
     --border: 0 0% 18%;
     --input: 0 0% 18%;
-    --ring: 146 22% 46%;
+    --ring: 146 22% 50%;
 
     --surface-elevated: 222 25% 11%;
     --surface-sunken: 222 30% 5%;
 
     --sidebar-background: 0 0% 9%;
     --sidebar-foreground: 40 20% 88%;
-    --sidebar-primary: 146 22% 46%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary: 146 22% 50%;
+    --sidebar-primary-foreground: 0 0% 7%;
     --sidebar-accent: 0 0% 15%;
     --sidebar-accent-foreground: 40 20% 92%;
     --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 146 22% 46%;
+    --sidebar-ring: 146 22% 50%;
 
     --tennis-ball: 72 90% 58%;
     --court-clay: 14 60% 48%;
@@ -133,18 +139,20 @@
     --net-shadow: 0 0% 0%;
 
     /* Calendar palette — same H/S as light, L raised so each hue clears
-       4.5:1 as TEXT against the dark --background. */
-    --cal-event-training: 210 29% 51%;      /* #5e82a6 — dark: 4.66:1 */
-    --cal-event-tournament: 258 20.8% 56%;  /* #8577a6 — dark: 4.63:1 */
-    --cal-event-match: 16.3 40.7% 50.4%;    /* #b4694d — dark: 4.52:1 */
-    --cal-event-travel: 39.2 51.2% 50.2%;   /* #c1943f — dark: 6.76:1 */
-    --cal-event-recovery: 152.5 20.2% 46.7%; /* #5f8f79 — dark: 5.08:1 */
-    --cal-fed-atp: 215.5 36% 53%;           /* #5c7fb2 — dark: 4.58:1 */
-    --cal-fed-wta: 272.7 23% 55%;           /* #8f72a7 — dark: 4.58:1 */
-    --cal-fed-itf: 172 37.3% 39.4%;         /* #3f8a80 — dark: 4.60:1 */
-    --cal-fed-itf-junior: 156 37.3% 40%;    /* #408c6e — dark: 4.64:1 */
-    --cal-fed-utr: 27.7 45.5% 49.6%;        /* #b87a45 — dark: 5.27:1 */
-    --cal-fed-usta: 335.6 31.8% 55%;        /* #b16885 — dark: 4.63:1 */
+       4.5:1 as TEXT against BOTH dark surfaces a chip sits on: --background
+       (#121212) and the lighter --card (#171717). Card is the binding one;
+       the ratios below are measured against it. */
+    --cal-event-training: 210 29% 53%;      /* #6487aa — dark/card: 4.77:1 */
+    --cal-event-tournament: 258 20.8% 58%;  /* #8b7eaa — dark/card: 4.83:1 */
+    --cal-event-match: 16.3 40.7% 53%;      /* #b87156 — dark/card: 4.72:1 */
+    --cal-event-travel: 39.2 51.2% 50.2%;   /* #c1943f — dark/card: 6.47:1 */
+    --cal-event-recovery: 152.5 20.2% 46.7%; /* #5f8f79 — dark/card: 4.86:1 */
+    --cal-fed-atp: 215.5 36% 55%;           /* #6385b6 — dark/card: 4.75:1 */
+    --cal-fed-wta: 272.7 23% 57%;           /* #9478ab — dark/card: 4.72:1 */
+    --cal-fed-itf: 172 37.3% 41.5%;         /* #429187 — dark/card: 4.82:1 */
+    --cal-fed-itf-junior: 156 37.3% 42%;    /* #439373 — dark/card: 4.83:1 */
+    --cal-fed-utr: 27.7 45.5% 49.6%;        /* #b87a45 — dark/card: 5.04:1 */
+    --cal-fed-usta: 335.6 31.8% 57%;        /* #b46e8b — dark/card: 4.73:1 */
   }
 }
 

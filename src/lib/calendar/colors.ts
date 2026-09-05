@@ -52,9 +52,16 @@ export const SURFACE_COLOR: Record<string, string> = {
   indoor: "#6e5f91", // matte violet
 };
 
-/** Distinct, reasonably-accessible hues assigned to players/teams by hash. */
+/**
+ * Distinct hues assigned to players/teams by hash. Each one is used as a
+ * non-text mark (dot, spine, tint) and clears WCAG 1.4.11's 3:1 against
+ * --background AND --card in BOTH themes — src/lib/calendar/__tests__/
+ * paletteContrast.test.ts enforces it. Replace a value IN PLACE if it has to
+ * move: `entityColor` indexes this array, so reordering or resizing it
+ * silently reassigns every player's colour.
+ */
 export const ENTITY_PALETTE = [
-  "#4c6b8a", "#b4694d", "#5f8f79", "#c1943f", "#6e5f91",
+  "#4c6b8a", "#b4694d", "#5f8f79", "#ad8430", "#6e5f91",
   "#4f8a86", "#a85778", "#5d6ba0", "#7d914f", "#3f8a80",
   "#a67a45", "#a05563",
 ] as const;
