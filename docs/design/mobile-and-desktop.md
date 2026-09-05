@@ -412,7 +412,9 @@ about 5.3:1, which passes AA indoors and is marginal in direct sun. Rule: on mob
 *primary* text of any row (event title, player name, session type) is `text-foreground`;
 `text-muted-foreground` is only for genuinely secondary metadata. This is a per-component
 call, not a token change — **do not alter the token**, the calendar palette in
-`index.css` is contrast-tuned against it and every one of those hues was measured.
+`index.css` is contrast-tuned against it and every one of those hues was measured (light
+against `--background`; dark against `--card`, the surface chips actually sit on — see
+`tokens.md` §1–2 for the measured table).
 
 **Density.** Desktop is comfortable-dense: `space-y-5`/`space-y-6` between sections,
 `gap-4` in card grids, `p-6` page padding. Mobile is looser vertically and tighter
