@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { GetStartedCard, type GetStartedItem } from "@/components/dashboard/GetStartedCard";
+import { GetStartedCard } from "@/components/dashboard/GetStartedCard";
+import { coachItems } from "@/components/dashboard/firstRunItems";
 import { IncomingRequestsCard } from "@/components/dashboard/IncomingRequestsCard";
 import { statCardClass, statLinkClass } from "@/components/dashboard/statLinkStyles";
 import { StatusBadge, LoadingState, ErrorState } from "@/components/ui/shared";
@@ -76,33 +77,13 @@ export default function CoachDashboard() {
     .slice(0, 4);
 
   // First-run checklist. Every tick is derived from data this page already
-  // queried — nothing is assumed done on the coach's behalf.
-  const getStartedItems: GetStartedItem[] = [
-    {
-      id: "connect-player",
-      label: t("dashboard.coach.getStarted.connectPlayer.label"),
-      description: t("dashboard.coach.getStarted.connectPlayer.description"),
-      to: "/connections",
-      actionLabel: t("dashboard.coach.getStarted.connectPlayer.action"),
-      done: connectedPlayers.length > 0,
-    },
-    {
-      id: "build-session",
-      label: t("dashboard.coach.getStarted.buildSession.label"),
-      description: t("dashboard.coach.getStarted.buildSession.description"),
-      to: "/session-builder",
-      actionLabel: t("dashboard.coach.getStarted.buildSession.action"),
-      done: trainingPlans.length > 0,
-    },
-    {
-      id: "schedule-training",
-      label: t("dashboard.coach.getStarted.scheduleTraining.label"),
-      description: t("dashboard.coach.getStarted.scheduleTraining.description"),
-      to: "/trainings",
-      actionLabel: t("dashboard.coach.getStarted.scheduleTraining.action"),
-      done: trainings.length > 0,
-    },
-  ];
+  // queried — nothing is assumed done on the coach's behalf. Builders live in
+  // firstRunItems.ts.
+  const getStartedItems = coachItems(t, {
+    playerCount: connectedPlayers.length,
+    planCount: trainingPlans.length,
+    teamCount: teams.length,
+  });
 
   if (isLoading) return <LoadingState message={t("dashboard.coach.loading")} />;
   if (hasError) return <ErrorState message={t("dashboard.common.loadError")} onRetry={() => window.location.reload()} />;

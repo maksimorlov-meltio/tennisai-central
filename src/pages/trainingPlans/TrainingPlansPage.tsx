@@ -18,6 +18,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/shared";
 import { useAuth } from "@/auth/AuthContext";
+import { useConnections } from "@/store/ConnectionStore";
+import { hasCoachCounterpart } from "@/lib/connections/hasCoachCounterpart";
+import { useT } from "@/lib/i18n";
 import { useTrainingPlanList } from "@/hooks/api/trainingPlans";
 import { PlanListItem } from "@/pages/trainingPlans/PlanListItem";
 import { TrainingPlanDetail } from "@/pages/trainingPlans/TrainingPlanDetail";
@@ -27,7 +30,9 @@ import { usePlanPeople } from "@/pages/trainingPlans/usePlanPeople";
 type PlanFilter = "all" | "assigned" | "created";
 
 export default function TrainingPlansPage() {
-  const { hasRole } = useAuth();
+  const { t } = useT();
+  const { user, hasRole } = useAuth();
+  const { activeRelationships } = useConnections();
   const people = usePlanPeople();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<PlanFilter>("all");
@@ -94,21 +99,23 @@ export default function TrainingPlansPage() {
         {header}
         <EmptyState
           icon={<ClipboardList className="h-6 w-6 text-muted-foreground" />}
-          title="No plans yet"
-          description={
-            isCoach
-              ? "No plans yet — build one in the Session Builder and save it to a player."
-              : "No plans yet — your coach builds these in the Session Builder and they appear here once saved to you."
+          title={t("empty.trainingPlans.title")}
+          description={isCoach ? t("empty.trainingPlans.coach.description") : t("empty.trainingPlans.player.description")}
+          action={
+            isCoach ? (
+              <Button asChild className="gap-1.5">
+                <Link to="/session-builder">
+                  <Sparkles className="h-4 w-4" /> {t("empty.trainingPlans.coach.action")}
+                </Link>
+              </Button>
+            ) : !hasCoachCounterpart(activeRelationships, user?.id ?? "") ? (
+              // A player's plans come from a coach — without one, that is the step.
+              <Button asChild className="gap-1.5">
+                <Link to="/connections">{t("empty.trainingPlans.player.actionConnect")}</Link>
+              </Button>
+            ) : undefined
           }
-        >
-          {isCoach && (
-            <Button asChild className="gap-1.5">
-              <Link to="/session-builder">
-                <Sparkles className="h-4 w-4" /> Open the Session Builder
-              </Link>
-            </Button>
-          )}
-        </EmptyState>
+        />
       </div>
     );
   }

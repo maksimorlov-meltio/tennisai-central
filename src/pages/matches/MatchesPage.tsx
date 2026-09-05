@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/shared";
+import { useT } from "@/lib/i18n";
 import { MatchForm, type MatchFormValues } from "@/components/matches/MatchForm";
 import { MatchList } from "@/components/matches/MatchList";
 import { ALL_COUNT_KEYS, type CountKey } from "@/components/matches/MatchStatsFields";
@@ -74,6 +75,7 @@ function toUpdateInput(values: MatchFormValues, opponentId: string | null): Matc
 }
 
 export default function MatchesPage() {
+  const { t } = useT();
   const [view, setView] = useState<View>({ mode: "list" });
   const [deleteTarget, setDeleteTarget] = useState<MatchView | null>(null);
 
@@ -154,13 +156,14 @@ export default function MatchesPage() {
       ) : matches.length === 0 ? (
         <EmptyState
           icon={<ClipboardList className="h-6 w-6 text-muted-foreground" />}
-          title="No matches logged yet"
-          description="Every statistic in the app comes from matches you record here — nothing is estimated or pre-filled."
-        >
-          <Button className="gap-1.5" onClick={() => setView({ mode: "create" })}>
-            <Plus className="h-4 w-4" /> Log your first match
-          </Button>
-        </EmptyState>
+          title={t("empty.matches.title")}
+          description={t("empty.matches.description")}
+          action={
+            <Button className="gap-1.5" onClick={() => setView({ mode: "create" })}>
+              <Plus className="h-4 w-4" /> {t("empty.matches.action")}
+            </Button>
+          }
+        />
       ) : (
         <MatchList
           matches={matches}

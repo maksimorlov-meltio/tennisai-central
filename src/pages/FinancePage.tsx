@@ -1,7 +1,9 @@
 // Finance — Transaction list + category breakdown via React Query
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
+import { useT } from "@/lib/i18n";
 import { useFinanceEntries, useFinanceSummary, useCreateFinanceEntry } from "@/hooks/api/queries";
 import { ReadOnlyBanner, ReadOnlyBadge, LoadingState, ErrorState, EmptyState } from "@/components/ui/shared";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
@@ -25,6 +27,7 @@ const CATEGORIES: { value: FinanceCategory; label: string; icon: React.ReactNode
 ];
 
 export default function FinancePage() {
+  const { t } = useT();
   const { user } = useAuth();
   const { connectedPlayers } = useConnections();
   const role = user?.role ?? "player";
@@ -64,7 +67,12 @@ export default function FinancePage() {
           </div>
         </div>
         <ReadOnlyBanner />
-        <EmptyState icon={<Wallet className="h-6 w-6 text-muted-foreground" />} title="No connected players" description="Connect with a player to view their expenses." />
+        <EmptyState
+          icon={<Wallet className="h-6 w-6 text-muted-foreground" />}
+          title={t("empty.finance.noPlayers.title")}
+          description={t("empty.finance.noPlayers.description")}
+          action={<Button asChild className="gap-1.5"><Link to="/connections">{t("empty.finance.noPlayers.action")}</Link></Button>}
+        />
       </div>
     );
   }
@@ -114,9 +122,13 @@ export default function FinancePage() {
       )}
 
       {entries.length === 0 ? (
-        <EmptyState icon={<Wallet className="h-6 w-6 text-muted-foreground" />} title="No expenses" description="Start tracking your tennis expenses.">
-          {!isObserver && <Button onClick={() => setAddOpen(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Add Expense</Button>}
-        </EmptyState>
+        <EmptyState
+          icon={<Wallet className="h-6 w-6 text-muted-foreground" />}
+          title={t("empty.finance.title")}
+          description={isObserver ? t("empty.finance.observer.description") : t("empty.finance.player.description")}
+          // A parent is read-only here: their player logs the expenses.
+          action={!isObserver ? <Button onClick={() => setAddOpen(true)} className="gap-1.5"><Plus className="h-4 w-4" /> {t("empty.finance.player.action")}</Button> : undefined}
+        />
       ) : (
         <DashboardCard title="Transactions" description={`${entries.length} entries`} icon={<Wallet className="h-4 w-4" />}>
           <div className="space-y-2">

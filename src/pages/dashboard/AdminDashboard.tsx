@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { GetStartedCard } from "@/components/dashboard/GetStartedCard";
+import { adminItems, isProfileComplete } from "@/components/dashboard/firstRunItems";
+import { useOnboarding } from "@/hooks/api/onboarding";
 import { RoleBadge, StatusBadge } from "@/components/ui/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -128,6 +131,10 @@ export default function AdminDashboard() {
   const { user } = useAuth();
   const { requests } = useConnections();
   const [userSearch, setUserSearch] = useState("");
+  // The one first-run step an admin can complete today (academy questionnaire).
+  // Not part of any loading gate: this dashboard has none, and a failure here
+  // simply hides the checklist.
+  const { data: onboarding, isLoading: loadingOnboarding, error: errorOnboarding } = useOnboarding(!!user);
 
   const filteredUsers = mockRecentUsers.filter(
     (u) =>
@@ -155,6 +162,14 @@ export default function AdminDashboard() {
           <strong className="text-foreground">{t("dashboard.admin.previewBanner.strong")}</strong> {t("dashboard.admin.previewBanner.text")}
         </p>
       </div>
+
+      {/* First-run checklist — rendered once the answers are known so no tick can be wrong. */}
+      {!loadingOnboarding && !errorOnboarding && (
+        <GetStartedCard
+          storageKey={`admin:${user?.id ?? ""}`}
+          items={adminItems(t, { profileComplete: isProfileComplete("admin", onboarding?.answers) })}
+        />
+      )}
 
       {/* User count cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

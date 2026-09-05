@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/shared";
+import { useT } from "@/lib/i18n";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +26,7 @@ import {
   AlertTriangle,
   ClipboardList,
   Save,
+  UserPlus,
 } from "lucide-react";
 import {
   Dialog,
@@ -80,6 +84,7 @@ interface SessionBuilderDraft {
 }
 
 export default function SessionBuilderPage() {
+  const { t } = useT();
   const [prefs, setPrefs] = useState<SessionPreferences>(DEFAULT_PREFS);
   const [session, setSession] = useState<GeneratedSession | null>(null);
 
@@ -371,9 +376,15 @@ export default function SessionBuilderPage() {
             </DialogDescription>
           </DialogHeader>
           {connectedPlayers.length === 0 ? (
-            <p className="py-2 text-sm text-muted-foreground">
-              You have no connected players yet. Connect a player first, then save the session to their plan.
-            </p>
+            // A plan is saved TO a player; with none connected, the save cannot
+            // happen. The generated session stays on screen behind the dialog.
+            <EmptyState
+              className="py-8"
+              icon={<UserPlus className="h-6 w-6 text-muted-foreground" />}
+              title={t("empty.sessionBuilder.noPlayers.title")}
+              description={t("empty.sessionBuilder.noPlayers.description")}
+              action={<Button asChild variant="outline" className="gap-1.5"><Link to="/connections">{t("empty.sessionBuilder.noPlayers.action")}</Link></Button>}
+            />
           ) : (
             <div className="space-y-1.5">
               <Label htmlFor="session-assign-player">Player</Label>

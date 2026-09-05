@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
+import { useT } from "@/lib/i18n";
 import { StatusBadge, RoleBadge, EmptyState } from "@/components/ui/shared";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { NewConnectionDialog } from "@/components/connections/NewConnectionDialog";
@@ -266,7 +267,7 @@ export default function ConnectionsPage() {
         <TabsContent value="incoming">
           <DashboardCard title="Incoming Requests" description={`${incoming.length} pending`}>
             {incoming.length === 0 ? (
-              <EmptyState title="No incoming requests" description={search ? "No results matching your search." : "You have no pending requests."} />
+              <EmptyState title={t("empty.connections.incoming.title")} description={search ? t("empty.connections.search.description") : t("empty.connections.incoming.description")} />
             ) : (
               <div className="space-y-3">
                 {incoming.map((req) => (
@@ -295,7 +296,7 @@ export default function ConnectionsPage() {
         <TabsContent value="sent">
           <DashboardCard title="Sent Requests" description={`${sent.length} pending`}>
             {sent.length === 0 ? (
-              <EmptyState title="No sent requests" description={search ? "No results matching your search." : "You haven't sent any pending requests."} />
+              <EmptyState title={t("empty.connections.sent.title")} description={search ? t("empty.connections.search.description") : t("empty.connections.sent.description")} />
             ) : (
               <div className="space-y-3">
                 {sent.map((req) => (
@@ -309,7 +310,28 @@ export default function ConnectionsPage() {
         <TabsContent value="active">
           <DashboardCard title="Active Relationships" description={`${active.length} active connection${active.length !== 1 ? "s" : ""}`}>
             {active.length === 0 ? (
-              <EmptyState title="No active connections" description="Approved connections will appear here." />
+              // The first-run state of this page: nobody is linked yet. Every
+              // role that can send a request gets the dialog as its next step;
+              // an admin only views records, so no action.
+              <EmptyState
+                title={t("empty.connections.active.title")}
+                description={
+                  search
+                    ? t("empty.connections.search.description")
+                    : role === "coach"
+                    ? t("empty.connections.active.coach.description")
+                    : role === "observer"
+                    ? t("empty.connections.active.observer.description")
+                    : role === "player"
+                    ? t("empty.connections.active.player.description")
+                    : t("empty.connections.active.admin.description")
+                }
+                action={
+                  !search && (canSend || role === "player") ? (
+                    <Button onClick={() => setDialogOpen(true)} className="gap-1.5"><UserPlus className="h-4 w-4" /> {t("empty.connections.active.action")}</Button>
+                  ) : undefined
+                }
+              />
             ) : (
               <div className="space-y-3">
                 {active.map((req) => (
@@ -333,7 +355,7 @@ export default function ConnectionsPage() {
         <TabsContent value="revoked">
           <DashboardCard title="Revoked & Rejected" description={`${revoked.length + rejected.length} relationship${revoked.length + rejected.length !== 1 ? "s" : ""}`}>
             {revoked.length + rejected.length === 0 ? (
-              <EmptyState title="No revoked or rejected connections" />
+              <EmptyState title={t("empty.connections.revoked.title")} description={t("empty.connections.revoked.description")} />
             ) : (
               <div className="space-y-3">
                 {[...revoked, ...rejected].map((req) => (

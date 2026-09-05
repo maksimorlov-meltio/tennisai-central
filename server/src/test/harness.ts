@@ -89,8 +89,20 @@ const DELEGATES = [
   "aiGeneration",
   "aiUsageCounter",
   // Equipment reads are gated by assertCanActOnPlayer; the specs need the
-  // table itself as well as the relationship delegates above.
+  // table itself as well as the relationship delegates above. The finance
+  // router's own delegate was missing too, so any spec touching
+  // /api/players/:id/finance crashed on an undefined delegate.
   "equipmentItem",
+  "financeEntry",
+  // The recommendation routes derive level / age / comfort from the profile row.
+  "playerProfile",
+  // Gear catalogue domain.
+  "equipmentProduct",
+  "racketSpec",
+  "stringSpec",
+  "shoeSpec",
+  "accessorySpec",
+  "stringSetup",
 ] as const;
 
 export type MockDelegate = Record<(typeof DELEGATE_METHODS)[number], MockFn>;
