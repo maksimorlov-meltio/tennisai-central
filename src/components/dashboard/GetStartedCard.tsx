@@ -23,6 +23,12 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Check, Rocket, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
+import {
+  DISMISS_MS,
+  readGetStartedState,
+  writeGetStartedState,
+  type GetStartedStoredState,
+} from "@/components/dashboard/getStartedStorage";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -50,65 +56,19 @@ interface GetStartedCardProps {
   items: GetStartedItem[];
 }
 
-interface StoredState {
-  /** Epoch ms of the last dismissal, or null. */
-  dismissedAt: number | null;
-  /** Ids of MANUAL items the user confirmed by hand. Ignored for derived items. */
-  confirmed: string[];
-}
-
-/** A dismissed card returns after this long if the account is still incomplete. */
-export const DISMISS_DAYS = 7;
-const DISMISS_MS = DISMISS_DAYS * 24 * 60 * 60 * 1000;
-
-const EMPTY_STATE: StoredState = { dismissedAt: null, confirmed: [] };
-
-/** Exported so tests can seed storage without duplicating the key format. */
-export function getStartedStorageId(scope: string): string {
-  return `tennisai_getstarted_${scope}`;
-}
-
-/** Reads the persisted state. Storage can be unavailable (private mode) — never throw. */
-function readState(scope: string): StoredState {
-  try {
-    const raw = localStorage.getItem(getStartedStorageId(scope));
-    if (!raw) return EMPTY_STATE;
-    const parsed = JSON.parse(raw) as Partial<StoredState> & { dismissed?: boolean };
-    return {
-      // Legacy `{ dismissed: true }` (no timestamp) counts as long expired, so
-      // an account dismissed under the old rules sees the card again once.
-      dismissedAt:
-        typeof parsed.dismissedAt === "number" ? parsed.dismissedAt : parsed.dismissed === true ? 0 : null,
-      confirmed: Array.isArray(parsed.confirmed)
-        ? parsed.confirmed.filter((id): id is string => typeof id === "string")
-        : [],
-    };
-  } catch {
-    return EMPTY_STATE;
-  }
-}
-
-function writeState(scope: string, state: StoredState): void {
-  try {
-    localStorage.setItem(getStartedStorageId(scope), JSON.stringify(state));
-  } catch {
-    /* device storage unavailable — the checklist simply won't persist */
-  }
-}
-
 export function GetStartedCard({ storageKey, items }: GetStartedCardProps) {
   const { t } = useT();
-  const [state, setState] = useState<StoredState>(() => readState(storageKey));
+  const [state, setState] = useState<GetStartedStoredState>(() => readGetStartedState(storageKey));
 
   // Switching account (or scope) must not carry the previous state over.
   useEffect(() => {
-    setState(readState(storageKey));
+    setState(readGetStartedState(storageKey));
   }, [storageKey]);
 
   const persist = useCallback(
-    (next: StoredState) => {
+    (next: GetStartedStoredState) => {
       setState(next);
-      writeState(storageKey, next);
+      writeGetStartedState(storageKey, next);
     },
     [storageKey],
   );

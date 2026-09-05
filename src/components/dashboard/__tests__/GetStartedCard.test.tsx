@@ -9,12 +9,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import {
-  DISMISS_DAYS,
-  GetStartedCard,
-  getStartedStorageId,
-  type GetStartedItem,
-} from "@/components/dashboard/GetStartedCard";
+import { GetStartedCard, type GetStartedItem } from "@/components/dashboard/GetStartedCard";
+import { DISMISS_DAYS, getStartedStorageId } from "@/components/dashboard/getStartedStorage";
 
 const SCOPE = "player:test-1";
 

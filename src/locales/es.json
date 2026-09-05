@@ -159,23 +159,6 @@
         "subtitle": "Este es tu resumen de tenis de hoy."
       },
       "loading": "Cargando tu panel…",
-      "getStarted": {
-        "connectCoach": {
-          "label": "Conecta con tu entrenador",
-          "description": "Aprueba o envía una solicitud para que tu entrenador pueda planificar contigo.",
-          "action": "Conexiones"
-        },
-        "logMatch": {
-          "label": "Registra tu primer partido",
-          "description": "Las estadísticas se calculan a partir de los partidos que registras.",
-          "action": "Registrar partido"
-        },
-        "addTournament": {
-          "label": "Añade un torneo",
-          "description": "Planifica tu temporada y controla juntos los viajes y los gastos.",
-          "action": "Torneos"
-        }
-      },
       "stats": {
         "tournaments": "Torneos",
         "registeredTrend": "{count} inscritos"
@@ -209,23 +192,6 @@
       "loading": "Cargando tu panel…",
       "createTeam": "Crear equipo",
       "newTraining": "Nuevo entrenamiento",
-      "getStarted": {
-        "connectPlayer": {
-          "label": "Conecta a tu primer jugador",
-          "description": "Envía una solicitud con el ID público del jugador, o aprueba una que hayas recibido.",
-          "action": "Conexiones"
-        },
-        "buildSession": {
-          "label": "Crea una sesión",
-          "description": "Combina ejercicios en el Creador de sesiones y guárdala como plan.",
-          "action": "Creador de sesiones"
-        },
-        "scheduleTraining": {
-          "label": "Programa un entrenamiento",
-          "description": "Añade una sesión al calendario para que tus jugadores la vean.",
-          "action": "Entrenamientos"
-        }
-      },
       "stats": {
         "connectedPlayers": "Jugadores conectados",
         "pendingRequests": "Solicitudes pendientes",

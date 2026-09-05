@@ -2,7 +2,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { GetStartedCard, type GetStartedItem } from "@/components/dashboard/GetStartedCard";
+import { GetStartedCard } from "@/components/dashboard/GetStartedCard";
+import { hasCoachCounterpart, isProfileComplete, playerItems } from "@/components/dashboard/firstRunItems";
 import { IncomingRequestsCard } from "@/components/dashboard/IncomingRequestsCard";
 import { StatisticsSummaryCard } from "@/components/dashboard/StatisticsSummaryCard";
 import { statCardClass, statLinkClass } from "@/components/dashboard/statLinkStyles";
@@ -26,7 +27,7 @@ import {
   useFinanceSummary,
   useEquipment,
 } from "@/hooks/api/queries";
-import { useMatchStats } from "@/hooks/api/matches";
+import { useOnboarding } from "@/hooks/api/onboarding";
 import { isBefore } from "date-fns";
 import { useT, formatDate as formatDateIntl } from "@/lib/i18n";
 
@@ -59,9 +60,10 @@ export default function PlayerDashboard() {
   const { data: notifications = [], isLoading: loadingNotif, error: errorNotif } = useNotifications(uid);
   const { data: financeSummary, isLoading: loadingFinance, error: errorFinance } = useFinanceSummary(uid);
   const { data: equipment = [], isLoading: loadingEquip, error: errorEquip } = useEquipment(uid);
-  // Same query key as the Statistics card, so this is a shared cache read, not
-  // a second request. Used only to derive the "Get started" ticks.
-  const { data: matchStats, isLoading: loadingMatchStats, error: errorMatchStats } = useMatchStats();
+  // Same query ProfilePage runs, so this is a shared cache read. Used only to
+  // derive the "complete your profile" tick, and kept out of the page's
+  // loading/error gate so a failure here cannot take the dashboard down.
+  const { data: onboarding, isLoading: loadingOnboarding, error: errorOnboarding } = useOnboarding(!!user);
 
   const isLoading = loadingEvents || loadingPT || loadingNotif || loadingFinance || loadingEquip;
   const hasError = errorEvents || errorPT || errorNotif || errorFinance || errorEquip;
@@ -80,33 +82,12 @@ export default function PlayerDashboard() {
   };
 
   // First-run checklist. Every tick comes from data already on this page —
-  // nothing is assumed done.
-  const getStartedItems: GetStartedItem[] = [
-    {
-      id: "connect-coach",
-      label: t("dashboard.player.getStarted.connectCoach.label"),
-      description: t("dashboard.player.getStarted.connectCoach.description"),
-      to: "/connections",
-      actionLabel: t("dashboard.player.getStarted.connectCoach.action"),
-      done: activeRelationships.length > 0,
-    },
-    {
-      id: "log-match",
-      label: t("dashboard.player.getStarted.logMatch.label"),
-      description: t("dashboard.player.getStarted.logMatch.description"),
-      to: "/matches",
-      actionLabel: t("dashboard.player.getStarted.logMatch.action"),
-      done: (matchStats?.matchesPlayed ?? 0) > 0,
-    },
-    {
-      id: "add-tournament",
-      label: t("dashboard.player.getStarted.addTournament.label"),
-      description: t("dashboard.player.getStarted.addTournament.description"),
-      to: "/tournaments",
-      actionLabel: t("dashboard.player.getStarted.addTournament.action"),
-      done: playerTournaments.length > 0,
-    },
-  ];
+  // nothing is assumed done. Builders live in firstRunItems.ts.
+  const getStartedItems = playerItems(t, {
+    profileComplete: isProfileComplete("player", onboarding?.answers),
+    hasCoach: hasCoachCounterpart(activeRelationships, uid),
+    tournamentCount: playerTournaments.length,
+  });
 
   if (isLoading) return <LoadingState message={t("dashboard.player.loading")} />;
   if (hasError) return <ErrorState message={t("dashboard.common.loadError")} onRetry={() => window.location.reload()} />;
@@ -124,8 +105,8 @@ export default function PlayerDashboard() {
       {/* Anything waiting on a decision comes first. */}
       <IncomingRequestsCard />
 
-      {/* Rendered only once the match count is known, so no tick can be wrong. */}
-      {!loadingMatchStats && !errorMatchStats && (
+      {/* Rendered only once the onboarding answers are known, so no tick can be wrong. */}
+      {!loadingOnboarding && !errorOnboarding && (
         <GetStartedCard storageKey={`player:${uid}`} items={getStartedItems} />
       )}
 

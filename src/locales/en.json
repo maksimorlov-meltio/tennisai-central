@@ -159,23 +159,6 @@
         "subtitle": "Here's your tennis overview for today."
       },
       "loading": "Loading your dashboard…",
-      "getStarted": {
-        "connectCoach": {
-          "label": "Connect your coach",
-          "description": "Approve or send a request so your coach can plan with you.",
-          "action": "Connections"
-        },
-        "logMatch": {
-          "label": "Log your first match",
-          "description": "Statistics are computed from the matches you record.",
-          "action": "Log match"
-        },
-        "addTournament": {
-          "label": "Add a tournament",
-          "description": "Plan your season and keep travel and costs together.",
-          "action": "Tournaments"
-        }
-      },
       "stats": {
         "tournaments": "Tournaments",
         "registeredTrend": "{count} registered"
@@ -209,23 +192,6 @@
       "loading": "Loading your dashboard…",
       "createTeam": "Create Team",
       "newTraining": "New Training",
-      "getStarted": {
-        "connectPlayer": {
-          "label": "Connect your first player",
-          "description": "Send a request with the player's public ID, or approve an incoming one.",
-          "action": "Connections"
-        },
-        "buildSession": {
-          "label": "Build a session",
-          "description": "Assemble drills in the Session Builder and save it as a plan.",
-          "action": "Session Builder"
-        },
-        "scheduleTraining": {
-          "label": "Schedule a training",
-          "description": "Put a session on the calendar so your players can see it.",
-          "action": "Trainings"
-        }
-      },
       "stats": {
         "connectedPlayers": "Connected Players",
         "pendingRequests": "Pending Requests",
