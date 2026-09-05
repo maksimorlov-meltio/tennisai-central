@@ -1,0 +1,128 @@
+id: split-step-reaction-gate
+title:
+  en: "Split-step reaction gate"
+  es: "Puerta de reacción con paso de ajuste"
+version: 1
+status: reviewed
+taxonomy:
+  domain: footwork
+  skills:
+    - split_step
+    - first_step_speed
+    - recovery_step
+    - lateral_balance
+  patterns: []
+blockKinds:
+  - warmup
+  - technical
+  - tactical
+levelBands:
+  - beginner
+  - intermediate
+  - advanced
+  - high_performance
+ageBands:
+  - u12
+  - u14
+  - u16
+  - u18
+  - adult
+players:
+  min: 2
+  max: 6
+courts:
+  min: 0.5
+  max: 1
+equipment:
+  - balls
+  - cones
+defaults:
+  durationMin: 8
+  reps: 20
+  sets: 3
+  restSec: 40
+  intensity: medium
+ranges:
+  durationMin: [5, 15]
+  reps: [10, 30]
+  sets: [2, 5]
+requiresQualifiedSupervision: false
+objective:
+  en: "Land the split step before the feeder's contact on 18 of 20 repetitions and reach the cone gate under control."
+  es: "Caer del paso de ajuste antes del impacto del lanzador en 18 de 20 repeticiones y llegar a la puerta de conos con control."
+setup:
+  en: "Two cones stand 3 m either side of the centre mark, one step inside the baseline. The player starts on the centre mark; the feeder stands at the opposite service line and feeds to one side without announcing it."
+  es: "Dos conos se colocan a 3 m a cada lado de la marca central, un paso dentro de la línea de fondo. Empiezas en la marca central; el lanzador se sitúa en la línea de saque contraria y lanza a un lado sin avisar."
+progression:
+  en: "Feed later and wider, then replace the feed with a live rally where the coach counts only the split steps that land in time."
+  es: "Lanza más tarde y más abierto y después sustituye el lanzamiento por un peloteo real en el que el entrenador cuenta solo los pasos de ajuste que llegan a tiempo."
+regression:
+  en: "Announce the direction before the feed and shorten the gate to 2 m so the player can arrive balanced."
+  es: "Anuncia la dirección antes del lanzamiento y acerca la puerta a 2 m para que llegues equilibrado."
+successCriteria:
+  en: "18 of 20 split steps land before the feeder's contact, and the player recovers to the centre mark between repetitions."
+  es: "18 de cada 20 pasos de ajuste caen antes del impacto del lanzador y recuperas a la marca central entre repeticiones."
+diagram:
+  court: half
+  markers:
+    - { type: player, x: 0.0, y: -10.9, label: "Start" }
+    - { type: feeder, x: 0.0, y: -6.4, label: "Feeder" }
+    - { type: cone, x: -3.0, y: -10.4, label: "Left gate" }
+    - { type: cone, x: 3.0, y: -10.4, label: "Right gate" }
+    - { type: line, x: 0.0, y: -11.885, label: "Baseline" }
+  paths:
+    - style: movement
+      points: [{ x: 0.0, y: -10.9 }, { x: 3.0, y: -10.4 }]
+      label: "First step right"
+    - style: movement
+      points: [{ x: 3.0, y: -10.4 }, { x: 0.0, y: -10.9 }]
+      label: "Recovery"
+    - style: movement
+      points: [{ x: 0.0, y: -10.9 }, { x: -3.0, y: -10.4 }]
+      label: "First step left"
+steps:
+  en:
+    - "Player stands on the centre mark, weight forward, racket in front."
+    - "As the feeder starts the swing, the player hops into a split step."
+    - "Player pushes off the outside foot and reaches the cone on the fed side."
+    - "Player recovers to the centre mark; repeat 20 times, then rest."
+  es:
+    - "Colócate en la marca central, con el peso adelantado y la raqueta delante."
+    - "Cuando el lanzador inicia el movimiento, salta al paso de ajuste."
+    - "Empuja con el pie exterior y llega al cono del lado lanzado."
+    - "Recupera a la marca central; repite 20 veces y descansa."
+cues:
+  en:
+    - "Land as they hit, not after"
+    - "Small hop, wide base"
+    - "Push off the outside foot"
+    - "Eyes on the racket, not the ball"
+  es:
+    - "Cae cuando golpean, no después"
+    - "Salto pequeño, base ancha"
+    - "Empuja con el pie exterior"
+    - "Mira la raqueta, no la bola"
+commonErrors:
+  en:
+    - "Splitting after the opponent's contact, which cancels the head start."
+    - "Jumping too high, so landing takes longer than the first step saves."
+    - "Skipping the recovery and starting the next repetition out of position."
+  es:
+    - "Hacer el paso de ajuste después del impacto rival, lo que anula la ventaja."
+    - "Saltar demasiado alto, de modo que la caída cuesta más de lo que ahorra el primer paso."
+    - "Saltarse la recuperación y empezar la siguiente repetición fuera de posición."
+sources:
+  - coachOrBody: "TennisAI coaching library"
+    title: "Split-step reaction gate — written from standard coaching curricula"
+    medium: curriculum
+    note: "written from standard coaching curricula"
+  - coachOrBody: "Filipčič, Leskošek, Munivrana, Ochiana, Filipčič"
+    title: "Differences in Movement Speed Before and After a Split-Step Between Professional and Junior Tennis Players"
+    medium: article
+    publisherOrChannel: "Journal of Human Kinetics"
+    url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC5304280/"
+    year: 2017
+    note: "Measures movement speed around the split step by game situation and argues for practising it inside realistic situations rather than as general speed work."
+    fetchedAt: "2026-09-04"
+licence: none
+authorAgent: db

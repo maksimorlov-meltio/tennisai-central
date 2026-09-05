@@ -1,0 +1,129 @@
+id: return-read-the-toss
+title:
+  en: "Return: read the toss, block deep middle"
+  es: "Resto: lee el lanzamiento y bloquea profundo al centro"
+version: 1
+status: reviewed
+taxonomy:
+  domain: serve_return
+  skills:
+    - return_anticipation
+    - return_block
+    - return_position
+    - split_step
+  patterns:
+    - return_deep_middle
+    - return_block_neutralise
+blockKinds:
+  - technical
+  - tactical
+  - live
+levelBands:
+  - intermediate
+  - advanced
+  - high_performance
+ageBands:
+  - u14
+  - u16
+  - u18
+  - adult
+players:
+  min: 2
+  max: 4
+courts:
+  min: 1
+  max: 1
+equipment:
+  - balls
+  - cones
+  - targets
+defaults:
+  durationMin: 12
+  reps: 24
+  sets: 2
+  restSec: 60
+  intensity: medium
+ranges:
+  durationMin: [8, 20]
+  reps: [12, 40]
+  sets: [1, 4]
+requiresQualifiedSupervision: false
+objective:
+  en: "Call the serve direction before the ball is struck on 7 of 10 serves, and land 6 of 10 returns deep through the middle."
+  es: "Cantar la dirección del saque antes del impacto en 7 de cada 10 saques y colocar 6 de cada 10 restos profundos por el centro."
+setup:
+  en: "Server serves first serves only, alternating wide and T without a pattern. Cones mark a middle corridor two racket lengths either side of the centre mark, behind the service line. The returner calls the direction out loud as the toss reaches its peak."
+  es: "El sacador solo hace primeros saques, alternando abierto y a la T sin patrón. Los conos marcan un pasillo central de dos raquetas a cada lado de la marca central, detrás de la línea de saque. El restador canta la dirección en voz alta cuando el lanzamiento llega arriba."
+progression:
+  en: "Add a second server with a different toss and grip, then play the point out after the return."
+  es: "Añade un segundo sacador con otro lanzamiento y otra empuñadura y después juega el punto tras el resto."
+regression:
+  en: "Server announces wide or T before serving, so the returner practises only the block and the recovery."
+  es: "El sacador anuncia abierto o a la T antes de sacar, para que solo practiques el bloqueo y la recuperación."
+successCriteria:
+  en: "7 of 10 direction calls are correct and 6 of 10 returns land in the deep middle corridor."
+  es: "7 de cada 10 cantos de dirección son correctos y 6 de cada 10 restos caen en el pasillo central profundo."
+diagram:
+  court: full
+  markers:
+    - { type: player, x: 1.6, y: 11.6, label: "Server" }
+    - { type: player, x: 2.8, y: -11.4, label: "Returner" }
+    - { type: cone, x: -1.4, y: -7.5, label: "Middle corridor" }
+    - { type: cone, x: 1.4, y: -7.5 }
+    - { type: target, x: 0.0, y: 10.6, label: "Deep middle target" }
+  paths:
+    - style: shot
+      points: [{ x: 1.6, y: 11.6 }, { x: 3.8, y: -5.4 }]
+      label: "Wide serve"
+    - style: movement
+      points: [{ x: 2.8, y: -11.4 }, { x: 3.6, y: -10.2 }]
+      label: "Split and step in"
+    - style: shot
+      points: [{ x: 3.6, y: -10.2 }, { x: 0.0, y: 10.4 }]
+      label: "Block deep middle"
+steps:
+  en:
+    - "Returner stands one step behind the baseline, weight forward."
+    - "As the toss peaks, the returner calls wide or T out loud."
+    - "Returner splits on the server's contact and blocks the ball deep through the middle."
+    - "Coach records the call and the landing zone for 10 serves, then swap."
+  es:
+    - "Colócate un paso detrás del fondo, con el peso adelantado."
+    - "Cuando el lanzamiento llega arriba, canta abierto o a la T en voz alta."
+    - "Haz el paso de ajuste en el impacto del sacador y bloquea profundo por el centro."
+    - "El entrenador anota el canto y la zona de caída de 10 saques; después cambiad."
+cues:
+  en:
+    - "Watch the toss, then the shoulder"
+    - "Short backswing, long finish"
+    - "Deep middle takes away the angle"
+    - "Split as the racket hits"
+  es:
+    - "Mira el lanzamiento y luego el hombro"
+    - "Preparación corta, terminación larga"
+    - "Profundo al centro quita el ángulo"
+    - "Ajusta cuando la raqueta impacta"
+commonErrors:
+  en:
+    - "Guessing from the score instead of reading the toss and the shoulder turn."
+    - "Taking a full backswing on a first serve and arriving late to contact."
+    - "Returning cross-court into the server's forehand and giving away the angle."
+  es:
+    - "Adivinar por el marcador en lugar de leer el lanzamiento y el giro del hombro."
+    - "Preparar el golpe completo ante un primer saque y llegar tarde al impacto."
+    - "Restar cruzado a la derecha del sacador y regalar el ángulo."
+sources:
+  - coachOrBody: "TennisAI coaching library"
+    title: "Return: read the toss, block deep middle — written from standard coaching curricula"
+    medium: curriculum
+    note: "written from standard coaching curricula"
+  - coachOrBody: "Vernon, Farrow, Reid"
+    title: "Returning Serve in Tennis: A Qualitative Examination of the Interaction of Anticipatory Information Sources Used by Professional Tennis Players"
+    medium: article
+    publisherOrChannel: "Frontiers in Psychology"
+    url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC6008562/"
+    year: 2018
+    note: "Documents the toss as a leading kinematic cue and recommends practising against varied servers — the basis for the call-the-direction task and the progression."
+    fetchedAt: "2026-09-04"
+licence: none
+authorAgent: db

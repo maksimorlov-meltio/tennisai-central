@@ -31,3 +31,8 @@ dist-ssr
 
 # Vercel CLI link state (project + org ids). Machine-local, not source.
 .vercel
+
+# Researchers' private source notes for the coaching library (docs/library.md).
+# They record what was fetched, when, and what it documents — working material
+# for the reviewer's overlap check, not published content.
+content/_notes/

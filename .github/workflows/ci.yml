@@ -74,3 +74,9 @@ jobs:
 
       - name: Test
         run: npm test
+
+      # The coaching-library content gate (docs/library.md). Deliberately NOT
+      # path-filtered: the zod schema, the vocabularies and the drill documents
+      # can each break the other two, so it runs on every push.
+      - name: Validate coaching-library content
+        run: npm run content:validate

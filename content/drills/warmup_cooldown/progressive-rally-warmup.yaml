@@ -1,0 +1,127 @@
+id: progressive-rally-warmup
+title:
+  en: "Progressive rally warm-up"
+  es: "Calentamiento progresivo de peloteo"
+version: 1
+status: reviewed
+taxonomy:
+  domain: warmup_cooldown
+  skills:
+    - dynamic_mobility
+    - progressive_rally_warmup
+    - glute_activation
+    - rotator_cuff_activation
+    - split_step
+  patterns: []
+blockKinds:
+  - warmup
+levelBands:
+  - beginner
+  - intermediate
+  - advanced
+  - high_performance
+ageBands:
+  - u12
+  - u14
+  - u16
+  - u18
+  - adult
+players:
+  min: 2
+  max: 8
+courts:
+  min: 0.5
+  max: 1
+equipment:
+  - balls
+  - cones
+defaults:
+  durationMin: 12
+  reps: 0
+  sets: 1
+  restSec: 0
+  intensity: low
+ranges:
+  durationMin: [8, 18]
+  reps: [0, 0]
+  sets: [1, 1]
+requiresQualifiedSupervision: false
+objective:
+  en: "Raise the session from walking pace to rally pace in four stages of three minutes without a single ball hit at full intensity before the last stage."
+  es: "Llevar la sesión del ritmo de paseo al ritmo de peloteo en cuatro etapas de tres minutos, sin golpear ninguna bola a máxima intensidad antes de la última etapa."
+setup:
+  en: "Players start at the service lines, one basket between them. Cones mark the three positions the pair moves back to as the stages progress: service line, mid-court, baseline."
+  es: "Los jugadores empiezan en las líneas de saque, con un cesto entre ambos. Los conos marcan las tres posiciones a las que la pareja retrocede según avanzan las etapas: línea de saque, media pista y fondo."
+progression:
+  en: "Add a fifth stage of four serves at three-quarter pace before the first competitive point."
+  es: "Añade una quinta etapa de cuatro saques a tres cuartos de intensidad antes del primer punto competitivo."
+regression:
+  en: "Keep both players at the service line for the whole warm-up and shorten each stage to two minutes."
+  es: "Mantén a ambos jugadores en la línea de saque durante todo el calentamiento y acorta cada etapa a dos minutos."
+successCriteria:
+  en: "All four stages completed in order, the pair rallying at match tempo by the end without any missed stage."
+  es: "Las cuatro etapas completadas en orden, con la pareja peloteando a ritmo de partido al final y sin saltarse ninguna etapa."
+diagram:
+  court: full
+  markers:
+    - { type: player, x: -1.0, y: -6.4, label: "Player A start" }
+    - { type: player, x: 1.0, y: 6.4, label: "Player B start" }
+    - { type: cone, x: -3.0, y: -6.4, label: "Stage 1" }
+    - { type: cone, x: -3.0, y: -9.0, label: "Stage 2" }
+    - { type: cone, x: -3.0, y: -11.4, label: "Stage 3" }
+  paths:
+    - style: movement
+      points: [{ x: -1.0, y: -6.4 }, { x: -1.0, y: -9.0 }, { x: -1.0, y: -11.4 }]
+      label: "Retreat by stage"
+    - style: shot
+      points: [{ x: -1.0, y: -6.4 }, { x: 1.0, y: 6.2 }]
+      label: "Short rally"
+    - style: shot
+      points: [{ x: -1.0, y: -11.4 }, { x: 1.0, y: 10.8 }]
+      label: "Baseline rally"
+steps:
+  en:
+    - "Three minutes: jog the tramlines, arm circles, hip openers, side shuffles."
+    - "Three minutes: mini-tennis inside the service boxes, soft hands, split step every ball."
+    - "Three minutes: both players at mid-court, medium pace, controlled rally."
+    - "Three minutes: both at the baseline, build to rally tempo and finish with four serves."
+  es:
+    - "Tres minutos: trota los pasillos, círculos de brazos, apertura de cadera y desplazamientos laterales."
+    - "Tres minutos: mini-tenis dentro de los cuadros, manos suaves y paso de ajuste en cada bola."
+    - "Tres minutos: ambos en media pista, ritmo medio y peloteo controlado."
+    - "Tres minutos: ambos al fondo, sube hasta el ritmo de peloteo y termina con cuatro saques."
+cues:
+  en:
+    - "Move first, then hit harder"
+    - "Split step on every ball"
+    - "Long, slow breaths through stage one"
+    - "No full swings until the baseline"
+  es:
+    - "Primero muévete, después golpea más fuerte"
+    - "Paso de ajuste en cada bola"
+    - "Respiraciones largas y lentas en la primera etapa"
+    - "Sin golpes completos hasta el fondo"
+commonErrors:
+  en:
+    - "Starting at the baseline at full pace and skipping the raise stage."
+    - "Standing still during the mini-tennis stage, so nothing is actually warmed."
+    - "Cutting the warm-up short when the court time is late — the load spike lands on the first game."
+  es:
+    - "Empezar en el fondo a máxima intensidad y saltarse la etapa de activación."
+    - "Quedarse parado en la etapa de mini-tenis, con lo que no se calienta nada."
+    - "Acortar el calentamiento cuando la pista va con retraso: el pico de carga cae en el primer juego."
+sources:
+  - coachOrBody: "TennisAI coaching library"
+    title: "Progressive rally warm-up — written from standard coaching curricula"
+    medium: curriculum
+    note: "written from standard coaching curricula"
+  - coachOrBody: "Amor-Salamanca, Rodríguez-González, Rosselló, de Lluc-Bauza, Hermosilla-Perona, Martín-Castellanos, Herrera-Peco"
+    title: "Risk Factors and Prevention of Musculoskeletal Injuries in Adolescent and Adult High-Performance Tennis Players: A Systematic Review"
+    medium: article
+    publisherOrChannel: "Sports (Basel)"
+    url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC12568103/"
+    year: 2025
+    note: "Documents progressive load ramping and trunk and shoulder preparation as effective prevention strategies in tennis."
+    fetchedAt: "2026-09-04"
+licence: none
+authorAgent: db

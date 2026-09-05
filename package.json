@@ -14,7 +14,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "content:validate": "npm --prefix server run content:validate",
+    "content:import": "npm --prefix server run content:import"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

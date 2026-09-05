@@ -109,6 +109,30 @@ pre-verified. Set `APP_URL` to the real frontend origin in production so the lin
 | GET/PATCH | `/api/notification-preferences` | Bearer | Per-user notification settings   |
 | GET/PATCH | `/api/me/profile`         | Bearer | View / update own profile            |
 
+## Library
+
+The coaching knowledge base — drills as reviewed YAML documents under
+`content/drills/`, imported into Postgres. Full rules, the diagram coordinate
+system and the draft → reviewed → approved → retired lifecycle are in
+[`../docs/library.md`](../docs/library.md).
+
+| Command | What it does |
+|---|---|
+| `npm run content:validate` | Validate every drill document (schema, vocabularies, diagram bounds, cue length, duplicate ids, provenance). Non-zero exit on any problem. Run in CI. |
+| `npm run content:import` | Upsert `approved` drills into Postgres by slug. Idempotent — unchanged content writes nothing. |
+| `npm run content:import -- --include-reviewed` | …and `reviewed` drills too. This is what the seed runs, so a demo database is never an empty library. |
+| `npm run content:schema` | Regenerate `content/schema/drill.schema.json` from the zod schema. A spec fails if the committed file drifts. |
+
+Models: `Drill`, `DrillSource`, `DrillTag`, `DrillReview`, `SessionTemplate`,
+`GeneratedSession`, `CoachPreference`. `retired` hides a drill; nothing is ever
+deleted, because a finished training plan may point at it.
+
+`POST /api/training-plans` accepts an optional `libraryDrillId` on each drill.
+It must resolve to an **approved** drill the caller can see (`global`, their own,
+or their academy's) — anything else is a `400`. The saved plan drill returns it,
+and the link is `SetNull`: retiring a library drill never erases a plan a player
+already worked through.
+
 ## Demo logins (seeded)
 `player@test.com`, `coach@test.com`, `observer@test.com`, `admin@test.com` —
 password `password123` for all. IDs are pinned (`p1`, `c1`, …) to match the

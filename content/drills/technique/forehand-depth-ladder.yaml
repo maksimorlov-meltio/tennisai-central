@@ -1,0 +1,123 @@
+id: forehand-depth-ladder
+title:
+  en: "Forehand depth ladder"
+  es: "Escalera de profundidad de derecha"
+version: 1
+status: reviewed
+taxonomy:
+  domain: technique
+  skills:
+    - forehand_topspin
+    - forehand_drive
+    - depth_control
+    - contact_point_consistency
+  patterns:
+    - cross_court_rally_battle
+blockKinds:
+  - technical
+levelBands:
+  - intermediate
+  - advanced
+ageBands:
+  - u14
+  - u16
+  - u18
+  - adult
+players:
+  min: 2
+  max: 4
+courts:
+  min: 0.5
+  max: 1
+equipment:
+  - balls
+  - cones
+  - targets
+defaults:
+  durationMin: 12
+  reps: 30
+  sets: 3
+  restSec: 45
+  intensity: medium
+ranges:
+  durationMin: [8, 20]
+  reps: [20, 50]
+  sets: [2, 5]
+requiresQualifiedSupervision: false
+objective:
+  en: "Land 7 of 10 cross-court forehands beyond the service line with a stable contact point."
+  es: "Colocar 7 de cada 10 derechas cruzadas más allá de la línea de saque con un punto de impacto estable."
+setup:
+  en: "Feeder stands at the centre of the far baseline. Two cones mark a depth line 3 m inside the far baseline; the scoring zone is the cross-court corridor between that line and the baseline."
+  es: "El lanzador se coloca en el centro del fondo contrario. Dos conos marcan una línea de profundidad a 3 m dentro de la línea de fondo; la zona de puntuación es el pasillo cruzado entre esa línea y el fondo."
+progression:
+  en: "Feed wider and deeper, then replace the feed with a live cross-court rally where only balls past the depth line count."
+  es: "Lanza más abierto y más profundo y después sustituye el lanzamiento por un peloteo cruzado real en el que solo puntúan las bolas pasadas la línea de profundidad."
+regression:
+  en: "Feed from mid-court at a slower pace and move the depth line to the service line until the contact point settles."
+  es: "Lanza desde media pista más lento y acerca la línea de profundidad a la línea de saque hasta que el punto de impacto se estabilice."
+successCriteria:
+  en: "7 of 10 balls land in the cross-court depth zone across two consecutive sets."
+  es: "7 de cada 10 bolas caen en la zona cruzada de profundidad durante dos series seguidas."
+diagram:
+  court: full
+  markers:
+    - { type: player, x: 2.5, y: -10.5, label: "Player" }
+    - { type: feeder, x: 0.0, y: 10.5, label: "Feeder" }
+    - { type: cone, x: 1.5, y: 8.0 }
+    - { type: cone, x: 4.0, y: 8.0 }
+    - { type: target, x: 2.0, y: 9.5, label: "Depth zone" }
+    - { type: target, x: 3.5, y: 10.8 }
+  paths:
+    - style: shot
+      points: [{ x: 2.5, y: -10.5 }, { x: 1.2, y: 0.0 }, { x: 3.0, y: 10.2 }]
+      label: "Cross-court forehand"
+    - style: movement
+      points: [{ x: 2.5, y: -10.5 }, { x: 0.4, y: -11.2 }]
+      label: "Recovery"
+steps:
+  en:
+    - "Feeder sends 10 balls to the player's forehand corner at a rally pace."
+    - "Player hits every ball cross-court, aiming past the depth line."
+    - "Player recovers behind the centre mark between each ball."
+    - "Count the balls that land in the depth zone; rest, then repeat the set."
+  es:
+    - "El lanzador envía 10 bolas al rincón de derecha a ritmo de peloteo."
+    - "Golpeas todas las bolas en cruzado, buscando pasar la línea de profundidad."
+    - "Recuperas detrás de la marca central entre bola y bola."
+    - "Cuenta las bolas que caen en la zona de profundidad; descansa y repite la serie."
+cues:
+  en:
+    - "Contact out in front, above the hip"
+    - "Finish high, over the shoulder"
+    - "Recover behind the centre mark"
+    - "Aim a metre above the net"
+  es:
+    - "Impacta delante, por encima de la cadera"
+    - "Termina alto, sobre el hombro"
+    - "Recupera detrás de la marca central"
+    - "Apunta un metro por encima de la red"
+commonErrors:
+  en:
+    - "Contact point drifts behind the hip, which flattens the ball and drops it short."
+    - "Aiming at the line instead of the corridor, so a small error becomes an unforced one."
+    - "Standing still after the shot and losing the recovery habit."
+  es:
+    - "El punto de impacto se retrasa por detrás de la cadera, la bola sale plana y corta."
+    - "Apuntar a la línea en vez de al pasillo, con lo que un error pequeño se convierte en no forzado."
+    - "Quedarse parado tras el golpe y perder el hábito de recuperación."
+sources:
+  - coachOrBody: "TennisAI coaching library"
+    title: "Forehand depth ladder — written from standard coaching curricula"
+    medium: curriculum
+    note: "written from standard coaching curricula"
+  - coachOrBody: "Prieto-Lage, Paramés-González, Torres-Santos, Argibay-González, Reguera-López-de-la-Osa, Gutiérrez-Santiago"
+    title: "Match analysis and probability of winning a point in elite men's singles tennis"
+    medium: article
+    publisherOrChannel: "PLOS ONE"
+    url: "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0286076"
+    year: 2023
+    note: "Documents where points finish and how often short rallies decide them, which is why the scoring zone is depth rather than the line."
+    fetchedAt: "2026-09-04"
+licence: none
+authorAgent: db

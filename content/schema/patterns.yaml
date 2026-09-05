@@ -1,0 +1,29 @@
+# TennisAI coaching library — controlled tactical-pattern vocabulary.
+#
+# A `pattern` is a recurring sequence of shots and positions, not a stroke.
+# Every `taxonomy.patterns` entry in a drill document must appear here; the
+# validator rejects anything else. A drill may carry zero patterns (a warm-up
+# or a technique drill usually does) — patterns are only claimed when the drill
+# genuinely rehearses the sequence.
+
+patterns:
+  - serve_plus_one_forehand
+  - serve_wide_open_court
+  - serve_body_jam
+  - serve_t_deuce
+  - serve_and_volley
+  - return_deep_middle
+  - return_block_neutralise
+  - cross_court_rally_battle
+  - down_the_line_change
+  - inside_out_forehand
+  - inside_in_forehand
+  - short_ball_attack
+  - approach_and_volley
+  - slice_approach_backhand
+  - drop_shot_and_lob
+  - high_heavy_to_backhand
+  - defensive_lob_reset
+  - recovery_deep_middle
+  - wrong_foot_behind
+  - moon_ball_pressure

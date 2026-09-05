@@ -15,6 +15,8 @@ Project-scoped Claude Code subagents live in [`.claude/agents/`](../.claude/agen
 | **test** | Sonnet | Vitest suite, browser E2E, type-checks — the PR gate | "run the tests", "verify this", "add a test for", "did I break anything" |
 | **marketing** | Sonnet | Positioning, launch plan, landing/feature copy, competitor scans | "how do we describe this", landing copy, launch plan, naming |
 | **lawyer** | Opus | GDPR (esp. minors), privacy policy, ToS, consent, DPA — advisory | "privacy policy", "is this GDPR-ok", kids' data / parental consent |
+| **researcher** | Sonnet | Coaching-library content: drill documents in `content/drills/**`, taxonomy, provenance | "add drills for X", "research this pattern", filling a library gap |
+| **reviewer** | Opus | Adversarial review of library content: provenance, overlap/copyright, duplicates, safeguarding | before a drill batch goes to a human for approval; periodic library audit |
 
 \* `db` runs on Opus for schema/architecture reasoning.
 

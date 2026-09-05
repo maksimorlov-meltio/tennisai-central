@@ -1,0 +1,125 @@
+id: red-ball-catch-and-rally
+title:
+  en: "Red ball: catch, then rally"
+  es: "Bola roja: atrapa y después pelotea"
+version: 1
+status: reviewed
+taxonomy:
+  domain: games_kids
+  skills:
+    - tracking_and_catching
+    - racket_control
+    - cooperative_rallying
+    - hand_eye_coordination
+    - spatial_awareness
+  patterns: []
+blockKinds:
+  - warmup
+  - technical
+  - live
+levelBands:
+  - beginner
+ageBands:
+  - u10
+  - u12
+players:
+  min: 2
+  max: 8
+courts:
+  min: 0.5
+  max: 1
+equipment:
+  - red balls
+  - cones
+  - hoops
+  - mini net
+defaults:
+  durationMin: 10
+  reps: 0
+  sets: 3
+  restSec: 30
+  intensity: medium
+ranges:
+  durationMin: [6, 15]
+  reps: [0, 0]
+  sets: [2, 5]
+requiresQualifiedSupervision: false
+objective:
+  en: "Each pair reaches a cooperative rally of six red-ball contacts over the mini net within three rounds."
+  es: "Cada pareja consigue un peloteo cooperativo de seis toques con bola roja por encima de la mini red en tres rondas."
+setup:
+  en: "A red-ball court is marked with cones inside one half: 11 m long, 5 m wide, with a mini net across the middle. A hoop sits on each side as the bounce target. Pairs start three steps from the net."
+  es: "Se marca con conos una pista de bola roja dentro de media pista: 11 m de largo y 5 m de ancho, con una mini red en el centro. Un aro a cada lado hace de objetivo de bote. Las parejas empiezan a tres pasos de la red."
+progression:
+  en: "Remove the catch, count rallies to ten, then let the pair score a point for every rally over six."
+  es: "Quita la recepción con la mano, cuenta peloteos hasta diez y después da un punto a la pareja por cada peloteo de más de seis."
+regression:
+  en: "Let the ball bounce twice, or have the child catch every ball before hitting until the tracking is steady."
+  es: "Deja que la bola bote dos veces o haz que el niño atrape cada bola antes de golpear hasta que siga bien la trayectoria."
+successCriteria:
+  en: "A pair completes a six-contact rally in at least one of the three rounds."
+  es: "Una pareja completa un peloteo de seis toques en al menos una de las tres rondas."
+diagram:
+  court: half
+  markers:
+    - { type: player, x: -1.2, y: 2.6, label: "Child A" }
+    - { type: player, x: 1.2, y: 8.6, label: "Child B" }
+    - { type: cone, x: -2.5, y: 1.0, label: "Mini court corner" }
+    - { type: cone, x: 2.5, y: 1.0 }
+    - { type: cone, x: -2.5, y: 10.5 }
+    - { type: cone, x: 2.5, y: 10.5 }
+    - { type: hoop, x: -1.0, y: 3.6, label: "Bounce target A" }
+    - { type: hoop, x: 1.0, y: 7.6, label: "Bounce target B" }
+    - { type: line, x: 0.0, y: 5.8, label: "Mini net" }
+  paths:
+    - style: shot
+      points: [{ x: -1.2, y: 2.6 }, { x: 0.0, y: 5.8 }, { x: 1.0, y: 7.6 }]
+      label: "Over the mini net"
+    - style: movement
+      points: [{ x: 1.2, y: 8.6 }, { x: 1.0, y: 7.8 }]
+      label: "Step to the bounce"
+steps:
+  en:
+    - "Round one: children throw and catch the red ball across the mini net, five in a row."
+    - "Round two: one child throws, the other lets it bounce in the hoop and hits it back."
+    - "Round three: both hit, counting the contacts out loud as a team."
+    - "Celebrate the best team count, then rotate partners."
+  es:
+    - "Ronda uno: los niños lanzan y atrapan la bola roja por encima de la mini red, cinco veces seguidas."
+    - "Ronda dos: uno lanza, el otro deja botar la bola en el aro y la devuelve."
+    - "Ronda tres: los dos golpean y cuentan los toques en voz alta como equipo."
+    - "Celebrad el mejor número del equipo y cambiad de pareja."
+cues:
+  en:
+    - "Watch the ball into the racket"
+    - "Move your feet to the bounce"
+    - "Gentle hands, aim for the hoop"
+    - "Count together, out loud"
+  es:
+    - "Mira la bola hasta la raqueta"
+    - "Mueve los pies hacia el bote"
+    - "Manos suaves, apunta al aro"
+    - "Contad juntos, en voz alta"
+commonErrors:
+  en:
+    - "Hitting hard to win instead of cooperating to build the count."
+    - "Standing still and reaching for the ball rather than stepping to it."
+    - "Using a yellow ball, which bounces too high for this age band."
+  es:
+    - "Golpear fuerte para ganar en lugar de cooperar para sumar toques."
+    - "Quedarse parado y estirarse a por la bola en vez de dar un paso hacia ella."
+    - "Usar bola amarilla, que bota demasiado alto para esta edad."
+sources:
+  - coachOrBody: "TennisAI coaching library"
+    title: "Red ball: catch, then rally — written from standard coaching curricula"
+    medium: curriculum
+    note: "written from standard coaching curricula"
+  - coachOrBody: "Lawn Tennis Association"
+    title: "Coaching LTA Youth"
+    medium: curriculum
+    publisherOrChannel: "LTA"
+    url: "https://www.lta.org.uk/roles-and-venues/coaches/products-and-programmes/lta-youth/"
+    note: "Stage-based youth curriculum (blue, red, orange, green, yellow) for ages 4 to 18, built around modified equipment and game-based learning — the basis for the red-ball equipment and the cooperative scoring here."
+    fetchedAt: "2026-09-04"
+licence: none
+authorAgent: db
