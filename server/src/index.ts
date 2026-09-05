@@ -21,6 +21,7 @@ import { financeRouter } from "./finance/routes";
 import { equipmentRouter } from "./equipment/routes";
 import { catalogueRouter, adminCatalogueRouter } from "./catalogue/routes";
 import { stringSetupsRouter } from "./stringSetups/routes";
+import { recommendRouter } from "./recommend/routes";
 import { notificationsRouter } from "./notifications/routes";
 import { profileRouter } from "./profile/routes";
 import { trainingPlansRouter } from "./trainingPlans/routes";
@@ -123,6 +124,9 @@ app.use("/api", equipmentRouter);
 // sibling /api path answer 401 before its own auth check runs (see the
 // feedRouter note above for the time that already happened once).
 app.use("/api", stringSetupsRouter);
+// Deterministic gear / tournament / money advice, computed at read time. Same
+// per-route requireAuth discipline as stringSetupsRouter, for the same reason.
+app.use("/api", recommendRouter);
 app.use("/api", notificationsRouter);
 app.use("/api/ai", aiRouter);
 // Mounted alongside tournamentsRouter — adds the per-tournament conditions and
