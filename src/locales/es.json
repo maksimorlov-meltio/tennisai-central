@@ -71,6 +71,168 @@
       }
     }
   },
+  "empty": {
+    "admin": {
+      "title": "Todavía no hay herramientas de administración",
+      "description": "Esta página reunirá la gestión de usuarios, la supervisión de relaciones y las alertas del sistema. Hasta entonces, el panel de administración ofrece la visión general.",
+      "action": "Abrir el panel de administración"
+    },
+    "calendar": {
+      "title": "Todavía no hay nada en el calendario",
+      "coach": {
+        "description": "Tu calendario reúne cada entrenamiento que programas y los torneos de tus jugadores. Programa la primera sesión y aparecerá aquí.",
+        "action": "Programar un entrenamiento"
+      },
+      "observer": {
+        "description": "Los entrenamientos y torneos de su hijo o hija aparecen aquí cuando su entrenador los programa.",
+        "action": "Vincular a su hijo o hija"
+      },
+      "player": {
+        "description": "Tus entrenamientos, partidos y torneos se reúnen aquí. Añade un torneo para empezar a planificar tu temporada.",
+        "action": "Añadir un torneo"
+      },
+      "filtered": {
+        "title": "Ningún evento coincide",
+        "description": "Nada coincide con los filtros actuales. Quita un filtro para ver más."
+      }
+    },
+    "connections": {
+      "active": {
+        "title": "Todavía no hay conexiones activas",
+        "coach": {
+          "description": "Las conexiones te vinculan con los jugadores que entrenas. Envía una solicitud con el ID público de un jugador o aprueba una que hayas recibido."
+        },
+        "player": {
+          "description": "Las conexiones te vinculan con tu entrenador y con tu familia. Envía una solicitud con su ID público o aprueba la que te hayan enviado."
+        },
+        "observer": {
+          "description": "Una conexión le vincula con la cuenta de su hijo o hija para seguir su agenda y sus gastos. Envíe una solicitud con su ID público o apruebe la que le haya enviado."
+        },
+        "admin": {
+          "description": "Las relaciones activas entre jugadores, entrenadores y familias se listan aquí a medida que se aprueban."
+        },
+        "action": "Nueva solicitud"
+      },
+      "incoming": {
+        "title": "No hay solicitudes recibidas",
+        "description": "Las solicitudes de otras personas esperan aquí una decisión."
+      },
+      "sent": {
+        "title": "No hay solicitudes enviadas",
+        "description": "Las solicitudes enviadas permanecen aquí hasta que la otra persona responda."
+      },
+      "search": {
+        "description": "Nada coincide con la búsqueda."
+      },
+      "revoked": {
+        "title": "No hay conexiones revocadas ni rechazadas",
+        "description": "Las conexiones rechazadas o finalizadas se conservan aquí como referencia."
+      }
+    },
+    "equipment": {
+      "title": "Todavía no hay equipamiento registrado",
+      "description": "Guarda tus raquetas, cordajes y zapatillas en un solo lugar para saber con qué juegas y cuándo encordar o reemplazar.",
+      "action": "Añadir un artículo"
+    },
+    "finance": {
+      "noPlayers": {
+        "title": "No hay jugadores conectados",
+        "description": "Los gastos pertenecen a la cuenta de un jugador. Vincule a su hijo o hija para ver lo que le cuesta el tenis.",
+        "action": "Vincular a su hijo o hija"
+      },
+      "title": "Todavía no hay gastos registrados",
+      "player": {
+        "description": "Controla lo que te cuesta el tenis (pistas, clases, viajes, material) y mira el desglose por categoría.",
+        "action": "Añadir un gasto"
+      },
+      "observer": {
+        "description": "Los gastos de tenis de su hijo o hija aparecen aquí cuando los registra. Puede consultarlos, pero no editarlos."
+      }
+    },
+    "matches": {
+      "title": "Todavía no hay partidos registrados",
+      "description": "Todas las estadísticas de la aplicación salen de los partidos que registras aquí: nada se estima ni se rellena por defecto.",
+      "action": "Registra tu primer partido"
+    },
+    "notifications": {
+      "title": "Todavía no hay notificaciones",
+      "description": "Aquí llegan las solicitudes de conexión, los cambios de entrenamientos y las novedades de torneos. Los ajustes deciden cuáles se envían.",
+      "action": "Ajustes de notificaciones",
+      "unread": {
+        "title": "Todo al día",
+        "description": "No hay notificaciones sin leer."
+      }
+    },
+    "players": {
+      "title": "Todavía no tienes jugadores conectados",
+      "description": "Tus jugadores aparecen aquí cuando se aprueba una conexión. Envía una solicitud con el ID público de un jugador para formar tu plantilla.",
+      "action": "Conectar un jugador",
+      "filtered": {
+        "title": "Ningún jugador coincide",
+        "description": "Ningún jugador conectado coincide con tu búsqueda."
+      }
+    },
+    "sessionBuilder": {
+      "noPlayers": {
+        "title": "Todavía no tienes jugadores conectados",
+        "description": "Un plan se guarda en la cuenta de un jugador. Conecta primero a un jugador y vuelve para guardar esta sesión en su plan.",
+        "action": "Ir a Conexiones"
+      }
+    },
+    "stats": {
+      "title": "Todavía no hay datos de partidos",
+      "description": "Registra un partido y aquí aparecerán tu porcentaje de victorias, el desglose por superficie, los porcentajes de saque y resto, tu forma reciente y la tendencia, todo calculado a partir de lo que introduces.",
+      "action": "Registra tu primer partido"
+    },
+    "teams": {
+      "title": "Todavía no hay equipos",
+      "description": "Agrupa a tus jugadores en equipos para programar sesiones y filtrar el calendario por equipo.",
+      "action": "Crear un equipo"
+    },
+    "trainingPlans": {
+      "title": "Todavía no hay planes",
+      "coach": {
+        "description": "Los planes se crean en el Creador de sesiones y se guardan para un jugador. Una vez guardados aparecen aquí con su progreso.",
+        "action": "Abrir el Creador de sesiones"
+      },
+      "player": {
+        "description": "Tu entrenador crea los planes en el Creador de sesiones y aparecen aquí cuando te los asigna.",
+        "actionConnect": "Conectar con un entrenador"
+      }
+    },
+    "trainingRequests": {
+      "title": "Todavía no hay solicitudes de entrenamiento",
+      "player": {
+        "description": "Pide a tu entrenador una sesión en los horarios que te convengan. Aquí la aprueba, la reprograma o te responde.",
+        "actionRequest": "Solicitar un entrenamiento",
+        "actionConnect": "Conectar con un entrenador"
+      },
+      "coach": {
+        "description": "Las solicitudes que te envían tus jugadores llegan aquí para aprobarlas o reprogramarlas.",
+        "actionConnect": "Conectar un jugador"
+      },
+      "filtered": {
+        "title": "No hay solicitudes con este estado",
+        "description": "Cambia el filtro de estado para ver otras solicitudes."
+      }
+    },
+    "trainings": {
+      "title": "Todavía no hay sesiones de entrenamiento",
+      "coach": {
+        "description": "Los entrenamientos son las sesiones que programas para tus jugadores. Planifica la primera y aparecerá en el calendario de todos.",
+        "action": "Crear un entrenamiento"
+      },
+      "player": {
+        "description": "Las sesiones que tu entrenador programa para ti aparecen aquí, con tu valoración después de cada una.",
+        "actionRequest": "Solicitar un entrenamiento",
+        "actionConnect": "Conectar con un entrenador"
+      },
+      "filtered": {
+        "title": "Ningún entrenamiento coincide",
+        "description": "Nada coincide con los filtros actuales."
+      }
+    }
+  },
   "navbar": {
     "brand": "Tennis AI",
     "howItWorks": "Cómo funciona",

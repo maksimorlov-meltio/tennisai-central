@@ -10,9 +10,13 @@
 // `manual` with that reason rather than quietly pretending.
 // ============================================================
 
-import type { ConnectionRequest, UserRole } from "@/types";
+import type { UserRole } from "@/types";
 import { questionsForRole } from "@/lib/onboarding/questions";
 import type { GetStartedItem } from "@/components/dashboard/GetStartedCard";
+
+// Re-exported so checklist callers and tests have one import; pages that need
+// the same fact for an empty state import it from `@/lib/connections`.
+export { hasCoachCounterpart } from "@/lib/connections/hasCoachCounterpart";
 
 /** The translator handed out by `useT()`. */
 export type Translate = (key: string, vars?: Record<string, string | number>) => string;
@@ -30,18 +34,6 @@ export function isProfileComplete(role: UserRole, answers: OnboardingAnswers): b
   return required.every((q) => {
     const answer = answers?.[q.id];
     return Array.isArray(answer) ? answer.length > 0 : Boolean(answer && String(answer).trim());
-  });
-}
-
-/**
- * An ACTIVE relationship whose other side is a coach. "Any active link" is not
- * enough: a player linked only to a parent still has nobody to plan with.
- */
-export function hasCoachCounterpart(relationships: ConnectionRequest[], userId: string): boolean {
-  return relationships.some((r) => {
-    if (r.status !== "active") return false;
-    const otherRole = r.fromUserId === userId ? r.toUserRole : r.fromUserRole;
-    return otherRole === "coach";
   });
 }
 

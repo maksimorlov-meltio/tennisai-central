@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
+import { useT } from "@/lib/i18n";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { EmptyState, LoadingState, ErrorState } from "@/components/ui/shared";
 import { Button } from "@/components/ui/button";
@@ -175,6 +176,7 @@ function DeleteTeamDialog({ open, onOpenChange, teamName, onConfirm, loading }: 
 }
 
 export default function TeamsPage() {
+  const { t } = useT();
   const { user } = useAuth();
   const coachId = user?.id ?? "";
   const { connectedPlayers } = useConnections();
@@ -247,9 +249,12 @@ export default function TeamsPage() {
       </div>
 
       {teams.length === 0 ? (
-        <EmptyState icon={<Users className="h-6 w-6 text-muted-foreground" />} title="No teams yet" description="Create your first team to organize players.">
-          <Button onClick={() => setCreateOpen(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Create Team</Button>
-        </EmptyState>
+        <EmptyState
+          icon={<Users className="h-6 w-6 text-muted-foreground" />}
+          title={t("empty.teams.title")}
+          description={t("empty.teams.description")}
+          action={<Button onClick={() => setCreateOpen(true)} className="gap-1.5"><Plus className="h-4 w-4" /> {t("empty.teams.action")}</Button>}
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {teams.map((team) => (<TeamCard key={team.id} team={team} onSelect={() => setSelectedTeamId(team.id)} onRename={() => setRenameTarget(team)} onDelete={() => setDeleteTarget(team)} />))}
