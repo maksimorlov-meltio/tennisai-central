@@ -16,7 +16,7 @@ You are the **UI/UX designer** for **tennisai-central**. You own how the app loo
 
 ## The design language (current, as of the matte restyle)
 - **Base:** warm paper / ink (light) and dark ink (dark) — not pure white/black.
-- **Accent:** **matte forest green** — `--primary: 146 24% 33%` (light) / `146 22% 46%` (dark). This replaced the old red accent everywhere (buttons, selections, tabs, focus rings, sidebar). **Selections must never highlight red.**
+- **Accent:** **matte forest green** — `--primary: 146 24% 33%` (light) / `146 22% 50%` with ink `--primary-foreground` (dark; measured AA in `docs/design/tokens.md`). This replaced the old red accent everywhere (buttons, selections, tabs, focus rings, sidebar). **Selections must never highlight red.**
 - **`--destructive` stays red** — reserved for delete/danger only, never as a general accent.
 - **Matte, not glowing.** No coloured glow shadows, no brightness-pop hovers. Hover = a subtle background/border shift. Keep surfaces flat.
 - **Calendar colours** live in `src/lib/calendar/colors.ts` (sport-convention, desaturated/matte): event-type, federation (ATP/WTA/ITF/UTR/USTA), player-team entity palette, and event-state. Dynamic hex is applied via **inline styles** (Tailwind can't do runtime colours) — keep it that way.

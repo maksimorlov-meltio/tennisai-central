@@ -28,7 +28,7 @@ React 18 · Vite · TypeScript · shadcn/ui (Radix) · Tailwind CSS · TanStack 
 - `src/index.css` — **the design system** (CSS variables) + `tailwind.config.ts`.
 
 ## Design system — the modernist theme (follow it strictly)
-Tokens live in `src/index.css` `:root` / `.dark`. The look is: warm **paper** background, near-black **ink** text, a single **matte forest-green** accent (`--primary: 146 24% 33%` light / `146 22% 46%` dark), **sharp 0px corners**, **Inter** (headings 800 / tight tracking), thin ruled borders, **matte surfaces (no glow)**.
+Tokens live in `src/index.css` `:root` / `.dark`. The look is: warm **paper** background, near-black **ink** text, a single **matte forest-green** accent (`--primary: 146 24% 33%` light / `146 22% 50%` dark with ink text on fills — see `docs/design/tokens.md`), **sharp 0px corners**, **Inter** (headings 800 / tight tracking), thin ruled borders, **matte surfaces (no glow)**.
 - **Never hardcode colors** (`text-emerald-600`, `bg-blue-500`, …). Use tokens: `bg-background`, `text-foreground`, `text-muted-foreground`, `bg-primary` / `text-primary` (**green** — used for accents, selections, active tabs, focus rings), `border-border`, `bg-muted`, `bg-card`. **`bg-destructive` (red) is delete/danger ONLY** — selections must never highlight red.
 - Radius is `0` globally — don't reintroduce large `rounded-*`. Prefer flat, ruled, editorial layouts; **no coloured glow shadows or brightness-pop hovers** (hover = subtle background/border shift). See the `designer` agent for the full colour + calendar palette rules.
 - Keep it theme-aware (light + dark both defined) and accessible (contrast, focus, target size).
