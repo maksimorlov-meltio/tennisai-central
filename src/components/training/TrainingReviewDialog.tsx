@@ -101,8 +101,8 @@ export function TrainingReviewDialog({ open, onOpenChange, training, onSave, sav
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>What was worked on *</Label>
-              <Textarea
+              <Label htmlFor="review-worked-on">What was worked on *</Label>
+              <Textarea id="review-worked-on" aria-required="true"
                 value={workedOn}
                 onChange={(e) => setWorkedOn(e.target.value)}
                 placeholder="e.g. Lateral footwork drills, split-step timing, recovery steps"
@@ -110,8 +110,8 @@ export function TrainingReviewDialog({ open, onOpenChange, training, onSave, sav
               />
             </div>
             <div className="space-y-1.5">
-              <Label>What to do next</Label>
-              <Textarea
+              <Label htmlFor="review-next-steps">What to do next</Label>
+              <Textarea id="review-next-steps"
                 value={nextSteps}
                 onChange={(e) => setNextSteps(e.target.value)}
                 placeholder="e.g. Increase drill speed, add weighted vest, focus on backhand"
@@ -119,8 +119,8 @@ export function TrainingReviewDialog({ open, onOpenChange, training, onSave, sav
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Player feedback <span className="text-muted-foreground">(optional)</span></Label>
-              <Textarea
+              <Label htmlFor="review-player-feedback">Player feedback <span className="text-muted-foreground">(optional)</span></Label>
+              <Textarea id="review-player-feedback"
                 value={playerFeedback}
                 onChange={(e) => setPlayerFeedback(e.target.value)}
                 placeholder="Any feedback from the player about the session"

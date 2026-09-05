@@ -153,9 +153,9 @@ export default function SessionBuilderPage() {
         <DashboardCard title="Coach preferences" description="Tune the session, then generate" icon={<Target className="h-4 w-4" />}>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Session goal</Label>
+              <Label htmlFor="session-goal">Session goal</Label>
               <Select value={prefs.goal} onValueChange={(v) => set("goal", v as SessionGoal)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="session-goal"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(Object.keys(GOAL_LABELS) as SessionGoal[]).map((g) => (
                     <SelectItem key={g} value={g}>{GOAL_LABELS[g]}</SelectItem>
@@ -190,9 +190,9 @@ export default function SessionBuilderPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Level</Label>
+                <Label htmlFor="session-level">Level</Label>
                 <Select value={prefs.level} onValueChange={(v) => set("level", v as PlayerLevel)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="session-level"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="beginner">Beginner</SelectItem>
                     <SelectItem value="intermediate">Intermediate</SelectItem>
@@ -201,13 +201,13 @@ export default function SessionBuilderPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Intensity</Label>
+                <Label htmlFor="session-intensity">Intensity</Label>
                 <Select
                   value={prefs.intensity}
                   onValueChange={(v) => set("intensity", v as Intensity)}
                   disabled={prefs.goal === "recovery"}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="session-intensity"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="low">Low</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
@@ -216,12 +216,12 @@ export default function SessionBuilderPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Duration</Label>
+                <Label htmlFor="session-duration">Duration</Label>
                 <Select
                   value={String(prefs.durationMinutes)}
                   onValueChange={(v) => set("durationMinutes", Number(v))}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="session-duration"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {[45, 60, 75, 90, 120].map((m) => (
                       <SelectItem key={m} value={String(m)}>{m} min</SelectItem>
@@ -234,12 +234,12 @@ export default function SessionBuilderPage() {
                 <SurfacePicker value={prefs.surface} onChange={(s) => set("surface", s)} />
               </div>
               <div className="space-y-1.5">
-                <Label>Format</Label>
+                <Label htmlFor="session-format">Format</Label>
                 <Select
                   value={prefs.format}
                   onValueChange={(v) => set("format", v as SessionFormat)}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="session-format"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="individual">Individual</SelectItem>
                     <SelectItem value="group">Group</SelectItem>
@@ -247,8 +247,8 @@ export default function SessionBuilderPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Players</Label>
-                <Input
+                <Label htmlFor="session-players">Players</Label>
+                <Input id="session-players"
                   type="number"
                   min={1}
                   max={12}
@@ -376,9 +376,9 @@ export default function SessionBuilderPage() {
             </p>
           ) : (
             <div className="space-y-1.5">
-              <Label>Player</Label>
+              <Label htmlFor="session-assign-player">Player</Label>
               <Select value={savePlayerId} onValueChange={setSavePlayerId}>
-                <SelectTrigger><SelectValue placeholder="Select a player" /></SelectTrigger>
+                <SelectTrigger id="session-assign-player"><SelectValue placeholder="Select a player" /></SelectTrigger>
                 <SelectContent>
                   {connectedPlayers.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName}</SelectItem>

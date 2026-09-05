@@ -72,7 +72,7 @@ export default function LoginPage() {
         </div>
       ) : (
         error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+        <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           {error}
           {/* Being told to check an inbox is useless without a way to make the
               email arrive again — the first one expires, or never came. */}

@@ -137,12 +137,12 @@ export default function FinancePage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Add Expense</DialogTitle><DialogDescription>Track a new tennis-related expense.</DialogDescription></DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-1.5"><Label>Description *</Label><Input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="e.g. Weekly coaching" /></div>
+            <div className="space-y-1.5"><Label htmlFor="finance-description">Description *</Label><Input id="finance-description" aria-required="true" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="e.g. Weekly coaching" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label>Amount *</Label><Input type="number" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} placeholder="0.00" /></div>
-              <div className="space-y-1.5"><Label>Category</Label><Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v as FinanceCategory }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORIES.map((c) => (<SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>))}</SelectContent></Select></div>
+              <div className="space-y-1.5"><Label htmlFor="finance-amount">Amount *</Label><Input id="finance-amount" aria-required="true" type="number" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} placeholder="0.00" /></div>
+              <div className="space-y-1.5"><Label htmlFor="finance-category">Category</Label><Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v as FinanceCategory }))}><SelectTrigger id="finance-category"><SelectValue /></SelectTrigger><SelectContent>{CATEGORIES.map((c) => (<SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>))}</SelectContent></Select></div>
             </div>
-            <div className="space-y-1.5"><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} /></div>
+            <div className="space-y-1.5"><Label htmlFor="finance-date">Date</Label><Input id="finance-date" type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>

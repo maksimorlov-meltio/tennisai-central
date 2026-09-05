@@ -162,7 +162,7 @@ export default function SignUpPage() {
         <h2 className="text-xl font-semibold text-foreground">Create your account</h2>
         <p className="text-sm text-muted-foreground">Choose your role to get started</p>
       </div>
-      {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {error && <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
       {/* Role selector */}
       <div className="grid grid-cols-3 gap-2">
         {roles.map((r) => (

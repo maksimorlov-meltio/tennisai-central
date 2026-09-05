@@ -87,9 +87,9 @@ export default function ProfilePage() {
             </div>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5"><Label>First Name</Label><Input value={firstName} onChange={(e) => setFirstName(e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>Last Name</Label><Input value={lastName} onChange={(e) => setLastName(e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>Email</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" /></div>
+            <div className="space-y-1.5"><Label htmlFor="profile-first-name">First Name</Label><Input id="profile-first-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label htmlFor="profile-last-name">Last Name</Label><Input id="profile-last-name" value={lastName} onChange={(e) => setLastName(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label htmlFor="profile-email">Email</Label><Input id="profile-email" value={email} onChange={(e) => setEmail(e.target.value)} type="email" /></div>
           </div>
           <Button onClick={handleSave} disabled={updateMut.isPending}>{updateMut.isPending ? "Saving…" : "Save Changes"}</Button>
         </div>

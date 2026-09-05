@@ -232,14 +232,14 @@ export default function EquipmentPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Name *</Label>
-              <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Wilson Pro Staff 97" />
+              <Label htmlFor="equipment-name">Name *</Label>
+              <Input id="equipment-name" aria-required="true" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Wilson Pro Staff 97" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Category</Label>
+                <Label htmlFor="equipment-category">Category</Label>
                 <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v as EquipmentCategory, condition: "" }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="equipment-category"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {CATEGORY_ORDER.map((c) => (
                       <SelectItem key={c} value={c}>
@@ -250,14 +250,14 @@ export default function EquipmentPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Brand</Label>
-                <Input value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} placeholder="Wilson, Babolat…" />
+                <Label htmlFor="equipment-brand">Brand</Label>
+                <Input id="equipment-brand" value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} placeholder="Wilson, Babolat…" />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Condition</Label>
+              <Label htmlFor="equipment-condition">Condition</Label>
               <Select value={form.condition} onValueChange={(v) => setForm((f) => ({ ...f, condition: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select condition…" /></SelectTrigger>
+                <SelectTrigger id="equipment-condition"><SelectValue placeholder="Select condition…" /></SelectTrigger>
                 <SelectContent>
                   {currentConditions.map((c) => (
                     <SelectItem key={c.value} value={c.value}>
@@ -272,12 +272,12 @@ export default function EquipmentPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Model</Label>
-                <Input value={form.model} onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))} />
+                <Label htmlFor="equipment-model">Model</Label>
+                <Input id="equipment-model" value={form.model} onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
-                <Label>Notes</Label>
-                <Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="e.g. Tension: 52 lbs" />
+                <Label htmlFor="equipment-notes">Notes</Label>
+                <Input id="equipment-notes" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="e.g. Tension: 52 lbs" />
               </div>
             </div>
           </div>

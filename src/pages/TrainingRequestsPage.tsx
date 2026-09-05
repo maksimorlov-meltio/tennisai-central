@@ -92,42 +92,42 @@ function PlayerRequestForm({ open, onOpenChange, coachId, coachName }: {
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label>Preferred Date *</Label>
-            <Input type="date" value={form.preferredDate} onChange={(e) => setForm((f) => ({ ...f, preferredDate: e.target.value }))} />
+            <Label htmlFor="request-date">Preferred Date *</Label>
+            <Input id="request-date" aria-required="true" type="date" value={form.preferredDate} onChange={(e) => setForm((f) => ({ ...f, preferredDate: e.target.value }))} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Start Time *</Label>
-              <Input type="time" value={form.preferredStartTime} onChange={(e) => setForm((f) => ({ ...f, preferredStartTime: e.target.value }))} />
+              <Label htmlFor="request-start">Start Time *</Label>
+              <Input id="request-start" aria-required="true" type="time" value={form.preferredStartTime} onChange={(e) => setForm((f) => ({ ...f, preferredStartTime: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <Label>End Time *</Label>
-              <Input type="time" value={form.preferredEndTime} onChange={(e) => setForm((f) => ({ ...f, preferredEndTime: e.target.value }))} />
+              <Label htmlFor="request-end">End Time *</Label>
+              <Input id="request-end" aria-required="true" type="time" value={form.preferredEndTime} onChange={(e) => setForm((f) => ({ ...f, preferredEndTime: e.target.value }))} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Training Type</Label>
+              <Label htmlFor="request-type">Training Type</Label>
               <Select value={form.trainingType} onValueChange={(v) => setForm((f) => ({ ...f, trainingType: v as TrainingType }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="request-type"><SelectValue /></SelectTrigger>
                 <SelectContent>{TRAINING_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Priority</Label>
+              <Label htmlFor="request-priority">Priority</Label>
               <Select value={form.priority} onValueChange={(v) => setForm((f) => ({ ...f, priority: v as "normal" | "high" }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="request-priority"><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="normal">Normal</SelectItem><SelectItem value="high">High</SelectItem></SelectContent>
               </Select>
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Location <span className="text-muted-foreground">(optional)</span></Label>
-            <Input value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} placeholder="Court A, Gym, etc." />
+            <Label htmlFor="request-location">Location <span className="text-muted-foreground">(optional)</span></Label>
+            <Input id="request-location" value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} placeholder="Court A, Gym, etc." />
           </div>
           <div className="space-y-1.5">
-            <Label>Notes for Coach <span className="text-muted-foreground">(optional)</span></Label>
-            <Textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="What would you like to work on?" rows={3} />
+            <Label htmlFor="request-notes">Notes for Coach <span className="text-muted-foreground">(optional)</span></Label>
+            <Textarea id="request-notes" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="What would you like to work on?" rows={3} />
           </div>
         </div>
         <DialogFooter>
@@ -239,8 +239,8 @@ function CoachRequestDrawer({ request, open, onOpenChange }: {
           {isPending && mode === "view" && (
             <>
               <div className="space-y-1.5">
-                <Label>Message to Player <span className="text-muted-foreground">(optional)</span></Label>
-                <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Add a note…" rows={2} />
+                <Label htmlFor="request-respond-message">Message to Player <span className="text-muted-foreground">(optional)</span></Label>
+                <Textarea id="request-respond-message" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Add a note…" rows={2} />
               </div>
               <div className="flex flex-wrap gap-2 border-t border-border pt-4">
                 <Button onClick={handleApprove} disabled={approveMut.isPending} className="gap-1.5">
@@ -261,22 +261,22 @@ function CoachRequestDrawer({ request, open, onOpenChange }: {
               <div className="border-t border-border pt-4 space-y-4">
                 <p className="text-sm font-medium text-foreground">Propose New Time</p>
                 <div className="space-y-1.5">
-                  <Label>Date</Label>
-                  <Input type="date" value={rescheduleForm.proposedDate} onChange={(e) => setRescheduleForm((f) => ({ ...f, proposedDate: e.target.value }))} />
+                  <Label htmlFor="request-reschedule-date">Date</Label>
+                  <Input id="request-reschedule-date" type="date" value={rescheduleForm.proposedDate} onChange={(e) => setRescheduleForm((f) => ({ ...f, proposedDate: e.target.value }))} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label>Start</Label>
-                    <Input type="time" value={rescheduleForm.proposedStartTime} onChange={(e) => setRescheduleForm((f) => ({ ...f, proposedStartTime: e.target.value }))} />
+                    <Label htmlFor="request-reschedule-start">Start</Label>
+                    <Input id="request-reschedule-start" type="time" value={rescheduleForm.proposedStartTime} onChange={(e) => setRescheduleForm((f) => ({ ...f, proposedStartTime: e.target.value }))} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>End</Label>
-                    <Input type="time" value={rescheduleForm.proposedEndTime} onChange={(e) => setRescheduleForm((f) => ({ ...f, proposedEndTime: e.target.value }))} />
+                    <Label htmlFor="request-reschedule-end">End</Label>
+                    <Input id="request-reschedule-end" type="time" value={rescheduleForm.proposedEndTime} onChange={(e) => setRescheduleForm((f) => ({ ...f, proposedEndTime: e.target.value }))} />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Message</Label>
-                  <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Explain the reschedule…" rows={2} />
+                  <Label htmlFor="request-reschedule-message">Message</Label>
+                  <Textarea id="request-reschedule-message" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Explain the reschedule…" rows={2} />
                 </div>
               </div>
               <div className="flex gap-2 pt-2">

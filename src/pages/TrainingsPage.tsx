@@ -186,35 +186,35 @@ function TrainingFormDialog({
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label>Title *</Label>
-            <Input value={form.title} onChange={(e) => update("title", e.target.value)} placeholder="e.g. Morning Drills" />
+            <Label htmlFor="training-title">Title *</Label>
+            <Input id="training-title" aria-required="true" value={form.title} onChange={(e) => update("title", e.target.value)} placeholder="e.g. Morning Drills" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Training Type</Label>
+              <Label htmlFor="training-type">Training Type</Label>
               <Select value={form.trainingType} onValueChange={(v) => update("trainingType", v as TrainingType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="training-type"><SelectValue /></SelectTrigger>
                 <SelectContent>{TRAINING_TYPES.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Intensity</Label>
+              <Label htmlFor="training-intensity">Intensity</Label>
               <Select value={form.intensity} onValueChange={(v) => update("intensity", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="training-intensity"><SelectValue /></SelectTrigger>
                 <SelectContent>{INTENSITY_OPTIONS.map((o) => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}</SelectContent>
               </Select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Start *</Label><Input type="datetime-local" value={form.startDate} onChange={(e) => update("startDate", e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>End *</Label><Input type="datetime-local" value={form.endDate} onChange={(e) => update("endDate", e.target.value)} /></div>
+            <div className="space-y-1.5"><Label htmlFor="training-start">Start *</Label><Input id="training-start" aria-required="true" type="datetime-local" value={form.startDate} onChange={(e) => update("startDate", e.target.value)} /></div>
+            <div className="space-y-1.5"><Label htmlFor="training-end">End *</Label><Input id="training-end" aria-required="true" type="datetime-local" value={form.endDate} onChange={(e) => update("endDate", e.target.value)} /></div>
           </div>
-          <div className="space-y-1.5"><Label>Location</Label><Input value={form.location} onChange={(e) => update("location", e.target.value)} placeholder="Court A, Gym, etc." /></div>
-          <div className="space-y-1.5"><Label>Training Goal</Label><Input value={form.goal} onChange={(e) => update("goal", e.target.value)} placeholder="e.g. Improve backhand consistency" /></div>
+          <div className="space-y-1.5"><Label htmlFor="training-location">Location</Label><Input id="training-location" value={form.location} onChange={(e) => update("location", e.target.value)} placeholder="Court A, Gym, etc." /></div>
+          <div className="space-y-1.5"><Label htmlFor="training-goal">Training Goal</Label><Input id="training-goal" value={form.goal} onChange={(e) => update("goal", e.target.value)} placeholder="e.g. Improve backhand consistency" /></div>
           <div className="space-y-1.5">
-            <Label>Assign to Team</Label>
+            <Label htmlFor="training-team">Assign to Team</Label>
             <Select value={form.teamId || "__none__"} onValueChange={selectTeam}>
-              <SelectTrigger><SelectValue placeholder="No team — pick players manually" /></SelectTrigger>
+              <SelectTrigger id="training-team"><SelectValue placeholder="No team — pick players manually" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">No team</SelectItem>
                 {teams.map((t) => (<SelectItem key={t.id} value={t.id}>{t.name} ({t.players.length} players)</SelectItem>))}
@@ -242,8 +242,8 @@ function TrainingFormDialog({
             teamId={form.teamId}
             onApply={applyAdvice}
           />
-          <div className="space-y-1.5"><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} placeholder="Visible to players" rows={2} /></div>
-          <div className="space-y-1.5"><Label>Coach Notes <span className="text-muted-foreground">(private)</span></Label><Textarea value={form.coachNotes} onChange={(e) => update("coachNotes", e.target.value)} placeholder="Only visible to you" rows={2} /></div>
+          <div className="space-y-1.5"><Label htmlFor="training-notes">Notes</Label><Textarea id="training-notes" value={form.notes} onChange={(e) => update("notes", e.target.value)} placeholder="Visible to players" rows={2} /></div>
+          <div className="space-y-1.5"><Label htmlFor="training-coach-notes">Coach Notes <span className="text-muted-foreground">(private)</span></Label><Textarea id="training-coach-notes" value={form.coachNotes} onChange={(e) => update("coachNotes", e.target.value)} placeholder="Only visible to you" rows={2} /></div>
           {saveError && (
             <p className="flex items-start gap-1.5 border border-destructive/30 bg-destructive/5 p-2.5 text-xs text-destructive">
               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {saveError}

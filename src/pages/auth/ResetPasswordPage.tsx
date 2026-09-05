@@ -99,7 +99,7 @@ export default function ResetPasswordPage() {
         <p className="text-sm text-muted-foreground">Choose a password you haven't used before.</p>
       </div>
       {error && (
-        <div className="space-y-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+        <div role="alert" className="space-y-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           <p>{error}</p>
           {serverRejected && (
             <Link to="/forgot-password" className="inline-block font-medium underline underline-offset-4">

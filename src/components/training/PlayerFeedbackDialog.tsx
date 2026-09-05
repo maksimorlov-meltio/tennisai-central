@@ -127,8 +127,8 @@ export function PlayerFeedbackDialog({ open, onOpenChange, training, onSave, sav
 
           {/* Optional note */}
           <div className="space-y-1.5">
-            <Label>Anything else? <span className="text-muted-foreground font-normal">(optional, max 200 chars)</span></Label>
-            <Textarea
+            <Label htmlFor="feedback-note">Anything else? <span className="text-muted-foreground font-normal">(optional, max 200 chars)</span></Label>
+            <Textarea id="feedback-note"
               value={note}
               onChange={(e) => setNote(e.target.value.slice(0, 200))}
               placeholder="Quick note for your coach…"

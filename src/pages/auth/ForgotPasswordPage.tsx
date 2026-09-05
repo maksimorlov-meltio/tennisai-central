@@ -104,7 +104,7 @@ export default function ForgotPasswordPage() {
             Enter your email and we'll send you a link to set a new one.
           </p>
         </div>
-        {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+        {error && <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
         <div className="space-y-1">
           <Label htmlFor="email">Email</Label>
           <Input
