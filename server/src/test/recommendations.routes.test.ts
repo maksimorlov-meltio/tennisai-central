@@ -56,6 +56,9 @@ function racketRow(overrides: Record<string, unknown> = {}) {
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     product: {
       id: "prod-ps97",
+      brand: "Wilson",
+      model: "Pro Staff 97",
+      variant: "v14",
       racketSpec: {
         stringPatternMains: 16,
         stringPatternCrosses: 19,

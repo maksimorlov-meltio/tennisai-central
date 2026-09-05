@@ -21,7 +21,11 @@ export const P1_TOURNAMENTS: MoneyTournamentEntry[] = [
   { tournamentId: "wimbledon-2026", name: "Wimbledon", startDate: "2026-06-29T00:00:00.000Z", endDate: "2026-07-12T00:00:00.000Z", status: "planned" },
 ];
 
-/** p1's three jobs; the seed sets no costEur on any of them. */
+/**
+ * p1's three jobs by date and hours, but WITHOUT their costs — the real seed
+ * prices them at 32 / 27 / 28 EUR. Stripping the cost is what exercises the
+ * finance-row fallback; the priced case is PRICED_SETUPS below.
+ */
 export const P1_SETUPS: MoneySetup[] = [
   { id: "ss-p1-1", strungAt: "2026-05-07T00:00:00.000Z", retiredAt: "2026-05-21T00:00:00.000Z", hoursPlayed: 14 },
   { id: "ss-p1-2", strungAt: "2026-05-27T00:00:00.000Z", retiredAt: "2026-07-04T00:00:00.000Z", hoursPlayed: 22 },

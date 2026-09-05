@@ -154,7 +154,7 @@ describe("analyseMoney — stringing per hour of play", () => {
     expect(rate).toEqual({ currency: "EUR", cost: 55, hours: 35, jobs: 2, perHour: 1.57, source: "setups" });
   });
 
-  it("falls back to finance stringing rows over all logged hours when no job carries a cost — never both", () => {
+  it("falls back to finance stringing rows over all logged hours when no job carries a cost (p1's jobs with costs stripped) — never both", () => {
     const rate = stringingRate(P1_SETUPS, P1_ENTRIES)!;
     expect(rate).toEqual({ currency: "EUR", cost: 28, hours: 42, jobs: 3, perHour: 0.67, source: "finance" });
     const both = stringingRate(PRICED_SETUPS, P1_ENTRIES)!;

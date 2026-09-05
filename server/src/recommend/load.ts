@@ -29,6 +29,20 @@ import type { BusyPeriod, TournamentsInput } from "./tournaments";
 const iso = (d: Date) => d.toISOString();
 const opt = <T>(v: T | null): T | undefined => (v === null ? undefined : v);
 
+/** "Wilson" + "Pro Staff 97" + "v14" → "Wilson Pro Staff 97 v14"; repeated words dropped. */
+function dedupeWords(parts: Array<string | null | undefined>): string {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const w of parts.filter((p): p is string => Boolean(p)).join(" ").split(/\s+/)) {
+    const k = w.toLowerCase();
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(w);
+    }
+  }
+  return out.join(" ");
+}
+
 // ── Profile ─────────────────────────────────────────────────────────────────
 
 export async function loadProfileFacts(prisma: PrismaClient, playerId: string, now: string): Promise<ProfileFacts> {
@@ -118,7 +132,11 @@ export async function loadStringsInput(
   ]);
 
   const spec = racket.product?.racketSpec ?? null;
-  const racketName = [racket.brand, racket.model].filter(Boolean).join(" ") || racket.name;
+  // The catalogue's name when linked ("Wilson Pro Staff 97 v14"); otherwise
+  // whatever the player typed, brand first, without repeating a word.
+  const racketName = racket.product
+    ? [racket.product.brand, racket.product.model, racket.product.variant].filter(Boolean).join(" ")
+    : dedupeWords([racket.brand, racket.name, racket.model]);
 
   const history: SetupFact[] = setups.map((s) => ({
     strungAt: iso(s.strungAt),
@@ -201,9 +219,30 @@ export async function loadTournamentsInput(
 
   const [profile, candidates, entries, userHidden, events, trainings, finance] = await Promise.all([
     loadProfileFacts(prisma, playerId, now),
+    // Only the columns the engine reads. The calendar feed holds thousands of
+    // events per quarter, so this is the one query here that is not small.
     prisma.tournament.findMany({
       where: { startDate: { gte: from, lte: to } },
       orderBy: [{ startDate: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        city: true,
+        country: true,
+        surface: true,
+        indoorOutdoor: true,
+        level: true,
+        category: true,
+        federation: true,
+        ageCategory: true,
+        startDate: true,
+        endDate: true,
+        entryDeadline: true,
+        latitude: true,
+        longitude: true,
+        utrRangeMin: true,
+        utrRangeMax: true,
+      },
     }),
     prisma.playerTournament.findMany({
       where: { playerId, status: { not: "withdrawn" } },
