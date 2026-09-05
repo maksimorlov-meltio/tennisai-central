@@ -204,6 +204,21 @@
     }
   }
 
+  /* ── Focus ──────────────────────────────────────────────────────────────
+     The floor under every interactive element. The shadcn primitives paint
+     their own Tailwind ring (focus-visible:ring-2 ring-ring ring-offset-2)
+     and, being utilities, win over this @layer base rule; this catches what
+     has nothing of its own — NavLinks, links in prose, the calendar's bare
+     <button> chips, role="button" rows. :focus-visible rather than :focus, so
+     a mouse click never draws it. Scoped to real controls on purpose: Radix
+     FocusScope focuses DialogContent itself when a dialog opens, and an
+     unscoped rule would box the whole dialog in green. Roving-tabindex items
+     (tabindex="-1", Radix menus) are excluded here and ring themselves. */
+  :where(a, button, input, select, textarea, summary, [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
   /* A phone keyboard closes over the bottom of the page; iOS also parks the
      home indicator there. Anything pinned to the bottom edge should use these
      rather than a hardcoded value. Note: env(safe-area-inset-*) is 0 until
