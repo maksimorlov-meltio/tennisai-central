@@ -24,6 +24,8 @@ export interface ProfileFacts {
   level?: PlayerLevel;
   ageYears?: number;
   ageBand?: AgeBand;
+  /** Parsed out of the free-text `ranking` only when it literally says "UTR n". */
+  utr?: number;
   preferredSurface?: string;
   styleAggression?: number;
   suit?: { clay?: number; hard?: number; grass?: number; indoor?: number };
@@ -37,6 +39,7 @@ export interface ProfileSource {
   profile: {
     dateOfBirth: string | null;
     playingLevel: string | null;
+    ranking: string | null;
     preferredSurface: string | null;
     injuryRestrictions: string | null;
     physicalLimitations: string[];
@@ -62,6 +65,20 @@ export function normalisePlayingLevel(text: string | null | undefined): PlayerLe
   if (/compet|tourn|\bpro\b|professional|elite|national|ranked/.test(s)) return "competitive";
   if (/advanc/.test(s)) return "advanced";
   return undefined;
+}
+
+/**
+ * `ranking` is free text ("UTR 7.2", "LK 12", "national #40"). Only an explicit
+ * UTR figure is read — anything else is a rating on a scale the engine cannot
+ * compare with a tournament's UTR range, and guessing a conversion would be
+ * inventing a number.
+ */
+export function parseUtr(text: string | null | undefined): number | undefined {
+  if (!text) return undefined;
+  const m = /\butr\b\s*:?\s*(\d{1,2}(?:\.\d{1,2})?)/i.exec(text);
+  if (!m) return undefined;
+  const v = Number(m[1]);
+  return v >= 1 && v <= 16.5 ? v : undefined;
 }
 
 /** Whole years between an ISO date of birth and `now`. Undefined if unparseable. */
@@ -122,6 +139,7 @@ export function deriveProfileFacts(source: ProfileSource, nowIso: string): Profi
     level: normalisePlayingLevel(p?.playingLevel),
     ageYears,
     ageBand: ageYears === undefined ? undefined : ageBandFromYears(ageYears),
+    utr: parseUtr(p?.ranking),
     preferredSurface: p?.preferredSurface ?? undefined,
     styleAggression: p?.styleAggression ?? undefined,
     suit: suit && Object.values(suit).some((v) => v !== undefined) ? suit : undefined,

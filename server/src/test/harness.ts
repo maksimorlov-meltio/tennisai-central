@@ -94,6 +94,8 @@ const DELEGATES = [
   // /api/players/:id/finance crashed on an undefined delegate.
   "equipmentItem",
   "financeEntry",
+  // The recommendation routes derive level / age / comfort from the profile row.
+  "playerProfile",
   // Gear catalogue domain.
   "equipmentProduct",
   "racketSpec",

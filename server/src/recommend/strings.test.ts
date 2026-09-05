@@ -55,6 +55,17 @@ describe("recommendStrings — junior / comfort", () => {
     expect(r.pickFromCatalogue.productIds.length).toBeGreaterThan(0);
   });
 
+  it("brings a junior last strung in the upper half of the band down to its midpoint, anchor or not", () => {
+    // Band 23–27, last job at 27 kg. Anchor 27 → −0.5 comfort = 26.5, still above the 25 midpoint → capped at 25 → [24.5, 25.5].
+    const r = recommendStrings(
+      stringsInput({ profile: JUNIOR_U14, history: [{ strungAt: "2026-08-01T00:00:00.000Z", tensionMainsKg: 27, mainsName: "Something stiff" }] }),
+    );
+    expect(codes(r)).toContain("anchor_history");
+    expect(codes(r)).toContain("tension_capped_lower_half");
+    expect(r.tension.mainsKg[1]).toBeLessThanOrEqual(25.5);
+    expect(r.tension.mainsKg).toEqual([24.5, 25.5]);
+  });
+
   it("offers a hybrid when comfort and spin are both wanted, instead of a full poly bed", () => {
     const r = recommendStrings(stringsInput({ prefs: { wantsArmComfort: true, wantsMoreSpin: true } }));
     expect(r.material.material).toBe("multifilament");
@@ -157,6 +168,13 @@ describe("recommendStrings — conditions at the next tournament", () => {
     expect(cold.tension.mainsKg[0]).toBeLessThanOrEqual(plain.tension.mainsKg[0]);
     // Clamped by the band floor of 23 → says so.
     expect(codes(cold)).toContain("band_clamped");
+  });
+
+  it("says so and changes nothing when the tournament has no physics (no weather, no coordinates)", () => {
+    const plain = recommendStrings(base);
+    const none = recommendStrings({ ...base, nextTournament: { name: "Somewhere", startDate: "2026-10-01T00:00:00.000Z", physics: null } });
+    expect(codes(none)).toContain("conditions_unavailable");
+    expect(none.tension.mainsKg).toEqual(plain.tension.mainsKg);
   });
 
   it("says so when the conditions are ordinary", () => {

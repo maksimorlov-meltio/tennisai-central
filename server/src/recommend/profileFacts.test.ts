@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { ageBandFromYears, ageYearsAt, deriveProfileFacts, mentionsPain, normalisePlayingLevel } from "./profileFacts";
+import { ageBandFromYears, ageYearsAt, deriveProfileFacts, mentionsPain, normalisePlayingLevel, parseUtr } from "./profileFacts";
 
 const NOW = "2026-09-04T12:00:00.000Z";
 
 const emptyProfile = {
   dateOfBirth: null,
   playingLevel: null,
+  ranking: null,
   preferredSurface: null,
   injuryRestrictions: null,
   physicalLimitations: [] as string[],
@@ -51,6 +52,21 @@ describe("ageYearsAt / ageBandFromYears", () => {
   });
 });
 
+describe("parseUtr", () => {
+  it("reads only an explicit UTR figure out of the free-text ranking", () => {
+    expect(parseUtr("UTR 7.2")).toBe(7.2);
+    expect(parseUtr("utr: 10")).toBe(10);
+    expect(parseUtr("Regional #12, UTR 5.85")).toBe(5.85);
+  });
+
+  it("refuses to invent a UTR from any other rating scale", () => {
+    expect(parseUtr("LK 12")).toBeUndefined();
+    expect(parseUtr("national #40")).toBeUndefined();
+    expect(parseUtr("UTR 42")).toBeUndefined(); // out of range
+    expect(parseUtr(null)).toBeUndefined();
+  });
+});
+
 describe("mentionsPain", () => {
   it("is true for any injuryRestrictions text", () => {
     expect(mentionsPain({ ...emptyProfile, injuryRestrictions: "avoid overhead serves" })).toBe(true);
@@ -74,6 +90,7 @@ describe("deriveProfileFacts", () => {
       level: undefined,
       ageYears: undefined,
       ageBand: undefined,
+      utr: undefined,
       preferredSurface: undefined,
       styleAggression: undefined,
       suit: undefined,

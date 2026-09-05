@@ -79,8 +79,12 @@ export interface SetupFact {
 export interface NextTournamentFacts {
   name: string;
   startDate: string;
-  /** From conditions/physics.ts — reused, never recomputed here. */
-  physics: ConditionsPhysics;
+  /**
+   * From conditions/physics.ts — reused, never recomputed here. Null when the
+   * conditions service had no temperature to work from (no coordinates, or the
+   * weather lookup failed): the engine then says so and changes nothing.
+   */
+  physics: ConditionsPhysics | null;
 }
 
 /** The three-to-four plain questions the UI asks. All optional. */
@@ -450,6 +454,21 @@ export function recommendStrings(input: StringsInput): StringsRecommendation {
       centre -= 0.5;
       reasons.push(reason("tension_softer", { deltaKg: -0.5 }, "Half a kilo lower for a softer, more forgiving string bed."));
     }
+    // The junior/comfort rule is "lower half of the frame's range". A history
+    // anchor does not override it: a junior who was last strung at the top of
+    // the band is brought down to its midpoint, not kept there because that is
+    // what happened last time.
+    const midpoint = (band[0] + band[1]) / 2;
+    if ((junior || comfort) && centre > midpoint) {
+      centre = midpoint;
+      reasons.push(
+        reason(
+          "tension_capped_lower_half",
+          { minKg: band[0], maxKg: band[1], lastTensionKg: latest.tensionMainsKg },
+          `Your last ${latest.tensionMainsKg} kg sits in the upper half of the ${band[0]}–${band[1]} kg range; for comfort this is brought down to the middle.`,
+        ),
+      );
+    }
     if (priority === "control" && !breaker) {
       centre += 0.5;
       reasons.push(reason("tension_control", { deltaKg: 0.5 }, "Half a kilo higher for control, since that is the priority."));
@@ -496,9 +515,17 @@ export function recommendStrings(input: StringsInput): StringsRecommendation {
   }
 
   // Conditions at the next tournament, from the shared physics — never recomputed here.
-  if (input.nextTournament) {
+  if (input.nextTournament && !input.nextTournament.physics) {
+    reasons.push(
+      reason(
+        "conditions_unavailable",
+        { tournament: input.nextTournament.name },
+        `${input.nextTournament.name}: no temperature or altitude data was available, so nothing was adjusted for conditions.`,
+      ),
+    );
+  } else if (input.nextTournament) {
     const { physics, name } = input.nextTournament;
-    const pct = physics.densityVsReferencePct;
+    const pct = physics!.densityVsReferencePct;
     let delta = 0;
     if (pct <= VERY_THIN_AIR_PCT) delta = 1;
     else if (pct <= THIN_AIR_PCT) delta = 0.5;
