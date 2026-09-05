@@ -86,7 +86,7 @@ const Index = () => {
               >
                 <Marker />
                 <h3 className="text-2xl font-bold tracking-tight text-foreground">{c.title}</h3>
-                <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted-foreground">{c.desc}</p>
+                <p className="mt-3 max-w-md text-base leading-relaxed text-muted-foreground">{c.desc}</p>
               </Reveal>
             ))}
           </div>

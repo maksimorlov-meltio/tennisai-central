@@ -99,7 +99,7 @@ export function MiniMonthCalendar({ currentDate, events, onSelectDate, onMonthCh
 
         <div className="grid grid-cols-7 gap-px">
           {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-            <div key={i} className="flex h-5 items-center justify-center text-[9px] font-semibold uppercase text-muted-foreground/70">
+            <div key={i} className="flex h-5 items-center justify-center text-[10px] font-semibold uppercase text-muted-foreground/70">
               {d}
             </div>
           ))}
