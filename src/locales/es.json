@@ -4,6 +4,73 @@
     "english": "Inglés",
     "spanish": "Español"
   },
+  "firstRun": {
+    "card": {
+      "title": "Primeros pasos",
+      "progress": "{done} de {total} completados — unos pocos pasos y la aplicación empieza a ser útil",
+      "dismiss": "Cerrar la lista de primeros pasos",
+      "confirm": "Marcar \"{label}\" como hecho",
+      "selfConfirmed": "Confirmado manualmente — la aplicación no puede verificar este paso"
+    },
+    "player": {
+      "completeProfile": {
+        "label": "Completa tu perfil",
+        "description": "Responde el breve cuestionario para que tu entrenador conozca tu nivel, tu mano dominante y tus objetivos.",
+        "action": "Perfil"
+      },
+      "connectCoach": {
+        "label": "Conecta con un entrenador",
+        "description": "Aprueba o envía una solicitud para que tu entrenador pueda planificar contigo.",
+        "action": "Conexiones"
+      },
+      "addTournament": {
+        "label": "Añade un torneo",
+        "description": "Planifica tu temporada y controla juntos los viajes y los gastos.",
+        "action": "Torneos"
+      }
+    },
+    "coach": {
+      "addPlayer": {
+        "label": "Añade un jugador",
+        "description": "Envía una solicitud con el ID público del jugador, o aprueba una que hayas recibido.",
+        "action": "Conexiones"
+      },
+      "planSession": {
+        "label": "Planifica una sesión",
+        "description": "Combina ejercicios en el Creador de sesiones y guárdalos como plan para un jugador.",
+        "action": "Creador de sesiones"
+      },
+      "createTeam": {
+        "label": "Crea un equipo",
+        "description": "Agrupa a tus jugadores para programar y filtrar por equipo.",
+        "action": "Equipos"
+      }
+    },
+    "observer": {
+      "linkChild": {
+        "label": "Vincule a su hijo o hija",
+        "description": "Envíe una solicitud con el ID público de su hijo o hija, o apruebe la que le haya enviado.",
+        "action": "Conexiones"
+      },
+      "reviewConsent": {
+        "label": "Revise el consentimiento",
+        "description": "Lea cómo se tratan los datos de su hijo o hija y a qué ha dado su consentimiento.",
+        "action": "Política de privacidad"
+      },
+      "seeWeek": {
+        "label": "Vea la semana",
+        "description": "Las sesiones y torneos de su hijo o hija aparecen en el calendario cuando su entrenador los programa.",
+        "action": "Calendario"
+      }
+    },
+    "admin": {
+      "setUpAcademy": {
+        "label": "Configure su academia",
+        "description": "Indique el nombre de su academia y su tamaño en el cuestionario del perfil.",
+        "action": "Perfil"
+      }
+    }
+  },
   "navbar": {
     "brand": "Tennis AI",
     "howItWorks": "Cómo funciona",

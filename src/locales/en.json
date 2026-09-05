@@ -4,6 +4,73 @@
     "english": "English",
     "spanish": "Español"
   },
+  "firstRun": {
+    "card": {
+      "title": "Get started",
+      "progress": "{done} of {total} done — a few steps and the app starts working for you",
+      "dismiss": "Dismiss the get started checklist",
+      "confirm": "Mark \"{label}\" as done",
+      "selfConfirmed": "Self-confirmed — nothing in the app can verify this step"
+    },
+    "player": {
+      "completeProfile": {
+        "label": "Complete your profile",
+        "description": "Answer the short questionnaire so your coach knows your level, hand and goals.",
+        "action": "Profile"
+      },
+      "connectCoach": {
+        "label": "Connect a coach",
+        "description": "Approve or send a request so your coach can plan with you.",
+        "action": "Connections"
+      },
+      "addTournament": {
+        "label": "Add a tournament",
+        "description": "Plan your season and keep travel and costs together.",
+        "action": "Tournaments"
+      }
+    },
+    "coach": {
+      "addPlayer": {
+        "label": "Add a player",
+        "description": "Send a request with the player's public ID, or approve an incoming one.",
+        "action": "Connections"
+      },
+      "planSession": {
+        "label": "Plan a session",
+        "description": "Build drills in the Session Builder and save them as a plan for a player.",
+        "action": "Session Builder"
+      },
+      "createTeam": {
+        "label": "Create a team",
+        "description": "Group your players so you can schedule and filter by squad.",
+        "action": "Teams"
+      }
+    },
+    "observer": {
+      "linkChild": {
+        "label": "Link your child",
+        "description": "Send a request with your child's public ID, or approve the one they sent you.",
+        "action": "Connections"
+      },
+      "reviewConsent": {
+        "label": "Review consent",
+        "description": "Read how your child's data is handled and what you have consented to.",
+        "action": "Privacy policy"
+      },
+      "seeWeek": {
+        "label": "See the week",
+        "description": "Your child's sessions and tournaments appear on the calendar once their coach has scheduled them.",
+        "action": "Calendar"
+      }
+    },
+    "admin": {
+      "setUpAcademy": {
+        "label": "Set up your academy",
+        "description": "Name your academy and describe its size in the profile questionnaire.",
+        "action": "Profile"
+      }
+    }
+  },
   "navbar": {
     "brand": "Tennis AI",
     "howItWorks": "How it works",
