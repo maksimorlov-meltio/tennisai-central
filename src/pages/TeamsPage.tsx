@@ -8,6 +8,7 @@ import { EmptyState, LoadingState, ErrorState } from "@/components/ui/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18n";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Plus, Users, Pencil, Trash2, UserPlus, UserMinus, ArrowLeft, Search, Check } from "lucide-react";
 import type { Team, ConnectedPlayer } from "@/types";
@@ -29,6 +30,7 @@ function PlayerAvatar({ player, size = "md" }: { player: ConnectedPlayer; size?:
 function TeamCard({ team, onSelect, onRename, onDelete }: {
   team: Team; onSelect: () => void; onRename: () => void; onDelete: () => void;
 }) {
+  const { t } = useT();
   return (
     <div className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/20 hover:bg-accent/20">
       <div className="flex items-start justify-between">
@@ -41,8 +43,8 @@ function TeamCard({ team, onSelect, onRename, onDelete }: {
         </div>
         <div className="flex items-center gap-1">
           <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onRename(); }}><Pencil className="h-3.5 w-3.5" /></Button>
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); onDelete(); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+            <Button size="icon" variant="ghost" aria-label={t("a11y.teams.rename", { name: team.name })} className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onRename(); }}><Pencil className="h-3.5 w-3.5" /></Button>
+            <Button size="icon" variant="ghost" aria-label={t("a11y.teams.delete", { name: team.name })} className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); onDelete(); }}><Trash2 className="h-3.5 w-3.5" /></Button>
           </div>
           <TeamActionsMenu team={team} onManage={onSelect} compact />
         </div>
@@ -62,6 +64,7 @@ function TeamDetail({ team, connectedPlayers, onBack, onAddPlayer, onRemovePlaye
   onAddPlayer: (player: ConnectedPlayer) => void; onRemovePlayer: (playerId: string) => void;
   onRename: () => void; addingPlayer?: boolean; removingPlayer?: boolean;
 }) {
+  const { t } = useT();
   const [search, setSearch] = useState("");
   const [statsPlayer, setStatsPlayer] = useState<ConnectedPlayer | null>(null);
   const [equipmentPlayer, setEquipmentPlayer] = useState<ConnectedPlayer | null>(null);
@@ -73,11 +76,11 @@ function TeamDetail({ team, connectedPlayers, onBack, onAddPlayer, onRemovePlaye
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" aria-label={t("a11y.teams.back")} className="h-9 w-9" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-foreground">{team.name}</h2>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRename}><Pencil className="h-3.5 w-3.5" /></Button>
+            <Button variant="ghost" size="icon" aria-label={t("a11y.teams.rename", { name: team.name })} className="h-7 w-7" onClick={onRename}><Pencil className="h-3.5 w-3.5" /></Button>
           </div>
           <p className="text-sm text-muted-foreground">{team.players.length} player{team.players.length !== 1 ? "s" : ""} · Created {format(new Date(team.createdAt), "MMM d, yyyy")}</p>
         </div>

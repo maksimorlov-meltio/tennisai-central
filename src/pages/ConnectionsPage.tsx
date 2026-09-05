@@ -7,6 +7,7 @@ import { NewConnectionDialog } from "@/components/connections/NewConnectionDialo
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/lib/i18n";
 import { toast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -149,6 +150,7 @@ export function RequestRow({
 // ─── Page ───
 
 export default function ConnectionsPage() {
+  const { t } = useT();
   const { user } = useAuth();
   const userId = user?.id ?? "";
   const role = user?.role ?? "player";
@@ -236,7 +238,7 @@ export default function ConnectionsPage() {
       {/* Search */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search by name…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <Input aria-label={t("a11y.search.connections")} placeholder="Search by name…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
       </div>
 
       {/* Tabs */}

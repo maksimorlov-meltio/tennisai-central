@@ -33,9 +33,9 @@ export default function NotificationSettingsPage() {
             <div key={s.key} className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">{s.icon}</div>
-                <div><Label className="text-sm font-medium">{s.label}</Label><p className="text-xs text-muted-foreground">{s.description}</p></div>
+                <div><Label htmlFor={`notif-${s.key}`} className="text-sm font-medium">{s.label}</Label><p className="text-xs text-muted-foreground">{s.description}</p></div>
               </div>
-              <Switch checked={prefs[s.key]} onCheckedChange={(checked) => updateMut.mutate({ [s.key]: checked })} disabled={updateMut.isPending} />
+              <Switch id={`notif-${s.key}`} checked={prefs[s.key]} onCheckedChange={(checked) => updateMut.mutate({ [s.key]: checked })} disabled={updateMut.isPending} />
             </div>
           ))}
         </div>

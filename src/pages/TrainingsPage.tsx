@@ -28,6 +28,7 @@ import { AttendanceRegister } from "@/components/training/AttendanceRegister";
 import type { AdviceSession } from "@/api/endpoints/aiAdvice";
 import type { TrainingSession, TrainingType, ConnectedPlayer, PlayerSessionFeedback, AttendanceStatus } from "@/types";
 import { useAuth } from "@/auth/AuthContext";
+import { useT } from "@/lib/i18n";
 import { useTrainings, useCreateTraining, useUpdateTraining, useDeleteTraining, useTeams, useAnalyzeTraining, useSaveTrainingFeedback } from "@/hooks/api/queries";
 import { useMarkAttendance } from "@/hooks/api/useTrainingAttendance";
 import { format, parseISO, isPast } from "date-fns";
@@ -481,6 +482,7 @@ function DeleteTrainingDialog({ open, onOpenChange, title, onConfirm, loading }:
 
 export default function TrainingsPage() {
   const { user } = useAuth();
+  const { t } = useT();
   const { connectedPlayers } = useConnections();
   const role = user?.role ?? "player";
   const isCoach = role === "coach";
@@ -679,10 +681,10 @@ export default function TrainingsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[200px] flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search trainings…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
+        <div className="relative min-w-[200px] flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label={t("a11y.search.trainings")} placeholder="Search trainings…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
         {isCoach && <TeamFilterSelect teams={teams} value={teamFilter} onValueChange={(v) => { setTeamFilter(v); setPlayerFilter("__all__"); }} />}
         <PlayerFilterSelect players={filteredPlayers} value={playerFilter} onValueChange={setPlayerFilter} onViewDetail={isCoach ? handleViewPlayerDetail : undefined} />
-        <Select value={typeFilter} onValueChange={setTypeFilter}><SelectTrigger className="w-[170px]"><SelectValue placeholder="All Types" /></SelectTrigger><SelectContent><SelectItem value="__all__">All Types</SelectItem>{TRAINING_TYPES.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}</SelectContent></Select>
+        <Select value={typeFilter} onValueChange={setTypeFilter}><SelectTrigger aria-label={t("a11y.filters.trainingType")} className="w-[170px]"><SelectValue placeholder="All Types" /></SelectTrigger><SelectContent><SelectItem value="__all__">All Types</SelectItem>{TRAINING_TYPES.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}</SelectContent></Select>
         <Tabs value={timeFilter} onValueChange={(v) => setTimeFilter(v as typeof timeFilter)}><TabsList><TabsTrigger value="upcoming">Upcoming</TabsTrigger><TabsTrigger value="past">Past</TabsTrigger><TabsTrigger value="all">All</TabsTrigger></TabsList></Tabs>
       </div>
 

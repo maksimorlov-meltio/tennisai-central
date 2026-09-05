@@ -1,6 +1,7 @@
 // Reusable player filter dropdown for coach/observer views
 // Supports "view detail" action to open PlayerDetailDrawer
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { User, Eye } from "lucide-react";
 import type { ConnectedPlayer } from "@/types";
@@ -18,6 +19,7 @@ interface PlayerFilterSelectProps {
 }
 
 export function PlayerFilterSelect({ players, value, onValueChange, onViewDetail, className, showIcon }: PlayerFilterSelectProps) {
+  const { t } = useT();
   if (players.length === 0) return null;
 
   const selectedPlayer = value !== ALL ? players.find((p) => p.id === value) : null;
@@ -25,7 +27,7 @@ export function PlayerFilterSelect({ players, value, onValueChange, onViewDetail
   return (
     <div className="flex items-center gap-1.5">
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className={className ?? "w-[170px]"}>
+        <SelectTrigger aria-label={t("a11y.filters.player")} className={className ?? "w-[170px]"}>
           {showIcon && <User className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />}
           <SelectValue placeholder="All Players" />
         </SelectTrigger>

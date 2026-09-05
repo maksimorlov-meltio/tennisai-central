@@ -1,4 +1,25 @@
 {
+  "a11y": {
+    "search": {
+      "players": "Buscar jugadores",
+      "trainings": "Buscar entrenamientos",
+      "connections": "Buscar conexiones por nombre"
+    },
+    "filters": {
+      "team": "Filtrar por equipo",
+      "player": "Filtrar por jugador",
+      "trainingType": "Filtrar por tipo de entrenamiento"
+    },
+    "profile": {
+      "copyPublicId": "Copiar el ID público",
+      "publicIdCopied": "ID público copiado"
+    },
+    "teams": {
+      "rename": "Renombrar el equipo {name}",
+      "delete": "Eliminar el equipo {name}",
+      "back": "Volver a todos los equipos"
+    }
+  },
   "language": {
     "switchAria": "Idioma",
     "english": "Inglés",

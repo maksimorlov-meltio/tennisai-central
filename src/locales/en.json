@@ -1,4 +1,25 @@
 {
+  "a11y": {
+    "search": {
+      "players": "Search players",
+      "trainings": "Search trainings",
+      "connections": "Search connections by name"
+    },
+    "filters": {
+      "team": "Filter by team",
+      "player": "Filter by player",
+      "trainingType": "Filter by training type"
+    },
+    "profile": {
+      "copyPublicId": "Copy public ID",
+      "publicIdCopied": "Public ID copied"
+    },
+    "teams": {
+      "rename": "Rename team {name}",
+      "delete": "Delete team {name}",
+      "back": "Back to all teams"
+    }
+  },
   "language": {
     "switchAria": "Language",
     "english": "English",
