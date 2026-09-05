@@ -1,5 +1,6 @@
 // TODO: Integrate with GET /api/coach/players endpoint
 import { useConnections } from "@/store/ConnectionStore";
+import { useT } from "@/lib/i18n";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { EmptyState, StatusBadge } from "@/components/ui/shared";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { PlayerActionsMenu } from "@/components/coach/EntityActionsMenu";
 import type { ConnectedPlayer } from "@/types";
 
 export default function PlayersPage() {
+  const { t } = useT();
   const { connectedPlayers } = useConnections();
   const [search, setSearch] = useState("");
   const [statsPlayer, setStatsPlayer] = useState<ConnectedPlayer | null>(null);
@@ -60,13 +62,21 @@ export default function PlayersPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState
-          icon={<Users className="h-6 w-6 text-muted-foreground" />}
-          title="No connected players"
-          description="Send connection requests to players to start managing them."
-        >
-          <Button asChild><Link to="/connections">Send Request</Link></Button>
-        </EmptyState>
+        connectedPlayers.length === 0 ? (
+          // First run: no roster at all. The one next step is a connection.
+          <EmptyState
+            icon={<Users className="h-6 w-6 text-muted-foreground" />}
+            title={t("empty.players.title")}
+            description={t("empty.players.description")}
+            action={
+              <Button asChild className="gap-1.5">
+                <Link to="/connections"><UserPlus className="h-4 w-4" /> {t("empty.players.action")}</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState icon={<Users className="h-6 w-6 text-muted-foreground" />} title={t("empty.players.filtered.title")} description={t("empty.players.filtered.description")} />
+        )
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((player) => (

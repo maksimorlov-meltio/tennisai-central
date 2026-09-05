@@ -1,7 +1,9 @@
 // Training Requests — Player creates requests, Coach approves/rejects/reschedules
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
+import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -322,8 +324,9 @@ function CancelRequestDialog({ open, onOpenChange, request, onConfirm, loading }
 
 // ─── Page ───
 export default function TrainingRequestsPage() {
+  const { t } = useT();
   const { user } = useAuth();
-  const { activeRelationships } = useConnections();
+  const { activeRelationships, connectedPlayers } = useConnections();
   const role = user?.role ?? "player";
   const isPlayer = role === "player";
   const isCoach = role === "coach";
@@ -405,9 +408,29 @@ export default function TrainingRequestsPage() {
       </Tabs>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={<Dumbbell className="h-6 w-6 text-muted-foreground" />} title="No requests" description={statusFilter !== "all" ? "No requests with this status." : isPlayer ? "Request your first training session." : "No training requests to review."}>
-          {isPlayer && connectedCoach && <Button onClick={() => setFormOpen(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Request Training</Button>}
-        </EmptyState>
+        statusFilter !== "all" ? (
+          <EmptyState icon={<Dumbbell className="h-6 w-6 text-muted-foreground" />} title={t("empty.trainingRequests.filtered.title")} description={t("empty.trainingRequests.filtered.description")} />
+        ) : (
+          // First run. A player with a coach asks for a session right here;
+          // without one, the next step is connecting a coach. A coach with no
+          // players cannot receive a request yet, so the step is adding one.
+          <EmptyState
+            icon={<Dumbbell className="h-6 w-6 text-muted-foreground" />}
+            title={t("empty.trainingRequests.title")}
+            description={isCoach ? t("empty.trainingRequests.coach.description") : t("empty.trainingRequests.player.description")}
+            action={
+              isPlayer ? (
+                connectedCoach ? (
+                  <Button onClick={() => setFormOpen(true)} className="gap-1.5"><Plus className="h-4 w-4" /> {t("empty.trainingRequests.player.actionRequest")}</Button>
+                ) : (
+                  <Button asChild className="gap-1.5"><Link to="/connections">{t("empty.trainingRequests.player.actionConnect")}</Link></Button>
+                )
+              ) : isCoach && connectedPlayers.length === 0 ? (
+                <Button asChild className="gap-1.5"><Link to="/connections">{t("empty.trainingRequests.coach.actionConnect")}</Link></Button>
+              ) : undefined
+            }
+          />
+        )
       ) : (
         <div className="space-y-3">
           {filtered.map((req) => {

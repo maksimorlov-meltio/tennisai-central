@@ -30,6 +30,7 @@ import {
   type StatsWindowId,
 } from "@/components/stats";
 import { useMatchStats, useMatches } from "@/hooks/api/matches";
+import { useT } from "@/lib/i18n";
 import {
   NO_VALUE,
   formatMatchDate,
@@ -41,6 +42,7 @@ import {
 const DEFAULT_WINDOW: StatsWindowId = "last10";
 
 export default function StatsPage() {
+  const { t } = useT();
   const [windowId, setWindowId] = useState<StatsWindowId>(DEFAULT_WINDOW);
   const [openMatchId, setOpenMatchId] = useState<string | null>(null);
 
@@ -101,15 +103,16 @@ export default function StatsPage() {
         {header}
         <EmptyState
           icon={<BarChart3 className="h-6 w-6 text-muted-foreground" />}
-          title="No match data recorded yet"
-          description="Log a match and your win rate, surface splits, serve and return percentages, recent form and trend appear here — all computed from what you entered."
-        >
-          <Button asChild className="gap-1.5">
-            <Link to="/matches">
-              <ClipboardList className="h-4 w-4" /> Log your first match
-            </Link>
-          </Button>
-        </EmptyState>
+          title={t("empty.stats.title")}
+          description={t("empty.stats.description")}
+          action={
+            <Button asChild className="gap-1.5">
+              <Link to="/matches">
+                <ClipboardList className="h-4 w-4" /> {t("empty.stats.action")}
+              </Link>
+            </Button>
+          }
+        />
       </div>
     );
   }

@@ -1,7 +1,9 @@
 // Training Management — Full Coach CRUD via React Query
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useConnections } from "@/store/ConnectionStore";
+import { hasCoachCounterpart } from "@/lib/connections/hasCoachCounterpart";
+import { useT } from "@/lib/i18n";
 import { EmptyState, LoadingState, ErrorState } from "@/components/ui/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -480,8 +482,9 @@ function DeleteTrainingDialog({ open, onOpenChange, title, onConfirm, loading }:
 // ─── Page ───
 
 export default function TrainingsPage() {
+  const { t } = useT();
   const { user } = useAuth();
-  const { connectedPlayers } = useConnections();
+  const { connectedPlayers, activeRelationships } = useConnections();
   const role = user?.role ?? "player";
   const isCoach = role === "coach";
   // Feedback is a PLAYER's own word on a session. `!isCoach` also caught
@@ -687,9 +690,28 @@ export default function TrainingsPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={<Dumbbell className="h-6 w-6 text-muted-foreground" />} title="No training sessions" description={search || playerFilter !== "__all__" || typeFilter !== "__all__" || teamFilter !== "__all__" ? "No trainings match your filters." : "Create your first training session."}>
-          {isCoach && !search && <Button onClick={() => handleCreate()} className="gap-1.5"><Plus className="h-4 w-4" /> Create Training</Button>}
-        </EmptyState>
+        trainings.length === 0 ? (
+          // First run: nothing scheduled at all. A coach creates the first
+          // session here; a player asks their coach — or connects one first.
+          <EmptyState
+            icon={<Dumbbell className="h-6 w-6 text-muted-foreground" />}
+            title={t("empty.trainings.title")}
+            description={isCoach ? t("empty.trainings.coach.description") : t("empty.trainings.player.description")}
+            action={
+              isCoach ? (
+                <Button onClick={() => handleCreate()} className="gap-1.5"><Plus className="h-4 w-4" /> {t("empty.trainings.coach.action")}</Button>
+              ) : isPlayer ? (
+                <Button asChild className="gap-1.5">
+                  <Link to={hasCoachCounterpart(activeRelationships, user?.id ?? "") ? "/training-requests" : "/connections"}>
+                    {hasCoachCounterpart(activeRelationships, user?.id ?? "") ? t("empty.trainings.player.actionRequest") : t("empty.trainings.player.actionConnect")}
+                  </Link>
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <EmptyState icon={<Dumbbell className="h-6 w-6 text-muted-foreground" />} title={t("empty.trainings.filtered.title")} description={t("empty.trainings.filtered.description")} />
+        )
       ) : (
         <div className="space-y-3">
           {filtered.map((t) => {

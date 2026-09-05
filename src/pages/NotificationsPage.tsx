@@ -3,6 +3,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from "@/hooks/api/queries";
+import { useT } from "@/lib/i18n";
 import { LoadingState, ErrorState, EmptyState } from "@/components/ui/shared";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +22,7 @@ function internalPath(linkTo: string | undefined): string | null {
 }
 
 export default function NotificationsPage() {
+  const { t } = useT();
   const { user } = useAuth();
   const navigate = useNavigate();
   const userId = user?.id ?? "";
@@ -65,7 +67,18 @@ export default function NotificationsPage() {
       {showPrefs && <NotificationPreferencesCard />}
 
       {filtered.length === 0 ? (
-        <EmptyState icon={<Inbox className="h-6 w-6 text-muted-foreground" />} title={filter === "unread" ? "No unread notifications" : "No notifications yet"} description="Notifications about connections, trainings, and tournaments will appear here." />
+        filter === "unread" ? (
+          <EmptyState icon={<Inbox className="h-6 w-6 text-muted-foreground" />} title={t("empty.notifications.unread.title")} description={t("empty.notifications.unread.description")} />
+        ) : (
+          // First run: the inbox has never had anything in it. The one useful
+          // thing to do here is decide what should arrive — the settings card.
+          <EmptyState
+            icon={<Inbox className="h-6 w-6 text-muted-foreground" />}
+            title={t("empty.notifications.title")}
+            description={t("empty.notifications.description")}
+            action={!showPrefs ? <Button variant="outline" className="gap-1.5" onClick={() => setShowPrefs(true)}><Settings2 className="h-4 w-4" /> {t("empty.notifications.action")}</Button> : undefined}
+          />
+        )
       ) : (
         <div className="space-y-2">
           {filtered.map((n) => {

@@ -2,6 +2,7 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/auth/AuthContext";
 import { useEquipment, useCreateEquipment, useUpdateEquipment, useDeleteEquipment } from "@/hooks/api/queries";
+import { useT } from "@/lib/i18n";
 import { LoadingState, ErrorState, EmptyState } from "@/components/ui/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,7 @@ function getUpgradeSuggestions(items: EquipmentItem[]): { category: EquipmentCat
 // ─── Main Page ───
 
 export default function EquipmentPage() {
+  const { t } = useT();
   const { user } = useAuth();
   const playerId = user?.id ?? "";
   const { data: items = [], isLoading, error } = useEquipment(playerId);
@@ -157,9 +159,12 @@ export default function EquipmentPage() {
 
       {/* Grouped equipment */}
       {items.length === 0 ? (
-        <EmptyState icon={<Package className="h-6 w-6 text-muted-foreground" />} title="No equipment" description="Start tracking your tennis equipment.">
-          <Button onClick={() => openAddDialog()} className="gap-1.5"><Plus className="h-4 w-4" /> Add Item</Button>
-        </EmptyState>
+        <EmptyState
+          icon={<Package className="h-6 w-6 text-muted-foreground" />}
+          title={t("empty.equipment.title")}
+          description={t("empty.equipment.description")}
+          action={<Button onClick={() => openAddDialog()} className="gap-1.5"><Plus className="h-4 w-4" /> {t("empty.equipment.action")}</Button>}
+        />
       ) : (
         <div className="space-y-3">
           {CATEGORY_ORDER.map((cat) => {

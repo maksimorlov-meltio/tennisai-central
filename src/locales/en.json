@@ -4,6 +4,235 @@
     "english": "English",
     "spanish": "Español"
   },
+  "firstRun": {
+    "card": {
+      "title": "Get started",
+      "progress": "{done} of {total} done — a few steps and the app starts working for you",
+      "dismiss": "Dismiss the get started checklist",
+      "confirm": "Mark \"{label}\" as done",
+      "selfConfirmed": "Self-confirmed — nothing in the app can verify this step"
+    },
+    "player": {
+      "completeProfile": {
+        "label": "Complete your profile",
+        "description": "Answer the short questionnaire so your coach knows your level, hand and goals.",
+        "action": "Profile"
+      },
+      "connectCoach": {
+        "label": "Connect a coach",
+        "description": "Approve or send a request so your coach can plan with you.",
+        "action": "Connections"
+      },
+      "addTournament": {
+        "label": "Add a tournament",
+        "description": "Plan your season and keep travel and costs together.",
+        "action": "Tournaments"
+      }
+    },
+    "coach": {
+      "addPlayer": {
+        "label": "Add a player",
+        "description": "Send a request with the player's public ID, or approve an incoming one.",
+        "action": "Connections"
+      },
+      "planSession": {
+        "label": "Plan a session",
+        "description": "Build drills in the Session Builder and save them as a plan for a player.",
+        "action": "Session Builder"
+      },
+      "createTeam": {
+        "label": "Create a team",
+        "description": "Group your players so you can schedule and filter by squad.",
+        "action": "Teams"
+      }
+    },
+    "observer": {
+      "linkChild": {
+        "label": "Link your child",
+        "description": "Send a request with your child's public ID, or approve the one they sent you.",
+        "action": "Connections"
+      },
+      "reviewConsent": {
+        "label": "Review consent",
+        "description": "Read how your child's data is handled and what you have consented to.",
+        "action": "Privacy policy"
+      },
+      "seeWeek": {
+        "label": "See the week",
+        "description": "Your child's sessions and tournaments appear on the calendar once their coach has scheduled them.",
+        "action": "Calendar"
+      }
+    },
+    "admin": {
+      "setUpAcademy": {
+        "label": "Set up your academy",
+        "description": "Name your academy and describe its size in the profile questionnaire.",
+        "action": "Profile"
+      }
+    }
+  },
+  "empty": {
+    "admin": {
+      "title": "No admin tools yet",
+      "description": "This page will hold user management, relationship oversight and system alerts. Until then, the admin dashboard has the live overview.",
+      "action": "Open the admin dashboard"
+    },
+    "calendar": {
+      "title": "Nothing on the calendar yet",
+      "coach": {
+        "description": "Your calendar brings together every training you schedule and your players' tournaments. Schedule the first session and it appears here.",
+        "action": "Schedule a training"
+      },
+      "observer": {
+        "description": "Your child's trainings and tournaments appear here once their coach has scheduled them.",
+        "action": "Link your child"
+      },
+      "player": {
+        "description": "Your trainings, matches and tournaments come together here. Add a tournament to start planning your season.",
+        "action": "Add a tournament"
+      },
+      "filtered": {
+        "title": "No events match",
+        "description": "Nothing matches the current filters. Clear a filter to see more."
+      }
+    },
+    "connections": {
+      "active": {
+        "title": "No active connections yet",
+        "coach": {
+          "description": "Connections link you to the players you coach. Send a request with a player's public ID, or approve one you have received."
+        },
+        "player": {
+          "description": "Connections link you to your coach and your family. Send a request with their public ID, or approve one they sent you."
+        },
+        "observer": {
+          "description": "A connection links you to your child's account so you can follow their schedule and expenses. Send a request with their public ID, or approve the one they sent you."
+        },
+        "admin": {
+          "description": "Active relationships between players, coaches and families are listed here as they are approved."
+        },
+        "action": "New request"
+      },
+      "incoming": {
+        "title": "No incoming requests",
+        "description": "Requests from other people wait here for a decision."
+      },
+      "sent": {
+        "title": "No sent requests",
+        "description": "Requests that were sent stay here until the other person answers."
+      },
+      "search": {
+        "description": "Nothing matches the search."
+      },
+      "revoked": {
+        "title": "No revoked or rejected connections",
+        "description": "Connections that were declined or ended are kept here for reference."
+      }
+    },
+    "equipment": {
+      "title": "No equipment tracked yet",
+      "description": "Keep your rackets, strings and shoes in one place so you know what you play with and when to restring or replace.",
+      "action": "Add an item"
+    },
+    "finance": {
+      "noPlayers": {
+        "title": "No connected players",
+        "description": "Expenses belong to a player's account. Link your child to see what tennis costs them.",
+        "action": "Link your child"
+      },
+      "title": "No expenses logged yet",
+      "player": {
+        "description": "Track what tennis costs you — court time, coaching, travel, gear — and see the breakdown by category.",
+        "action": "Add an expense"
+      },
+      "observer": {
+        "description": "Your child's tennis expenses appear here once they log them. You can view them but not edit them."
+      }
+    },
+    "matches": {
+      "title": "No matches logged yet",
+      "description": "Every statistic in the app comes from the matches you record here — nothing is estimated or pre-filled.",
+      "action": "Log your first match"
+    },
+    "notifications": {
+      "title": "No notifications yet",
+      "description": "Connection requests, training changes and tournament updates arrive here. The settings decide which of them are sent.",
+      "action": "Notification settings",
+      "unread": {
+        "title": "All caught up",
+        "description": "There are no unread notifications."
+      }
+    },
+    "players": {
+      "title": "No connected players yet",
+      "description": "Your players appear here once a connection is approved. Send a request with a player's public ID to build your roster.",
+      "action": "Connect a player",
+      "filtered": {
+        "title": "No players match",
+        "description": "No connected player matches your search."
+      }
+    },
+    "sessionBuilder": {
+      "noPlayers": {
+        "title": "No connected players yet",
+        "description": "A plan is saved to a player's account. Connect a player first, then come back and save this session to their plan.",
+        "action": "Go to Connections"
+      }
+    },
+    "stats": {
+      "title": "No match data yet",
+      "description": "Log a match and your win rate, surface splits, serve and return percentages, recent form and trend appear here — all computed from what you entered.",
+      "action": "Log your first match"
+    },
+    "teams": {
+      "title": "No teams yet",
+      "description": "Group your players into squads to schedule sessions and filter the calendar by team.",
+      "action": "Create a team"
+    },
+    "trainingPlans": {
+      "title": "No plans yet",
+      "coach": {
+        "description": "Plans are built in the Session Builder and saved to a player. Once saved they appear here with their progress.",
+        "action": "Open the Session Builder"
+      },
+      "player": {
+        "description": "Your coach builds plans in the Session Builder and they appear here once saved to you.",
+        "actionConnect": "Connect a coach"
+      }
+    },
+    "trainingRequests": {
+      "title": "No training requests yet",
+      "player": {
+        "description": "Ask your coach for a session at the times that suit you. They approve it, reschedule it or reply here.",
+        "actionRequest": "Request a training",
+        "actionConnect": "Connect a coach"
+      },
+      "coach": {
+        "description": "Requests your players send you arrive here for approval or rescheduling.",
+        "actionConnect": "Connect a player"
+      },
+      "filtered": {
+        "title": "No requests with this status",
+        "description": "Change the status filter to see other requests."
+      }
+    },
+    "trainings": {
+      "title": "No training sessions yet",
+      "coach": {
+        "description": "Trainings are the sessions you schedule for your players. Plan the first one and it lands on everyone's calendar.",
+        "action": "Create a training"
+      },
+      "player": {
+        "description": "The sessions your coach schedules for you appear here, with your feedback after each one.",
+        "actionRequest": "Request a training",
+        "actionConnect": "Connect a coach"
+      },
+      "filtered": {
+        "title": "No trainings match",
+        "description": "Nothing matches the current filters."
+      }
+    }
+  },
   "navbar": {
     "brand": "Tennis AI",
     "howItWorks": "How it works",
@@ -92,23 +321,6 @@
         "subtitle": "Here's your tennis overview for today."
       },
       "loading": "Loading your dashboard…",
-      "getStarted": {
-        "connectCoach": {
-          "label": "Connect your coach",
-          "description": "Approve or send a request so your coach can plan with you.",
-          "action": "Connections"
-        },
-        "logMatch": {
-          "label": "Log your first match",
-          "description": "Statistics are computed from the matches you record.",
-          "action": "Log match"
-        },
-        "addTournament": {
-          "label": "Add a tournament",
-          "description": "Plan your season and keep travel and costs together.",
-          "action": "Tournaments"
-        }
-      },
       "stats": {
         "tournaments": "Tournaments",
         "registeredTrend": "{count} registered"
@@ -142,23 +354,6 @@
       "loading": "Loading your dashboard…",
       "createTeam": "Create Team",
       "newTraining": "New Training",
-      "getStarted": {
-        "connectPlayer": {
-          "label": "Connect your first player",
-          "description": "Send a request with the player's public ID, or approve an incoming one.",
-          "action": "Connections"
-        },
-        "buildSession": {
-          "label": "Build a session",
-          "description": "Assemble drills in the Session Builder and save it as a plan.",
-          "action": "Session Builder"
-        },
-        "scheduleTraining": {
-          "label": "Schedule a training",
-          "description": "Put a session on the calendar so your players can see it.",
-          "action": "Trainings"
-        }
-      },
       "stats": {
         "connectedPlayers": "Connected Players",
         "pendingRequests": "Pending Requests",

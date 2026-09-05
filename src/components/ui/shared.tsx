@@ -96,15 +96,26 @@ export function AccessDeniedState({ className }: { className?: string }) {
 
 // ─── EmptyState ───
 
-export function EmptyState({ icon, title, description, children, className }: {
+/**
+ * The canonical empty state (`components/dashboard/EmptyState` re-exports it).
+ *
+ * Every list page renders this when there is nothing to show. `title` says
+ * what is missing, `description` says what the page is for in one sentence,
+ * and `action` is the single next step — a real route or a real dialog, never
+ * a decorative button. Callers that already pass their button as `children`
+ * keep working; new callers should prefer `action`.
+ */
+export function EmptyState({ icon, title, description, action, children, className }: {
   icon?: React.ReactNode;
   title: string;
   description?: string;
+  /** The one next action (a Button / Link). Rendered after the copy. */
+  action?: React.ReactNode;
   children?: React.ReactNode;
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col items-center gap-4 rounded-xl border border-dashed border-border py-16 text-center", className)}>
+    <div className={cn("flex flex-col items-center gap-4 rounded-xl border border-dashed border-border px-6 py-16 text-center", className)}>
       {icon ? (
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">{icon}</div>
       ) : (
@@ -112,10 +123,11 @@ export function EmptyState({ icon, title, description, children, className }: {
           <Inbox className="h-6 w-6 text-muted-foreground" />
         </div>
       )}
-      <div>
+      <div className="max-w-md">
         <p className="font-medium text-foreground">{title}</p>
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
+      {action && <div className="flex flex-wrap items-center justify-center gap-2">{action}</div>}
       {children}
     </div>
   );

@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { GetStartedCard } from "@/components/dashboard/GetStartedCard";
+import { observerItems } from "@/components/dashboard/firstRunItems";
 import { IncomingRequestsCard } from "@/components/dashboard/IncomingRequestsCard";
 import { statCardClass, statLinkClass } from "@/components/dashboard/statLinkStyles";
 import { StatusBadge, ReadOnlyBadge, ReadOnlyBanner, EmptyState, LoadingState, ErrorState } from "@/components/ui/shared";
@@ -85,6 +87,14 @@ export default function ObserverDashboard() {
         account action, not an edit of a player's data — read-only still holds.
       */}
       <IncomingRequestsCard />
+
+      {/* First-run checklist — link-child and see-week derive from data this
+          page already loaded; the consent review is self-confirmed (see
+          firstRunItems.ts for why nothing on the client can prove it). */}
+      <GetStartedCard
+        storageKey={`observer:${user?.id ?? ""}`}
+        items={observerItems(t, { linkedPlayerCount: connectedPlayers.length, eventCount: calendarEvents.length })}
+      />
 
       {/* Top stats — every figure links to the page that owns it. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

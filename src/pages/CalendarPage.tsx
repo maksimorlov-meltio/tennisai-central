@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/auth/AuthContext";
 import { useConnections } from "@/store/ConnectionStore";
+import { useT } from "@/lib/i18n";
 import { ReadOnlyBanner, ReadOnlyBadge, EmptyState, LoadingState, ErrorState } from "@/components/ui/shared";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -608,6 +609,7 @@ function circuitOf(t: Tournament): TournamentCircuit | undefined {
 }
 
 export default function CalendarPage() {
+  const { t } = useT();
   const { user } = useAuth();
   const { connectedPlayers } = useConnections();
   const queryClient = useQueryClient();
@@ -1312,7 +1314,28 @@ export default function CalendarPage() {
         </div>
 
         <div className="min-w-0 flex-1">
-          {scopedEvents.length === 0 && renderView !== "day" && <EmptyState icon={<CalendarIcon className="h-6 w-6 text-muted-foreground" />} title="No events found" description="No events match your current filters." />}
+          {scopedEvents.length === 0 && renderView !== "day" && (
+            events.length === 0 ? (
+              // First run: nothing on the calendar at all (not a filter result).
+              // Each role's next step is where its events come from.
+              <EmptyState
+                icon={<CalendarIcon className="h-6 w-6 text-muted-foreground" />}
+                title={t("empty.calendar.title")}
+                description={isCoach ? t("empty.calendar.coach.description") : isObserver ? t("empty.calendar.observer.description") : t("empty.calendar.player.description")}
+                action={
+                  isCoach ? (
+                    <Button asChild className="gap-1.5"><Link to="/trainings">{t("empty.calendar.coach.action")}</Link></Button>
+                  ) : isObserver ? (
+                    connectedPlayers.length === 0 ? <Button asChild className="gap-1.5"><Link to="/connections">{t("empty.calendar.observer.action")}</Link></Button> : undefined
+                  ) : (
+                    <Button asChild className="gap-1.5"><Link to="/tournaments">{t("empty.calendar.player.action")}</Link></Button>
+                  )
+                }
+              />
+            ) : (
+              <EmptyState icon={<CalendarIcon className="h-6 w-6 text-muted-foreground" />} title={t("empty.calendar.filtered.title")} description={t("empty.calendar.filtered.description")} />
+            )
+          )}
 
           {/* The phone's month/week. `range` follows `view`, so the arrows and
               the heading above keep stepping whatever the user was on. */}
