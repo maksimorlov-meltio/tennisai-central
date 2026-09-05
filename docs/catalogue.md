@@ -4,6 +4,9 @@ The shared, read-only-to-players product catalogue behind the Player Gear &
 Advice feature: rackets, strings, shoes, balls and accessories, plus the record
 of what a player actually had in their racket and when.
 
+The deterministic engines that read this data — string advice, tournament fit,
+money — are documented in [`recommendations.md`](recommendations.md).
+
 ---
 
 ## The provenance rule
