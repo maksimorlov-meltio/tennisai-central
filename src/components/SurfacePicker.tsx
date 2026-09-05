@@ -36,6 +36,10 @@ export function SurfacePicker({
             key={s.value}
             onClick={() => onChange(s.value)}
             aria-pressed={active}
+            // The tile's own name. Without it the button is named by its
+            // contents — image alt plus caption, "Clay tennis court surface
+            // Clay" (and "Indoor" twice from the painted fallback).
+            aria-label={s.label}
             className={cn(
               "group relative overflow-hidden rounded-lg border-2 transition-all",
               active ? "border-primary ring-2 ring-primary/40" : "border-border hover:border-primary/40",
