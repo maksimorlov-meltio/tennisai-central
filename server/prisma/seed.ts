@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { importTournaments, tournamentSlug } from "../src/tournaments/feed";
 import { importDrills } from "../src/library/importDrills";
 import { validateContent } from "../src/library/validate";
+import { seedGearCatalogue } from "./seedGear";
 
 const prisma = new PrismaClient();
 
@@ -103,14 +104,77 @@ const DEMO_CALENDAR_EVENTS = [
 ];
 
 // Finance / equipment / notifications for player p1.
+// The first three rows predate the EUR default and are deliberately left in
+// USD — the currency a cost was recorded in is a fact about that cost, and
+// re-labelling stored amounts would change what they mean. New rows are EUR.
 const DEMO_FINANCE = [
   { id: "fin-1", playerId: "p1", category: "training", description: "Monthly coaching", amount: 800, currency: "USD", date: "2026-07-01" },
   { id: "fin-2", playerId: "p1", category: "travel", description: "Flight to Melbourne", amount: 640, currency: "USD", date: "2026-07-05" },
   { id: "fin-3", playerId: "p1", category: "equipment", description: "New racket", amount: 220, currency: "USD", date: "2026-07-10" },
+  // Rows in the categories added with the gear wave, in EUR. `fin-5` is booked
+  // against a real tournament id so the event's true cost does not have to be
+  // guessed from a date window.
+  { id: "fin-4", playerId: "p1", category: "stringing", description: "Restring — Hyper-G / NXT hybrid", amount: 28, currency: "EUR", date: "2026-08-23" },
+  { id: "fin-5", playerId: "p1", category: "tournament_fee", description: "Entry fee", amount: 95, currency: "EUR", date: "2026-08-30", tournamentId: AO_2026_ID },
+  { id: "fin-6", playerId: "p1", category: "coaching", description: "Block of 10 private lessons", amount: 450, currency: "EUR", date: "2026-08-01" },
 ];
+// eq-1 / eq-2 are linked to their catalogue products so the gear screens have a
+// real product to reason about rather than a free-text name.
 const DEMO_EQUIPMENT = [
-  { id: "eq-1", playerId: "p1", category: "racket", name: "Pro Staff 97", brand: "Wilson", model: "v14", condition: "good", acquiredDate: "2026-01-15" },
-  { id: "eq-2", playerId: "p1", category: "shoes", name: "Court FF 3", brand: "Asics", condition: "new", acquiredDate: "2026-06-20" },
+  { id: "eq-1", playerId: "p1", category: "racket", name: "Pro Staff 97", brand: "Wilson", model: "v14", condition: "good", acquiredDate: "2026-01-15", productId: "prod-wilson-pro-staff-97-v14" },
+  { id: "eq-2", playerId: "p1", category: "shoes", name: "Court FF 3", brand: "Asics", condition: "new", acquiredDate: "2026-06-20", productId: "prod-asics-court-ff-3" },
+];
+
+// Three stringings on p1's Pro Staff (eq-1): two retired, one current. Without
+// these every gear screen opens empty, and an empty history is indistinguishable
+// from a broken one.
+const DEMO_STRING_SETUPS = [
+  {
+    id: "ss-p1-1",
+    playerId: "p1",
+    racketItemId: "eq-1",
+    mainsProductId: "prod-luxilon-alu-power-125",
+    tensionMainsKg: 23,
+    strungAt: day(-120, 10),
+    stringerName: "Center Court stringing",
+    costEur: 32,
+    hoursPlayed: 14,
+    retiredAt: day(-106, 18),
+    retiredReason: "broke",
+    comfortNote: 2,
+    notes: "Superb control, but the elbow was complaining by the second week.",
+  },
+  {
+    id: "ss-p1-2",
+    playerId: "p1",
+    racketItemId: "eq-1",
+    mainsProductId: "prod-head-lynx-tour-125",
+    tensionMainsKg: 22,
+    strungAt: day(-100, 10),
+    stringerName: "Center Court stringing",
+    costEur: 27,
+    hoursPlayed: 22,
+    retiredAt: day(-62, 18),
+    retiredReason: "dead",
+    comfortNote: 4,
+    notes: "Much kinder on the arm. Went flat around the 20-hour mark.",
+  },
+  {
+    id: "ss-p1-3",
+    playerId: "p1",
+    racketItemId: "eq-1",
+    mainsProductId: "prod-solinco-hyper-g-120",
+    crossesProductId: "prod-wilson-nxt-16",
+    tensionMainsKg: 22.5,
+    tensionCrossesKg: 23.5,
+    prestretch: false,
+    strungAt: day(-12, 10),
+    stringerName: "Center Court stringing",
+    costEur: 28,
+    hoursPlayed: 6,
+    comfortNote: 4,
+    notes: "Current setup — poly mains, multifilament crosses.",
+  },
 ];
 const DEMO_NOTIFICATIONS = [
   { id: "notif-1", userId: "p1", type: "training_request_approved", title: "Training Request Approved", message: "Your individual request for 2026-07-22 was approved", read: false, linkTo: "/calendar" },
@@ -305,11 +369,29 @@ async function main() {
     await prisma.calendarEvent.upsert({ where: { id: ev.id }, update: values, create: values });
   }
 
+  // The gear catalogue must land BEFORE the equipment + string-setup rows that
+  // reference it by foreign key.
+  const gear = await seedGearCatalogue(prisma);
+
   for (const f of DEMO_FINANCE) {
-    await prisma.financeEntry.upsert({ where: { id: f.id }, update: { amount: f.amount }, create: f });
+    await prisma.financeEntry.upsert({
+      where: { id: f.id },
+      update: { amount: f.amount, category: f.category, currency: f.currency, tournamentId: f.tournamentId ?? null },
+      create: f,
+    });
   }
   for (const e of DEMO_EQUIPMENT) {
-    await prisma.equipmentItem.upsert({ where: { id: e.id }, update: { name: e.name }, create: e });
+    // productId goes in BOTH branches: eq-1 and eq-2 already exist in any
+    // database seeded before the gear wave, so the update branch is the one
+    // that actually runs there and the link would otherwise never be made.
+    await prisma.equipmentItem.upsert({
+      where: { id: e.id },
+      update: { name: e.name, productId: e.productId },
+      create: e,
+    });
+  }
+  for (const ss of DEMO_STRING_SETUPS) {
+    await prisma.stringSetup.upsert({ where: { id: ss.id }, update: ss, create: ss });
   }
   for (const n of DEMO_NOTIFICATIONS) {
     await prisma.notification.upsert({ where: { id: n.id }, update: { title: n.title }, create: n });
@@ -377,6 +459,12 @@ async function main() {
   console.log(`✅ Seeded ${DEMO_TEAMS.length} team + ${DEMO_CONNECTIONS.length} connection.`);
   console.log(`✅ Seeded ${DEMO_TRAINING_REQUESTS.length} training request + ${DEMO_CALENDAR_EVENTS.length} calendar event.`);
   console.log(`✅ Seeded ${DEMO_FINANCE.length} finance + ${DEMO_EQUIPMENT.length} equipment + ${DEMO_NOTIFICATIONS.length} notification for p1.`);
+  console.log(
+    `✅ Seeded ${gear.total} catalogue products (` +
+      Object.entries(gear.counts).map(([c, n]) => `${c}: ${n}`).join(", ") +
+      `) — ${gear.verified} with lastVerifiedAt set (source actually retrieved), ${gear.total - gear.verified} left null.`,
+  );
+  console.log(`✅ Seeded ${DEMO_STRING_SETUPS.length} string setups for p1 on eq-1 (2 retired + 1 current).`);
   console.log(`✅ Seeded 1 academy + ${DEMO_ACADEMY_MEMBERSHIPS.length} memberships + ${DEMO_COACH_ASSIGNMENTS.length} coach assignment + ${DEMO_GUARDIANSHIPS.length} guardianship (consented).`);
   console.log(`✅ Seeded ${DEMO_SUBSCRIPTIONS.length} subscription + ${DEMO_OPPONENTS.length} opponents + ${DEMO_MATCHES.length} matches for p1.`);
 

@@ -13,22 +13,22 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  publicId      String   @unique // shareable directory id, e.g. TAI-P-001
-  passwordHash  String
-  role          String // "player" | "coach" | "observer" | "admin"
-  firstName     String
-  lastName      String
-  emailVerified Boolean  @default(false)
-  onboarding            Json? // role-based onboarding answers (see src/lib/onboarding)
-  onboardingCompletedAt DateTime? // set when the user finishes the intro questionnaire
-  termsAcceptedAt       DateTime? // set at signup when the user accepts the Terms of Service
-  ageConfirmedAt        DateTime? // set at signup when the user confirms the age requirement
+  id                      String    @id @default(cuid())
+  email                   String    @unique
+  publicId                String    @unique // shareable directory id, e.g. TAI-P-001
+  passwordHash            String
+  role                    String // "player" | "coach" | "observer" | "admin"
+  firstName               String
+  lastName                String
+  emailVerified           Boolean   @default(false)
+  onboarding              Json? // role-based onboarding answers (see src/lib/onboarding)
+  onboardingCompletedAt   DateTime? // set when the user finishes the intro questionnaire
+  termsAcceptedAt         DateTime? // set at signup when the user accepts the Terms of Service
+  ageConfirmedAt          DateTime? // set at signup when the user confirms the age requirement
   // Date of birth as ISO "yyyy-MM-dd". Held on User, not only on PlayerProfile,
   // because the minor check runs at signup — before any profile exists, and for
   // every role, not just players.
-  dateOfBirth           String?
+  dateOfBirth             String?
   // Guardian consent, for accounts below the age of digital consent.
   // The threshold is configurable (MINOR_AGE_THRESHOLD) rather than hardcoded:
   // GDPR leaves it to member states and it ranges from 13 to 16 — Spain 14,
@@ -40,56 +40,56 @@ model User {
   // threshold; login refuses while it is true and guardianConsentAt is null.
   // Derived rules ("guardianEmail is set, so...") are the kind that quietly
   // stop firing when an unrelated field changes shape.
-  guardianConsentRequired Boolean @default(false)
-  guardianEmail         String?
-  guardianName          String?
-  guardianConsentAt     DateTime?
-  guardianConsentToken  String?   @unique
-  guardianConsentSentAt DateTime?
+  guardianConsentRequired Boolean   @default(false)
+  guardianEmail           String?
+  guardianName            String?
+  guardianConsentAt       DateTime?
+  guardianConsentToken    String?   @unique
+  guardianConsentSentAt   DateTime?
   // Bumped on every password change. A password-reset token issued BEFORE this
   // timestamp is rejected, which makes reset links effectively single-use.
-  passwordChangedAt     DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  passwordChangedAt       DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   // back-relations (trainings domain)
-  coachedTrainings       Training[]            @relation("TrainingCoach")
-  trainingParticipations TrainingParticipant[]
+  coachedTrainings         Training[]              @relation("TrainingCoach")
+  trainingParticipations   TrainingParticipant[]
   // back-relations (tournaments domain)
-  playerTournaments      PlayerTournament[]
-  hiddenTournaments      HiddenTournament[]
+  playerTournaments        PlayerTournament[]
+  hiddenTournaments        HiddenTournament[]
   // back-relations (teams domain)
-  coachedTeams    Team[]       @relation("TeamCoach")
-  teamMemberships TeamMember[]
+  coachedTeams             Team[]                  @relation("TeamCoach")
+  teamMemberships          TeamMember[]
   // back-relations (connections domain)
-  sentConnections     ConnectionRequest[] @relation("ConnFrom")
-  receivedConnections ConnectionRequest[] @relation("ConnTo")
+  sentConnections          ConnectionRequest[]     @relation("ConnFrom")
+  receivedConnections      ConnectionRequest[]     @relation("ConnTo")
   // back-relations (training-requests domain)
-  trainingRequestsAsPlayer TrainingRequest[] @relation("TRPlayer")
-  trainingRequestsAsCoach  TrainingRequest[] @relation("TRCoach")
+  trainingRequestsAsPlayer TrainingRequest[]       @relation("TRPlayer")
+  trainingRequestsAsCoach  TrainingRequest[]       @relation("TRCoach")
   // back-relations (finance / equipment / notifications)
-  financeEntries         FinanceEntry[]
-  equipmentItems         EquipmentItem[]
-  notifications          Notification[]
-  notificationPreference NotificationPreference?
-  calendarPreference     CalendarPreference?
-  pushSubscriptions      PushSubscription[]
+  financeEntries           FinanceEntry[]
+  equipmentItems           EquipmentItem[]
+  notifications            Notification[]
+  notificationPreference   NotificationPreference?
+  calendarPreference       CalendarPreference?
+  pushSubscriptions        PushSubscription[]
 
   // back-relations (analytics domain — Stage 1, additive)
-  profile                  PlayerProfile?     @relation("UserProfile")
-  coachNotesAuthored       PrivateCoachNote[] @relation("CoachNoteAuthor")
-  coachNotesAbout          PrivateCoachNote[] @relation("CoachNoteSubject")
-  ownedOpponents           Opponent[]         @relation("OpponentOwner")
-  matches                  Match[]            @relation("MatchPlayer")
-  scoutingReportsCreated   ScoutingReport[]   @relation("ScoutingCreatedBy")
-  gamePlansAsPlayer        GamePlan[]         @relation("GamePlanPlayer")
-  gamePlansCreated         GamePlan[]         @relation("GamePlanCreatedBy")
-  postMatchReportsCreated  PostMatchReport[]  @relation("PostMatchCreatedBy")
-  trainingPlansAsPlayer    TrainingPlan[]     @relation("TrainingPlanPlayer")
-  trainingPlansCreated     TrainingPlan[]     @relation("TrainingPlanCreatedBy")
-  aiGenerations            AiGeneration[]     @relation("AiGenUser")
-  subscription             Subscription?      @relation("SubscriptionOwner")
-  aiUsageCounters          AiUsageCounter[]   @relation("AiUsageUser")
+  profile                 PlayerProfile?     @relation("UserProfile")
+  coachNotesAuthored      PrivateCoachNote[] @relation("CoachNoteAuthor")
+  coachNotesAbout         PrivateCoachNote[] @relation("CoachNoteSubject")
+  ownedOpponents          Opponent[]         @relation("OpponentOwner")
+  matches                 Match[]            @relation("MatchPlayer")
+  scoutingReportsCreated  ScoutingReport[]   @relation("ScoutingCreatedBy")
+  gamePlansAsPlayer       GamePlan[]         @relation("GamePlanPlayer")
+  gamePlansCreated        GamePlan[]         @relation("GamePlanCreatedBy")
+  postMatchReportsCreated PostMatchReport[]  @relation("PostMatchCreatedBy")
+  trainingPlansAsPlayer   TrainingPlan[]     @relation("TrainingPlanPlayer")
+  trainingPlansCreated    TrainingPlan[]     @relation("TrainingPlanCreatedBy")
+  aiGenerations           AiGeneration[]     @relation("AiGenUser")
+  subscription            Subscription?      @relation("SubscriptionOwner")
+  aiUsageCounters         AiUsageCounter[]   @relation("AiUsageUser")
 
   // back-relations (roles & tenancy — Stage 2, additive)
   academyMemberships       AcademyMembership[] @relation("AcademyMemberUser")
@@ -103,6 +103,8 @@ model User {
   generatedSessionsAsCoach  GeneratedSession[] @relation("GeneratedSessionCoach")
   generatedSessionsAsPlayer GeneratedSession[] @relation("GeneratedSessionPlayer")
   coachPreferences          CoachPreference[]  @relation("CoachPreferenceCoach")
+  // back-relations (gear domain — additive)
+  stringSetups StringSetup[] @relation("StringSetupPlayer")
 
   @@map("users")
 }
@@ -113,7 +115,7 @@ model User {
 // The nested review / feedback / analysis objects are stored as JSON.
 
 model Training {
-  id                    String    @id @default(cuid())
+  id                    String   @id @default(cuid())
   title                 String
   description           String?
   trainingType          String // individual | team | match_practice | fitness | recovery | tactical
@@ -129,8 +131,8 @@ model Training {
   review                Json? // TrainingReview
   playerSessionFeedback Json? // PlayerSessionFeedback
   analysis              Json? // TrainingAnalysis
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   coach        User                  @relation("TrainingCoach", fields: [coachId], references: [id], onDelete: Cascade)
   participants TrainingParticipant[]
@@ -141,20 +143,20 @@ model Training {
 }
 
 model TrainingParticipant {
-  id         String   @id @default(cuid())
-  trainingId String
-  playerId   String
-  createdAt  DateTime @default(now())
+  id             String    @id @default(cuid())
+  trainingId     String
+  playerId       String
+  createdAt      DateTime  @default(now())
   // Attendance lives on the join row, not on a separate model: a participant
   // IS the thing that attends, and a second table would allow a mark with no
   // matching participant. Null means "not yet marked", which is different from
   // "absent" and has to stay tellable apart — a coach who has not taken the
   // register yet is not a coach reporting an empty session.
   // "present" | "absent" | "late" | "excused"
-  attendance       String?
-  attendanceAt     DateTime?
-  attendanceBy     String? // coach User id who took the register
-  attendanceNote   String?
+  attendance     String?
+  attendanceAt   DateTime?
+  attendanceBy   String? // coach User id who took the register
+  attendanceNote String?
 
   training Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
   player   User     @relation(fields: [playerId], references: [id], onDelete: Cascade)
@@ -191,11 +193,11 @@ model Tournament {
   // The date entries close: the most time-critical fact about a tournament, and
   // the one most often missed. A perfect event found two days late is not an
   // option at all.
-  entryDeadline DateTime?
+  entryDeadline   DateTime?
   // Age band ("U16", "18 & Under"), the venue, and the event's own page.
-  ageCategory String?
-  venue       String?
-  website     String?
+  ageCategory     String?
+  venue           String?
+  website         String?
   // How many players have entered so far — a rough read on field strength, and
   // on whether the draw will happen at all.
   registeredCount Int?
@@ -216,11 +218,13 @@ model Tournament {
   sourceUrl  String?
   lastSeenAt DateTime?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  playerEntries PlayerTournament[]
-  hiddenBy      HiddenTournament[]
+  playerEntries  PlayerTournament[]
+  hiddenBy       HiddenTournament[]
+  // Costs booked against this event (gear domain — additive).
+  financeEntries FinanceEntry[]
 
   @@index([startDate])
   @@index([federation, startDate])
@@ -384,18 +388,33 @@ model CalendarEvent {
 // ── Finance / Equipment / Notifications ──────────────────────────
 
 model FinanceEntry {
-  id          String   @id @default(cuid())
-  playerId    String
-  category    String // training | travel | tournament | equipment
-  description String
-  amount      Float
-  currency    String   @default("USD")
-  date        String
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  playerId     String
+  // Additive vocabulary — nothing was renamed, so every row already written
+  // stays valid:
+  //   training | travel | tournament | equipment            (original four)
+  //   coaching | stringing | tournament_fee | accommodation
+  //   food | membership | other                             (added, gear wave)
+  category     String
+  description  String
+  amount       Float
+  // Default changed USD → EUR for NEW rows only. Existing rows keep the
+  // currency they were written with — the migration alters the column default
+  // and never runs an UPDATE, because re-labelling a stored amount would
+  // silently change what it means.
+  currency     String   @default("EUR")
+  date         String
+  // Optional link to the event this cost belongs to. Without it, "what did
+  // Roland Garros actually cost" has to be inferred from a date window, which
+  // is wrong the moment a flight is booked two months early.
+  tournamentId String?
+  createdAt    DateTime @default(now())
 
-  player User @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  player     User        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  tournament Tournament? @relation(fields: [tournamentId], references: [id], onDelete: SetNull)
 
   @@index([playerId])
+  @@index([tournamentId])
   @@map("finance_entries")
 }
 
@@ -409,24 +428,35 @@ model EquipmentItem {
   notes        String?
   acquiredDate String?
   condition    String?
+  // Optional link to the shared catalogue. Null means "the player typed this
+  // in themselves and it matches nothing we carry" — a perfectly valid state,
+  // so this is nullable and SetNull rather than a required foreign key. A
+  // product being retired from the catalogue must never delete a player's own
+  // record of the racket in their bag.
+  productId    String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  player User @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  player  User              @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  product EquipmentProduct? @relation("EquipmentItemProduct", fields: [productId], references: [id], onDelete: SetNull)
+
+  // Every stringing this frame has been through.
+  stringSetups StringSetup[] @relation("StringSetupRacket")
 
   @@index([playerId])
+  @@index([productId])
   @@map("equipment_items")
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   type      String
   title     String
   message   String
-  read      Boolean  @default(false)
+  read      Boolean   @default(false)
   linkTo    String?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   // Set once this notification has been delivered by email, so a retry or a
   // scheduled sweep can never send the same notification twice.
   emailedAt DateTime?
@@ -555,19 +585,19 @@ model PlayerProfile {
   currentGoals           String?
   injuryRestrictions     String?
   // Playing-style dimensions (1..10)
-  styleAggression      Int? // defensive(1)..aggressive(10)
-  styleNetPlay         Int? // deep baseline(1)..frequent net(10)
-  styleRallyTolerance  Int? // short-point pref(1)..long-rally(10)
-  styleServeDependence Int? // low(1)..high(10)
-  styleRiskLevel       Int? // conservative(1)..high-risk(10)
-  styleReturnPosition  Int? // inside-baseline(1)..deep(10)
-  stylePressure        Int? // pressure performance 1..10
-  suitClay             Int? // surface suitability 1..10
-  suitHard             Int?
-  suitGrass            Int?
-  suitIndoor           Int?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  styleAggression        Int? // defensive(1)..aggressive(10)
+  styleNetPlay           Int? // deep baseline(1)..frequent net(10)
+  styleRallyTolerance    Int? // short-point pref(1)..long-rally(10)
+  styleServeDependence   Int? // low(1)..high(10)
+  styleRiskLevel         Int? // conservative(1)..high-risk(10)
+  styleReturnPosition    Int? // inside-baseline(1)..deep(10)
+  stylePressure          Int? // pressure performance 1..10
+  suitClay               Int? // surface suitability 1..10
+  suitHard               Int?
+  suitGrass              Int?
+  suitIndoor             Int?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   user User @relation("UserProfile", fields: [userId], references: [id], onDelete: Cascade)
 
@@ -596,23 +626,23 @@ model PrivateCoachNote {
 
 // --- Reusable opponent scouting record ──────────────────────────
 model Opponent {
-  id                  String   @id @default(cuid())
-  ownerId             String // coach/player who owns this record
-  academyId           String? // loose pointer (tenancy added in Stage 2)
-  firstName           String
-  lastName            String
-  dominantHand        String?
-  backhandType        String?
-  preferredSurface    String?
-  strongestStroke     String?
-  weakestStroke       String?
-  servePatterns       String?
-  returnPosition      String?
-  returnTendencies    String?
-  forehandPreference  String?
-  backhandPreference  String?
-  netBehaviour        String?
-  pressurePerformance String?
+  id                   String   @id @default(cuid())
+  ownerId              String // coach/player who owns this record
+  academyId            String? // loose pointer (tenancy added in Stage 2)
+  firstName            String
+  lastName             String
+  dominantHand         String?
+  backhandType         String?
+  preferredSurface     String?
+  strongestStroke      String?
+  weakestStroke        String?
+  servePatterns        String?
+  returnPosition       String?
+  returnTendencies     String?
+  forehandPreference   String?
+  backhandPreference   String?
+  netBehaviour         String?
+  pressurePerformance  String?
   styleAggression      Int?
   styleNetPlay         Int?
   styleRallyTolerance  Int?
@@ -620,9 +650,9 @@ model Opponent {
   styleRiskLevel       Int?
   styleReturnPosition  Int?
   stylePressure        Int?
-  observations        Json? // explicitly-marked coach observations
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  observations         Json? // explicitly-marked coach observations
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   owner           User             @relation("OpponentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   matches         Match[]
@@ -635,18 +665,18 @@ model Opponent {
 
 // --- Match recording (raw counts only) ──────────────────────────
 model Match {
-  id            String   @id @default(cuid())
-  playerId      String
-  opponentId    String?
-  academyId     String?
-  date          DateTime
-  competition   String?
-  surface       String // clay | hard | grass | indoor
-  indoorOutdoor String // indoor | outdoor
-  format        String // best_of_3 | best_of_5 | pro_set | ...
-  result        String? // win | loss — NEVER used to infer performance quality
-  scoreSets     Json // [{ player: 6, opponent: 4, tiebreak?: "7-5" }]
-  conditions    String?
+  id                   String   @id @default(cuid())
+  playerId             String
+  opponentId           String?
+  academyId            String?
+  date                 DateTime
+  competition          String?
+  surface              String // clay | hard | grass | indoor
+  indoorOutdoor        String // indoor | outdoor
+  format               String // best_of_3 | best_of_5 | pro_set | ...
+  result               String? // win | loss — NEVER used to infer performance quality
+  scoreSets            Json // [{ player: 6, opponent: 4, tiebreak?: "7-5" }]
+  conditions           String?
   // ── raw counts (percentages computed on read) ──
   firstServeAttempts   Int?
   firstServesIn        Int?
@@ -1144,4 +1174,232 @@ model Guardianship {
   @@index([guardianId])
   @@index([juniorPlayerId])
   @@map("guardianships")
+}
+
+// ── Gear catalogue domain (additive) ──────────────────────────────
+//
+// PROVENANCE IS PART OF THE DATA MODEL, NOT A NICE-TO-HAVE.
+// Every row carries `source`, `sourceUrl` and `lastVerifiedAt`. A spec number
+// with no traceable origin is a guess wearing a lab coat, and a player who
+// restrings at the wrong tension because of one has been actively harmed.
+// `lastVerifiedAt` stays null until the source was actually retrieved and the
+// numbers cross-checked — null is the honest default, never a timestamp
+// stamped in by a seed for rows nobody looked at.
+//
+// SPECIFICATIONS ONLY. Manufacturer marketing copy and product photography are
+// their copyright: we compile published numbers, we never copy descriptions or
+// images, and we never scrape retailers. `imageUrl` therefore stays null unless
+// an image is licensed (see the `licensed` column in the CSV import).
+//
+// See docs/catalogue.md for the CSV column spec and the AccessorySpec shape.
+model EquipmentProduct {
+  // Ids are cuid() for rows created through the API or the CSV import, but the
+  // seed pins readable slugs (prod-wilson-pro-staff-97-v14) so demo data and
+  // any fixture referencing it stay legible in a diff.
+  id             String    @id @default(cuid())
+  // SAME vocabulary as the frontend EquipmentItem.category (src/types):
+  // racket | string | shoes | balls | accessories.
+  // Sub-kinds of accessory (grip, dampener, bag, apparel, …) live in
+  // AccessorySpec.attributes.kind rather than fragmenting this list, so the
+  // player's own equipment list and the catalogue never disagree on a category.
+  category       String
+  brand          String
+  model          String
+  // "" (empty string), never null, when a product has no variant.
+  // Postgres treats NULLs as DISTINCT in a unique index, so a nullable variant
+  // would let ("Wilson","Pro Staff 97",NULL) be inserted an unlimited number of
+  // times and the upsert-on-conflict the CSV import depends on would never
+  // fire. The empty string is a real value and collides properly.
+  variant        String    @default("")
+  releaseYear    Int?
+  msrpEur        Float?
+  // Null unless the image is licensed for our use. Never populated from a
+  // manufacturer or retailer page.
+  imageUrl       String?
+  // Where the numbers came from, and the page they came from.
+  source         String
+  sourceUrl      String
+  // Set ONLY when the source was actually retrieved and cross-checked.
+  lastVerifiedAt DateTime?
+  // Soft-delete: a discontinued product stays readable so a player's existing
+  // EquipmentItem / StringSetup links never dangle, but drops out of the
+  // catalogue listing.
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  racketSpec    RacketSpec?
+  stringSpec    StringSpec?
+  shoeSpec      ShoeSpec?
+  accessorySpec AccessorySpec?
+
+  equipmentItems      EquipmentItem[] @relation("EquipmentItemProduct")
+  stringSetupsAsMains StringSetup[]   @relation("StringSetupMains")
+  stringSetupsAsCross StringSetup[]   @relation("StringSetupCrosses")
+
+  @@unique([brand, model, variant])
+  @@index([category, brand])
+  @@map("equipment_products")
+}
+
+// Frame specifications. Both head-size units are stored rather than derived:
+// manufacturers publish one or the other, and converting back and forth turns
+// 97 in² into 96 in².
+model RacketSpec {
+  id        String @id @default(cuid())
+  productId String @unique
+
+  headSizeCm2             Int
+  headSizeIn2             Int
+  lengthCm                Float
+  unstrungWeightG         Int
+  strungWeightG           Int?
+  balanceMm               Int
+  balancePtsHL            Int?
+  swingweight             Int?
+  stiffnessRa             Int?
+  // Beam width as published, e.g. "23/26/23" — a profile, not one number.
+  beamMm                  String
+  stringPatternMains      Int
+  stringPatternCrosses    Int
+  // The manufacturer's recommended range, in kg. Kilograms are the single
+  // stored unit across this whole domain; pounds are derived on the client
+  // (lbs = kg × 2.2046) so the two can never drift apart in the database.
+  recommendedTensionMinKg Float
+  recommendedTensionMaxKg Float
+  composition             String?
+  // Available grip sizes as published, e.g. ["L0","L1","L2","L3","L4"].
+  gripSizes               String[]
+  // beginner | intermediate | advanced | pro
+  targetLevel             String
+
+  product EquipmentProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("racket_specs")
+}
+
+// String specifications. The 1–10 ratings are the manufacturer's own published
+// performance claims where they publish them — comparative marketing numbers,
+// not measurements. docs/catalogue.md says so, and so must any UI showing them.
+model StringSpec {
+  id        String @id @default(cuid())
+  productId String @unique
+
+  // polyester | co_polyester | multifilament | synthetic_gut | natural_gut
+  // | kevlar | hybrid_set
+  material   String
+  gaugeMm    Float
+  // The label as sold ("16L", "1.25"), which does not always match the gauge.
+  gaugeLabel String
+  // round | hexagonal | pentagonal | octagonal | twisted | textured
+  shape      String
+  coating    String?
+  colour     String?
+
+  // 1–10, as published by the manufacturer.
+  power              Int
+  control            Int
+  spin               Int
+  comfort            Int
+  durability         Int
+  tensionMaintenance Int
+
+  recommendedTensionMinKg Float
+  recommendedTensionMaxKg Float
+  hybridPartnerNote       String?
+
+  product EquipmentProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("string_specs")
+}
+
+model ShoeSpec {
+  id        String @id @default(cuid())
+  productId String @unique
+
+  // clay | hard | all_court | grass | carpet | indoor
+  courtType              String
+  weightG                Int
+  dropMm                 Int?
+  // narrow | standard | wide
+  widthFit               String
+  cushioning             String
+  // low | medium | high
+  stability              String
+  // Months of outsole durability guaranteed by the manufacturer, where offered.
+  outsoleGuaranteeMonths Int?
+  sizesEu                String[]
+
+  product EquipmentProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("shoe_specs")
+}
+
+// Balls and accessories. A grip, a dampener, a bag and a tin of balls share
+// almost no vocabulary, so rather than a column each the payload is JSON with a
+// documented shape per `kind` (docs/catalogue.md). `kind` is always present.
+model AccessorySpec {
+  id        String @id @default(cuid())
+  productId String @unique
+
+  attributes Json
+
+  product EquipmentProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("accessory_specs")
+}
+
+// One stringing job on one frame. This is the record that makes gear advice
+// possible at all: what was in the racket, at what tension, how long it lasted,
+// and why it came out.
+//
+// Tension is stored in KILOGRAMS ONLY. Clients that display pounds convert on
+// read (lbs = kg × 2.2046). Storing both units would guarantee they disagree.
+model StringSetup {
+  id           String @id @default(cuid())
+  playerId     String
+  // The specific frame in the player's bag, not the catalogue product — two
+  // identical rackets can be strung differently on purpose.
+  racketItemId String
+
+  // The catalogue rows used, when the string is one we carry…
+  mainsProductId    String?
+  crossesProductId  String?
+  // …and the free text the player typed when it is not. One of each pair is
+  // expected, but neither is required: a player who does not know what is in
+  // their racket still has a tension worth recording.
+  mainsCustomName   String?
+  crossesCustomName String?
+
+  tensionMainsKg   Float
+  // Null means "same as mains" — a single-tension job, which is most of them.
+  tensionCrossesKg Float?
+  prestretch       Boolean?
+
+  strungAt     DateTime
+  stringerName String?
+  costEur      Float?
+  // Hours actually played on this set. The honest input for "is it dead yet".
+  hoursPlayed  Float?
+
+  // Retirement. A null retiredAt means this is the current setup in that frame.
+  retiredAt     DateTime?
+  // broke | dead | switched | other
+  retiredReason String?
+  // 1–5, the player's own comfort verdict. Subjective on purpose, and to be
+  // labelled as such wherever it is shown.
+  comfortNote   Int?
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  player     User              @relation("StringSetupPlayer", fields: [playerId], references: [id], onDelete: Cascade)
+  racketItem EquipmentItem     @relation("StringSetupRacket", fields: [racketItemId], references: [id], onDelete: Cascade)
+  mains      EquipmentProduct? @relation("StringSetupMains", fields: [mainsProductId], references: [id], onDelete: SetNull)
+  crosses    EquipmentProduct? @relation("StringSetupCrosses", fields: [crossesProductId], references: [id], onDelete: SetNull)
+
+  @@index([playerId, strungAt])
+  @@index([racketItemId])
+  @@map("string_setups")
 }

@@ -108,6 +108,20 @@ pre-verified. Set `APP_URL` to the real frontend origin in production so the lin
 | GET | `/api/notifications` · PATCH `/:id/read` · `/read-all` | Bearer | Notifications (self)       |
 | GET/PATCH | `/api/notification-preferences` | Bearer | Per-user notification settings   |
 | GET/PATCH | `/api/me/profile`         | Bearer | View / update own profile            |
+| PATCH  | `/api/finance/:id`           | Bearer | Update a finance entry (self only)   |
+| GET    | `/api/catalogue`             | Bearer | Gear catalogue: filter, facet-select, sort, page (pageSize capped at 100) |
+| GET    | `/api/catalogue/facets`      | Bearer | Facet counts + numeric min/max for the current filter |
+| GET    | `/api/catalogue/:id`         | Bearer | One product + its spec (404 if inactive) |
+| GET/POST | `/api/players/:id/string-setups` | Bearer | Stringing history (owner, assigned coach, consented guardian) |
+| PATCH/DELETE | `/api/string-setups/:id` | Bearer | Update / retire / delete a stringing (same authz) |
+| POST   | `/api/admin/catalogue/import`| Bearer + `admin` | CSV catalogue import, `text/csv`, 1 MB cap |
+
+Gear endpoints, the CSV column spec and the provenance rules they enforce are
+documented in [`../docs/catalogue.md`](../docs/catalogue.md). Two things that
+bite if you do not know them: **tension is stored in kilograms only** (clients
+derive lbs = kg × 2.2046), and `EquipmentProduct.variant` is `""` rather than
+`null` when absent, because Postgres treats NULLs as distinct in a unique index
+and the import's upsert would otherwise never collide.
 
 ## Library
 
@@ -156,6 +170,11 @@ See [`../DEPLOY.md`](../DEPLOY.md) for the full Vercel + Render + Postgres runbo
 - ✅ **Training requests + Calendar** — real: `/api/training-requests` (approve creates
   a linked calendar event **and a notification**) and `/api/calendar/events` (recurrence
   expanded into occurrences on read).
+- ✅ **Gear catalogue · String setups** — real: `/api/catalogue` (+ `/facets`),
+  `/api/players/:id/string-setups`, `/api/string-setups/:id`, and an admin-only
+  CSV import at `/api/admin/catalogue/import`. Every product carries `source`,
+  `sourceUrl` and `lastVerifiedAt`; `lastVerifiedAt` is null unless the source
+  was genuinely retrieved and cross-checked.
 - ✅ **Finance · Equipment · Notifications · Profile** — real, self-scoped:
   `/api/players/:id/finance` (+ summary), `/api/players/:id/equipment` + `/api/equipment/:id`,
   `/api/notifications` (+ `/notification-preferences`), `/api/me/profile`.
