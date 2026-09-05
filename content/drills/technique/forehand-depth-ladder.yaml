@@ -119,12 +119,5 @@ sources:
     year: 2023
     note: "Documents where points finish and how often short rallies decide them, which is why the scoring zone is depth rather than the line."
     fetchedAt: "2026-09-04"
-  - coachOrBody: "Lawn Tennis Association"
-    title: "Coaching LTA Youth"
-    medium: curriculum
-    publisherOrChannel: "LTA"
-    url: "https://www.lta.org.uk/roles-and-venues/coaches/products-and-programmes/lta-youth/"
-    note: "Stage-based youth curriculum consulted for the level and age banding."
-    fetchedAt: "2026-09-04"
 licence: none
 authorAgent: db

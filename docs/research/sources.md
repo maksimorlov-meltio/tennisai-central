@@ -22,7 +22,7 @@ All fetched **2026-09-04** for the first ten exemplar drills.
 
 | Body | Page | What it documents | Used for |
 |---|---|---|---|
-| Lawn Tennis Association (LTA) | https://www.lta.org.uk/roles-and-venues/coaches/products-and-programmes/lta-youth/ | The LTA Youth coaching programme: an introductory stage plus five colour stages (blue, red, orange, green, yellow) for ages 4–18, delivered through modified equipment and game-based learning, with a coach competency framework behind it. | `red-ball-catch-and-rally` (games_kids), age/level banding on `forehand-depth-ladder` |
+| Lawn Tennis Association (LTA) | https://www.lta.org.uk/roles-and-venues/coaches/products-and-programmes/lta-youth/ | The LTA Youth coaching programme: an introductory stage plus five colour stages (blue, red, orange, green, yellow) for ages 4–18, delivered through modified equipment and game-based learning, with a coach competency framework behind it. | `red-ball-catch-and-rally` (games_kids) only. It was also read while setting the age/level bands on `forehand-depth-ladder`, but it does not document that drill or its pattern, so it is not cited there. |
 | United States Tennis Association (USTA) | https://www.usta.com/en/home/coach-organize.html · https://www.usta.com/en/home/coach-organize/coaches.html | Navigation hubs for USTA's coaching and organiser resources (tool centre, program support, USTA Coaching education). Thin on method — pointers rather than curriculum. | Background only; not cited in a drill |
 
 ### Open-access sport science
